@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 
+import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsSideTuple;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFilePointer;
@@ -351,7 +352,8 @@ public class ThetaFlexibleJoiner {
                     //Below we need to create appropriate accessor to use it in comparator
                     byte[] dumpArray = new byte[21];
                     ByteBuffer buff = ByteBuffer.wrap(dumpArray);
-                    buff.position(14);
+                    buff.position(13);
+                    buff.put(ATypeTag.INTEGER.serialize());
                     buff.putInt(bucketInfo[0]);
                     //buff.position(0);
                     dumpTupleAccessorForBucket1.reset(buff);
@@ -390,8 +392,6 @@ public class ThetaFlexibleJoiner {
                             frameCounter++;
                         }
                     } else if (!writtenToDisk) {
-
-
 
                         TuplePointer tuplePointerTester = table.getProbeTuplePointer(probeBucketId);
                         boolean isBucketNew = (tuplePointerTester == null) || (tuplePointerTester.getFrameIndex() == -1

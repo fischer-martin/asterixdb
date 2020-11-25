@@ -19,10 +19,8 @@
 package org.apache.hyracks.dataflow.std.join;
 
 import java.io.DataOutput;
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
@@ -69,22 +67,20 @@ public class InMemoryHashJoin {
 
     private static final Logger LOGGER = LogManager.getLogger();
 
-    private int probeCounter = 0;
-
     public InMemoryHashJoin(IHyracksFrameMgrContext ctx, FrameTupleAccessor accessorProbe,
-            ITuplePartitionComputer tpcProbe, FrameTupleAccessor accessorBuild, RecordDescriptor rDBuild,
-            ITuplePartitionComputer tpcBuild, boolean isLeftOuter, IMissingWriter[] missingWritersBuild,
-            ISerializableTable table, IPredicateEvaluator predEval, ISimpleFrameBufferManager bufferManager)
+                            ITuplePartitionComputer tpcProbe, FrameTupleAccessor accessorBuild, RecordDescriptor rDBuild,
+                            ITuplePartitionComputer tpcBuild, boolean isLeftOuter, IMissingWriter[] missingWritersBuild,
+                            ISerializableTable table, IPredicateEvaluator predEval, ISimpleFrameBufferManager bufferManager)
             throws HyracksDataException {
         this(ctx, accessorProbe, tpcProbe, accessorBuild, rDBuild, tpcBuild, isLeftOuter, missingWritersBuild, table,
                 predEval, false, bufferManager);
     }
 
     public InMemoryHashJoin(IHyracksFrameMgrContext ctx, FrameTupleAccessor accessorProbe,
-            ITuplePartitionComputer tpcProbe, FrameTupleAccessor accessorBuild, RecordDescriptor rDBuild,
-            ITuplePartitionComputer tpcBuild, boolean isLeftOuter, IMissingWriter[] missingWritersBuild,
-            ISerializableTable table, IPredicateEvaluator predEval, boolean reverse,
-            ISimpleFrameBufferManager bufferManager) throws HyracksDataException {
+                            ITuplePartitionComputer tpcProbe, FrameTupleAccessor accessorBuild, RecordDescriptor rDBuild,
+                            ITuplePartitionComputer tpcBuild, boolean isLeftOuter, IMissingWriter[] missingWritersBuild,
+                            ISerializableTable table, IPredicateEvaluator predEval, boolean reverse,
+                            ISimpleFrameBufferManager bufferManager) throws HyracksDataException {
         this.table = table;
         storedTuplePointer = new TuplePointer();
         buffers = new ArrayList<>();
@@ -181,14 +177,10 @@ public class InMemoryHashJoin {
                 int tIndex = storedTuplePointer.getTupleIndex();
                 accessorBuild.reset(buffers.get(bIndex));
                 int c = tpComparator.compare(accessorProbe, tid, accessorBuild, tIndex);
-                int bId = getBucketId(accessorBuild, tIndex, 1);
-                int pId = getBucketId(accessorProbe, tid, 1);
-
                 if (c == 0) {
                     boolean predEval = evaluatePredicate(tid, tIndex);
                     if (predEval) {
                         matchFound = true;
-                        //System.out.println("True:"+bId+"\t"+pId);
                         appendToResult(tid, tIndex, writer);
                     }
                 }
@@ -201,30 +193,12 @@ public class InMemoryHashJoin {
         }
     }
 
-    public static int getBucketId(IFrameTupleAccessor accessor, int tupleId, int fieldId) {
-        int start = getFieldOffset(accessor, tupleId, fieldId);
-        byte[] tileId = Arrays.copyOfRange(accessor.getBuffer().array(), start, start + 4);
-        return new BigInteger(tileId).intValue();
-    }
-
-    public static int getFieldOffset(IFrameTupleAccessor accessor, int tupleId, int fieldId) {
-        return getFieldOffsetWithTag(accessor, tupleId, fieldId) + 1;
-    }
-
-    public static int getFieldOffsetWithTag(IFrameTupleAccessor accessor, int tupleId, int fieldId) {
-        int start = accessor.getTupleStartOffset(tupleId) + accessor.getFieldSlotsLength()
-                + accessor.getFieldStartOffset(tupleId, fieldId);
-        return start;
-    }
-
     public void join(ByteBuffer buffer, IFrameWriter writer) throws HyracksDataException {
         accessorProbe.reset(buffer);
         int tupleCount0 = accessorProbe.getTupleCount();
-        probeCounter += tupleCount0;
         for (int i = 0; i < tupleCount0; ++i) {
             join(i, writer);
         }
-
     }
 
     public void resetAccessorProbe(IFrameTupleAccessor newAccessorProbe) {
@@ -232,7 +206,6 @@ public class InMemoryHashJoin {
     }
 
     public void completeJoin(IFrameWriter writer) throws HyracksDataException {
-        System.out.println("Probe Tuple Count: " + probeCounter);
         appender.write(writer, true);
     }
 
@@ -252,7 +225,6 @@ public class InMemoryHashJoin {
     }
 
     public void closeTable() throws HyracksDataException {
-        System.out.println(table.printInfo());
         table.close();
     }
 

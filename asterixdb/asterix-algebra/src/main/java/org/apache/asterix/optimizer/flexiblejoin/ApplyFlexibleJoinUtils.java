@@ -370,9 +370,8 @@ public class ApplyFlexibleJoinUtils {
         //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
         //        keysLeftBranch, keysRightBranch, ));
 
-        if (!eqMatch && flexibleJoinAnn == null) {
+        if (flexibleJoinAnn == null) {
             setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
-
         }
 
         matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
