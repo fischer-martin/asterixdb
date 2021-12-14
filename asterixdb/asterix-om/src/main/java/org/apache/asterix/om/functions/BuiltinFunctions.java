@@ -143,6 +143,7 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCa
 import org.apache.hyracks.algebricks.core.algebra.expressions.AggregateFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.StatefulFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.functions.AlgebricksBuiltinFunctions;
+import org.apache.hyracks.algebricks.core.algebra.functions.FlexibleJoinWrapperFunctionIdentifier;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
 import org.apache.hyracks.algebricks.core.algebra.properties.UnpartitionedPropertyComputer;
@@ -170,6 +171,8 @@ public class BuiltinFunctions {
 
     private static final Map<FunctionIdentifier, SpatialFilterKind> spatialFilterFunctions = new HashMap<>();
     private static final Set<FunctionIdentifier> similarityFunctions = new HashSet<>();
+    //Flexible Join Test Functions
+    private static final Set<FunctionIdentifier> flexibleJoinTestFunctions = new HashSet<>();
 
     public static final FunctionIdentifier TYPE_OF = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "type-of", 1);
     public static final FunctionIdentifier GET_HANDLE =
@@ -1464,6 +1467,32 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier ST_MBR_ENLARGE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "st-mbr-enlarge", 2);
 
+    //Flexible Join Test Function
+    public static final FunctionIdentifier FJ_TEST = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-test", 2);
+
+    //Flexible Join Wrapper Functions
+    //Summary One - Aggregate
+    public static final FunctionIdentifier FJ_SUMMARY_ONE = new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-fj-summary-one", 1);
+    public static final FunctionIdentifier LOCAL_FJ_SUMMARY_ONE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "local-fj-summary-one", 1);
+    public static final FunctionIdentifier INTERMEDIATE_FJ_SUMMARY_ONE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "intermediate-fj-summary-one", 1);
+    public static final FunctionIdentifier GLOBAL_FJ_SUMMARY_ONE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "global-fj-summary-one", 1);
+    public static final FunctionIdentifier SCALAR_FJ_SUMMARY_ONE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-summary-one", 1);
+    public static final FunctionIdentifier SCALAR_SQL_FJ_SUMMARY_ONE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "sql-fj-summary-one", 1);
+    public static final FunctionIdentifier SQL_FJ_SUMMARY_ONE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-sql-fj-summary-one", 1);
+    public static final FunctionIdentifier LOCAL_SQL_FJ_SUMMARY_ONE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-local-sql-fj-summary-one", 1);
+    public static final FunctionIdentifier INTERMEDIATE_SQL_FJ_SUMMARY_ONE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-intermediate-sql-fj-summary-one", 1);
+    public static final FunctionIdentifier GLOBAL_SQL_FJ_SUMMARY_ONE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-global-sql-fj-summary-one", 1);
+
+
     // Spatial and temporal type accessors
     public static final FunctionIdentifier ACCESSOR_TEMPORAL_YEAR =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "get-year", 1);
@@ -2361,6 +2390,29 @@ public class BuiltinFunctions {
 
         addPrivateFunction(ST_MBR, ARectangleTypeComputer.INSTANCE, true);
         addPrivateFunction(ST_MBR_ENLARGE, ARectangleTypeComputer.INSTANCE, true);
+
+        //Flexible Join Test Function
+        addFunction(FJ_TEST, ABooleanTypeComputer.INSTANCE, true);
+
+        //Flexible Join Wrapper Functions
+        //Summary One
+        addFunction(FJ_SUMMARY_ONE, ARectangleTypeComputer.INSTANCE, true);
+        addPrivateFunction(LOCAL_FJ_SUMMARY_ONE, ARectangleTypeComputer.INSTANCE, true);
+        addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_ONE, ARectangleTypeComputer.INSTANCE, true);
+        addPrivateFunction(GLOBAL_FJ_SUMMARY_ONE, ARectangleTypeComputer.INSTANCE, true);
+        addFunction(SCALAR_FJ_SUMMARY_ONE, scalarUnionMbrTypeComputer, true);
+
+        addAgg(SQL_FJ_SUMMARY_ONE);
+        addAgg(LOCAL_SQL_FJ_SUMMARY_ONE);
+        addAgg(GLOBAL_SQL_FJ_SUMMARY_ONE);
+        addLocalAgg(SQL_FJ_SUMMARY_ONE, LOCAL_SQL_FJ_SUMMARY_ONE);
+        addIntermediateAgg(LOCAL_SQL_FJ_SUMMARY_ONE, INTERMEDIATE_SQL_FJ_SUMMARY_ONE);
+        addIntermediateAgg(GLOBAL_SQL_FJ_SUMMARY_ONE, GLOBAL_SQL_FJ_SUMMARY_ONE);
+        addIntermediateAgg(SQL_FJ_SUMMARY_ONE, GLOBAL_SQL_FJ_SUMMARY_ONE);
+        addGlobalAgg(SQL_FJ_SUMMARY_ONE, GLOBAL_SQL_FJ_SUMMARY_ONE);
+
+        addScalarAgg(SQL_FJ_SUMMARY_ONE, SCALAR_SQL_FJ_SUMMARY_ONE);
+
 
         // Binary functions
         addFunction(BINARY_HEX_CONSTRUCTOR, ABinaryTypeComputer.INSTANCE_NULLABLE, true);
@@ -3452,6 +3504,11 @@ public class BuiltinFunctions {
         spatialFilterFunctions.put(BuiltinFunctions.ST_WITHIN, SpatialFilterKind.STFR);
     }
 
+
+    static {
+        flexibleJoinTestFunctions.add(FJ_TEST);
+    }
+
     public static boolean isGlobalAggregateFunction(FunctionIdentifier fi) {
         return globalAggregateFunctions.contains(fi);
     }
@@ -3462,6 +3519,10 @@ public class BuiltinFunctions {
 
     public static boolean isSTFilterRefineFunction(FunctionIdentifier fi) {
         return spatialFilterFunctions.get(fi) == SpatialFilterKind.STFR;
+    }
+
+    public static boolean isFlexibleJoinCallerFunction(FunctionIdentifier fi) {
+        return flexibleJoinTestFunctions.contains(fi);
     }
 
     static {
