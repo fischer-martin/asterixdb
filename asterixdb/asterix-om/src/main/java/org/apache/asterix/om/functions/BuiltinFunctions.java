@@ -1472,7 +1472,8 @@ public class BuiltinFunctions {
 
     //Flexible Join Wrapper Functions
     //Summary One - Aggregate
-    public static final FunctionIdentifier FJ_SUMMARY_ONE = new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-fj-summary-one", 1);
+    public static final FlexibleJoinWrapperFunctionIdentifier FJ_SUMMARY_ONE =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-fj-summary-one", 1);
     public static final FunctionIdentifier LOCAL_FJ_SUMMARY_ONE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "local-fj-summary-one", 1);
     public static final FunctionIdentifier INTERMEDIATE_FJ_SUMMARY_ONE =
@@ -1491,7 +1492,6 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-intermediate-sql-fj-summary-one", 1);
     public static final FunctionIdentifier GLOBAL_SQL_FJ_SUMMARY_ONE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-global-sql-fj-summary-one", 1);
-
 
     // Spatial and temporal type accessors
     public static final FunctionIdentifier ACCESSOR_TEMPORAL_YEAR =
@@ -2412,7 +2412,6 @@ public class BuiltinFunctions {
         addGlobalAgg(SQL_FJ_SUMMARY_ONE, GLOBAL_SQL_FJ_SUMMARY_ONE);
 
         addScalarAgg(SQL_FJ_SUMMARY_ONE, SCALAR_SQL_FJ_SUMMARY_ONE);
-
 
         // Binary functions
         addFunction(BINARY_HEX_CONSTRUCTOR, ABinaryTypeComputer.INSTANCE_NULLABLE, true);
@@ -3503,7 +3502,6 @@ public class BuiltinFunctions {
         spatialFilterFunctions.put(BuiltinFunctions.ST_CROSSES, SpatialFilterKind.STFR);
         spatialFilterFunctions.put(BuiltinFunctions.ST_WITHIN, SpatialFilterKind.STFR);
     }
-
 
     static {
         flexibleJoinTestFunctions.add(FJ_TEST);

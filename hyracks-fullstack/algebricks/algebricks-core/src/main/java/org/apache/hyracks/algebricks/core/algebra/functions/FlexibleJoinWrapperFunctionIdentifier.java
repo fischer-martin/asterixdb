@@ -18,9 +18,6 @@
  */
 package org.apache.hyracks.algebricks.core.algebra.functions;
 
-import java.io.Serializable;
-import java.util.Objects;
-
 public class FlexibleJoinWrapperFunctionIdentifier extends FunctionIdentifier {
     private static final long serialVersionUID = 1L;
     public static final int VARARGS = -1;

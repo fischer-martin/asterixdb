@@ -18,40 +18,44 @@
  */
 package org.apache.asterix.optimizer.flexiblejoin;
 
-import org.apache.asterix.common.annotations.SpatialJoinAnnotation;
-import org.apache.asterix.om.functions.BuiltinFunctionInfo;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+
 import org.apache.asterix.om.functions.BuiltinFunctions;
-import org.apache.asterix.om.types.BuiltinType;
-import org.apache.asterix.om.types.IAType;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.Pair;
 import org.apache.hyracks.algebricks.common.utils.Triple;
-import org.apache.hyracks.algebricks.core.algebra.base.*;
-import org.apache.hyracks.algebricks.core.algebra.expressions.*;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
+import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
+import org.apache.hyracks.algebricks.core.algebra.base.LogicalExpressionTag;
+import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
+import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractLogicalExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.AggregateFunctionCallExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
 import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.*;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AggregateOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.ExchangeOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.ReplicateOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.VariableUtilities;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.AggregatePOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.OneToOneExchangePOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.RandomPartitionExchangePOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.ReplicatePOperator;
 import org.apache.hyracks.algebricks.core.algebra.util.OperatorManipulationUtil;
-import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 import org.apache.hyracks.api.exceptions.SourceLocation;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-
 
 public class ApplyFlexibleJoinUtils {
 
     public static boolean tryFlexibleJoin(AbstractBinaryJoinOperator joinOp, IOptimizationContext context,
-                                          ILogicalExpression joinCondition, int left, int right) throws AlgebricksException {
-
+            ILogicalExpression joinCondition, int left, int right) throws AlgebricksException {
 
         if (joinCondition.getExpressionTag() != LogicalExpressionTag.FUNCTION_CALL) {
             return false;
@@ -110,13 +114,12 @@ public class ApplyFlexibleJoinUtils {
         MutableObject<ILogicalOperator> rightExchToJoinOpRef = rightSummarizer.third;
         LogicalVariable rightSummary = leftGlobalAggResultVars.get(0);
 
-
         return true;
 
     }
 
     private static ReplicateOperator createReplicateOperator(Mutable<ILogicalOperator> inputOperator,
-                                                             IOptimizationContext context, SourceLocation sourceLocation, int outputArity) throws AlgebricksException {
+            IOptimizationContext context, SourceLocation sourceLocation, int outputArity) throws AlgebricksException {
         ReplicateOperator replicateOperator = new ReplicateOperator(outputArity);
         replicateOperator.setPhysicalOperator(new ReplicatePOperator());
         replicateOperator.setSourceLocation(sourceLocation);
@@ -128,7 +131,7 @@ public class ApplyFlexibleJoinUtils {
     }
 
     private static ExchangeOperator createRandomPartitionExchangeOp(ReplicateOperator replicateOperator,
-                                                                    IOptimizationContext context, SourceLocation sourceLocation) throws AlgebricksException {
+            IOptimizationContext context, SourceLocation sourceLocation) throws AlgebricksException {
         ExchangeOperator exchangeOperator = new ExchangeOperator();
         exchangeOperator.setSourceLocation(sourceLocation);
         exchangeOperator.setPhysicalOperator(new RandomPartitionExchangePOperator(context.getComputationNodeDomain()));
@@ -141,7 +144,7 @@ public class ApplyFlexibleJoinUtils {
     }
 
     private static ExchangeOperator createOneToOneExchangeOp(ReplicateOperator replicateOperator,
-                                                             IOptimizationContext context, SourceLocation sourceLocation) throws AlgebricksException {
+            IOptimizationContext context, SourceLocation sourceLocation) throws AlgebricksException {
         ExchangeOperator exchangeOperator = new ExchangeOperator();
         exchangeOperator.setSourceLocation(sourceLocation);
         exchangeOperator.setPhysicalOperator(new OneToOneExchangePOperator());
@@ -184,7 +187,8 @@ public class ApplyFlexibleJoinUtils {
         List<Mutable<ILogicalExpression>> globalAggFuncArgs = new ArrayList<>(1);
         AbstractLogicalExpression inputVarRef = new VariableReferenceExpression(inputVar, op.getSourceLocation());
         globalAggFuncArgs.add(new MutableObject<>(inputVarRef));
-        IFunctionInfo globalAggFunc = context.getMetadataProvider().lookupFunction(BuiltinFunctions.GLOBAL_FJ_SUMMARY_ONE);
+        IFunctionInfo globalAggFunc =
+                context.getMetadataProvider().lookupFunction(BuiltinFunctions.GLOBAL_FJ_SUMMARY_ONE);
         AggregateFunctionCallExpression globalAggExpr =
                 new AggregateFunctionCallExpression(globalAggFunc, true, globalAggFuncArgs);
         globalAggExpr.setStepOneAggregate(globalAggFunc);
@@ -238,8 +242,8 @@ public class ApplyFlexibleJoinUtils {
      * @throws AlgebricksException when there is error setting the type environment of the newly created aggregate op
      */
     private static AggregateOperator createAggregate(List<LogicalVariable> resultVariables, boolean isGlobal,
-                                                     List<Mutable<ILogicalExpression>> expressions, MutableObject<ILogicalOperator> inputOperator,
-                                                     IOptimizationContext context, SourceLocation sourceLocation) throws AlgebricksException {
+            List<Mutable<ILogicalExpression>> expressions, MutableObject<ILogicalOperator> inputOperator,
+            IOptimizationContext context, SourceLocation sourceLocation) throws AlgebricksException {
         AggregateOperator aggregateOperator = new AggregateOperator(resultVariables, expressions);
         aggregateOperator.setPhysicalOperator(new AggregatePOperator());
         aggregateOperator.setSourceLocation(sourceLocation);
