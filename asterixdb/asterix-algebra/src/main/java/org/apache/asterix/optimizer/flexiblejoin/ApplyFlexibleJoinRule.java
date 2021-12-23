@@ -36,10 +36,7 @@ import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalExpressionTag;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalOperatorTag;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
-import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractLogicalExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.AggregateFunctionCallExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.*;
 import org.apache.hyracks.algebricks.core.algebra.functions.FlexibleJoinWrapperFunctionIdentifier;
 import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
@@ -130,7 +127,7 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
                 argsSummaryOne
         );
 
-        IFunctionInfo SummaryTwoInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_SUMMARY_ONE);
+        IFunctionInfo SummaryTwoInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_SUMMARY_TWO);
 
         List<Mutable<ILogicalExpression>> argsSummaryTwo = new ArrayList<>(1);
         AbstractLogicalExpression inputVarRefargsSummaryTwo = new VariableReferenceExpression(rightInputVar, op.getSourceLocation());
@@ -141,9 +138,20 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
                 argsSummaryTwo
         );
 
+        BuiltinFunctions.FJ_DIVIDE.setLibraryName("fj_test");
+        IFunctionInfo DivideFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_DIVIDE);
+
+        ScalarFunctionCallExpression divide = new ScalarFunctionCallExpression(
+                DivideFunctionInfo,
+                new MutableObject<>(summaryOne.cloneExpression()),
+                new MutableObject<>(summaryTwo.cloneExpression())
+        );
 
 
-        joinConditionRef.setValue(summaryOne);
+
+
+
+        joinConditionRef.setValue(divide);
         return true;
 
     }

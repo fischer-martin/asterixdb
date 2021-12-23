@@ -1493,6 +1493,32 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier GLOBAL_SQL_FJ_SUMMARY_ONE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-global-sql-fj-summary-one", 1);
 
+    //Summary Two - Aggregate
+    public static final FlexibleJoinWrapperFunctionIdentifier FJ_SUMMARY_TWO =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-fj-summary-two", 1);
+    public static final FunctionIdentifier LOCAL_FJ_SUMMARY_TWO =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "local-fj-summary-two", 1);
+    public static final FunctionIdentifier INTERMEDIATE_FJ_SUMMARY_TWO =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "intermediate-fj-summary-two", 1);
+    public static final FunctionIdentifier GLOBAL_FJ_SUMMARY_TWO =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "global-fj-summary-two", 1);
+    public static final FunctionIdentifier SCALAR_FJ_SUMMARY_TWO =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-summary-two", 1);
+    public static final FunctionIdentifier SCALAR_SQL_FJ_SUMMARY_TWO =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "sql-fj-summary-two", 1);
+    public static final FunctionIdentifier SQL_FJ_SUMMARY_TWO =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-sql-fj-summary-two", 1);
+    public static final FunctionIdentifier LOCAL_SQL_FJ_SUMMARY_TWO =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-local-sql-fj-summary-two", 1);
+    public static final FunctionIdentifier INTERMEDIATE_SQL_FJ_SUMMARY_TWO =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-intermediate-sql-fj-summary-two", 1);
+    public static final FunctionIdentifier GLOBAL_SQL_FJ_SUMMARY_TWO =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-global-sql-fj-summary-two", 1);
+
+    //divide
+    public static final FlexibleJoinWrapperFunctionIdentifier FJ_DIVIDE =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-divide", 2);
+
     // Spatial and temporal type accessors
     public static final FunctionIdentifier ACCESSOR_TEMPORAL_YEAR =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "get-year", 1);
@@ -2396,10 +2422,10 @@ public class BuiltinFunctions {
 
         //Flexible Join Wrapper Functions
         //Summary One
-        addFunction(FJ_SUMMARY_ONE, ARectangleTypeComputer.INSTANCE, true);
-        addPrivateFunction(LOCAL_FJ_SUMMARY_ONE, ARectangleTypeComputer.INSTANCE, true);
-        addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_ONE, ARectangleTypeComputer.INSTANCE, true);
-        addPrivateFunction(GLOBAL_FJ_SUMMARY_ONE, ARectangleTypeComputer.INSTANCE, true);
+        addFunction(FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
+        addPrivateFunction(LOCAL_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
+        addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
+        addPrivateFunction(GLOBAL_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
         addFunction(SCALAR_FJ_SUMMARY_ONE, scalarUnionMbrTypeComputer, true);
 
         addAgg(SQL_FJ_SUMMARY_ONE);
@@ -2412,6 +2438,27 @@ public class BuiltinFunctions {
         addGlobalAgg(SQL_FJ_SUMMARY_ONE, GLOBAL_SQL_FJ_SUMMARY_ONE);
 
         addScalarAgg(SQL_FJ_SUMMARY_ONE, SCALAR_SQL_FJ_SUMMARY_ONE);
+
+        //Summary Two
+        addFunction(FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
+        addPrivateFunction(LOCAL_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
+        addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
+        addPrivateFunction(GLOBAL_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
+        addFunction(SCALAR_FJ_SUMMARY_TWO, scalarUnionMbrTypeComputer, true);
+
+        addAgg(SQL_FJ_SUMMARY_TWO);
+        addAgg(LOCAL_SQL_FJ_SUMMARY_TWO);
+        addAgg(GLOBAL_SQL_FJ_SUMMARY_TWO);
+        addLocalAgg(SQL_FJ_SUMMARY_TWO, LOCAL_SQL_FJ_SUMMARY_TWO);
+        addIntermediateAgg(LOCAL_SQL_FJ_SUMMARY_TWO, INTERMEDIATE_SQL_FJ_SUMMARY_TWO);
+        addIntermediateAgg(GLOBAL_SQL_FJ_SUMMARY_TWO, GLOBAL_SQL_FJ_SUMMARY_TWO);
+        addIntermediateAgg(SQL_FJ_SUMMARY_TWO, GLOBAL_SQL_FJ_SUMMARY_TWO);
+        addGlobalAgg(SQL_FJ_SUMMARY_TWO, GLOBAL_SQL_FJ_SUMMARY_TWO);
+
+        addScalarAgg(SQL_FJ_SUMMARY_TWO, SCALAR_SQL_FJ_SUMMARY_TWO);
+
+        //Divide
+        addFunction(FJ_DIVIDE, ABooleanTypeComputer.INSTANCE, true);
 
         // Binary functions
         addFunction(BINARY_HEX_CONSTRUCTOR, ABinaryTypeComputer.INSTANCE_NULLABLE, true);

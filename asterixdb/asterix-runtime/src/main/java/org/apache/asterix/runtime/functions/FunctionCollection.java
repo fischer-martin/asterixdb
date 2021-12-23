@@ -612,6 +612,9 @@ import org.apache.asterix.runtime.evaluators.functions.temporal.WeekOfYear2Descr
 import org.apache.asterix.runtime.evaluators.functions.temporal.WeekOfYearDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.temporal.YearMonthDurationGreaterThanComparatorDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.temporal.YearMonthDurationLessThanComparatorDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.FJDivideDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.SummaryOneAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.SummaryTwoAggregateDescriptor;
 import org.apache.asterix.runtime.runningaggregates.std.DenseRankRunningAggregateDescriptor;
 import org.apache.asterix.runtime.runningaggregates.std.NtileRunningAggregateDescriptor;
 import org.apache.asterix.runtime.runningaggregates.std.PercentRankRunningAggregateDescriptor;
@@ -1169,6 +1172,11 @@ public final class FunctionCollection implements IFunctionCollection {
         fc.add(LineRectanglePolygonAccessor.FACTORY);
         fc.add(ReferenceTileDescriptor.FACTORY);
         fc.add(GetIntersectionDescriptor.FACTORY);
+
+        // Flexible Join Wrappers
+        fc.add(FJDivideDescriptor.FACTORY);
+        fc.add(SummaryOneAggregateDescriptor.FACTORY);
+        fc.add(SummaryTwoAggregateDescriptor.FACTORY);
 
         // full-text function
         fc.add(FullTextContainsFunctionDescriptor.FACTORY);
