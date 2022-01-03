@@ -50,14 +50,6 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     private IPointable inputVal = new VoidPointable();
     private final IScalarEvaluator eval;
     protected final IEvaluatorContext context;
-    protected double currentMinX;
-    protected double currentMinY;
-    protected double currentMaxX;
-    protected double currentMaxY;
-
-    protected final AMutablePoint[] aPoint = { new AMutablePoint(0.0, 0.0), new AMutablePoint(0.0, 0.0) };
-    protected final AMutableRectangle aRect = new AMutableRectangle(aPoint[0], aPoint[1]);
-
 
     public AbstractSummaryOneAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
                                                SourceLocation sourceLoc) throws HyracksDataException {

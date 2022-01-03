@@ -29,7 +29,7 @@ import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
-public class SummaryOneAggregateDescriptor extends AbstractUnionMbrAggregateDescriptor {
+public class SummaryOneAggregateDescriptor extends AbstractSummaryOneAggregateDescriptor {
 
     private static final long serialVersionUID = 1L;
 
