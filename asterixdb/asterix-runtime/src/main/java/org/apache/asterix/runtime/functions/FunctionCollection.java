@@ -64,6 +64,8 @@ import org.apache.asterix.runtime.aggregates.scalar.ScalarSqlStddevPopAggregateD
 import org.apache.asterix.runtime.aggregates.scalar.ScalarSqlStddevPopDistinctAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarSqlSumAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarSqlSumDistinctAggregateDescriptor;
+import org.apache.asterix.runtime.aggregates.scalar.ScalarSqlSummaryOneAggregateDescriptor;
+import org.apache.asterix.runtime.aggregates.scalar.ScalarSqlSummaryTwoAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarSqlUnionMbrAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarSqlVarAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarSqlVarDistinctAggregateDescriptor;
@@ -75,6 +77,8 @@ import org.apache.asterix.runtime.aggregates.scalar.ScalarStddevPopAggregateDesc
 import org.apache.asterix.runtime.aggregates.scalar.ScalarStddevPopDistinctAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarSumAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarSumDistinctAggregateDescriptor;
+import org.apache.asterix.runtime.aggregates.scalar.ScalarSummaryOneAggregateDescriptor;
+import org.apache.asterix.runtime.aggregates.scalar.ScalarSummaryTwoAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarUnionMbrAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarVarAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarVarDistinctAggregateDescriptor;
@@ -613,6 +617,20 @@ import org.apache.asterix.runtime.evaluators.functions.temporal.WeekOfYearDescri
 import org.apache.asterix.runtime.evaluators.functions.temporal.YearMonthDurationGreaterThanComparatorDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.temporal.YearMonthDurationLessThanComparatorDescriptor;
 import org.apache.asterix.runtime.flexiblejoinwrappers.FJDivideDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.GlobalSqlSummaryOneAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.GlobalSqlSummaryTwoAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.GlobalSummaryOneAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.GlobalSummaryTwoAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.IntermediateSqlSummaryOneAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.IntermediateSqlSummaryTwoAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.IntermediateSummaryOneAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.IntermediateSummaryTwoAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.LocalSqlSummaryOneAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.LocalSqlSummaryTwoAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.LocalSummaryOneAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.LocalSummaryTwoAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.SqlSummaryOneAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.SqlSummaryTwoAggregateDescriptor;
 import org.apache.asterix.runtime.flexiblejoinwrappers.SummaryOneAggregateDescriptor;
 import org.apache.asterix.runtime.flexiblejoinwrappers.SummaryTwoAggregateDescriptor;
 import org.apache.asterix.runtime.runningaggregates.std.DenseRankRunningAggregateDescriptor;
@@ -1175,8 +1193,28 @@ public final class FunctionCollection implements IFunctionCollection {
 
         // Flexible Join Wrappers
         fc.add(FJDivideDescriptor.FACTORY);
+
         fc.add(SummaryOneAggregateDescriptor.FACTORY);
+        fc.add(LocalSummaryOneAggregateDescriptor.FACTORY);
+        fc.add(IntermediateSummaryOneAggregateDescriptor.FACTORY);
+        fc.add(GlobalSummaryOneAggregateDescriptor.FACTORY);
+        fc.add(ScalarSummaryOneAggregateDescriptor.FACTORY);
+        fc.add(SqlSummaryOneAggregateDescriptor.FACTORY);
+        fc.add(LocalSqlSummaryOneAggregateDescriptor.FACTORY);
+        fc.add(IntermediateSqlSummaryOneAggregateDescriptor.FACTORY);
+        fc.add(GlobalSqlSummaryOneAggregateDescriptor.FACTORY);
+        fc.add(ScalarSqlSummaryOneAggregateDescriptor.FACTORY);
+
         fc.add(SummaryTwoAggregateDescriptor.FACTORY);
+        fc.add(LocalSummaryTwoAggregateDescriptor.FACTORY);
+        fc.add(IntermediateSummaryTwoAggregateDescriptor.FACTORY);
+        fc.add(GlobalSummaryTwoAggregateDescriptor.FACTORY);
+        fc.add(ScalarSummaryTwoAggregateDescriptor.FACTORY);
+        fc.add(SqlSummaryTwoAggregateDescriptor.FACTORY);
+        fc.add(LocalSqlSummaryTwoAggregateDescriptor.FACTORY);
+        fc.add(IntermediateSqlSummaryTwoAggregateDescriptor.FACTORY);
+        fc.add(GlobalSqlSummaryTwoAggregateDescriptor.FACTORY);
+        fc.add(ScalarSqlSummaryTwoAggregateDescriptor.FACTORY);
 
         // full-text function
         fc.add(FullTextContainsFunctionDescriptor.FACTORY);

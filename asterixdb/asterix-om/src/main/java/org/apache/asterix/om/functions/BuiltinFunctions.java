@@ -126,6 +126,8 @@ import org.apache.asterix.om.typecomputer.impl.ScalarVersionOfAggregateResultTyp
 import org.apache.asterix.om.typecomputer.impl.SleepTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.StringJoinTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.SubsetCollectionTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.SummaryOneTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.SummaryTwoTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.SwitchCaseComputer;
 import org.apache.asterix.om.typecomputer.impl.ToArrayTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.ToBigIntTypeComputer;
@@ -2422,11 +2424,14 @@ public class BuiltinFunctions {
 
         //Flexible Join Wrapper Functions
         //Summary One
+        ScalarVersionOfAggregateResultType scalarSummaryOneTypeComputer =
+                new ScalarVersionOfAggregateResultType(SummaryOneTypeComputer.INSTANCE);
+
         addFunction(FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
         addPrivateFunction(LOCAL_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
         addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
         addPrivateFunction(GLOBAL_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
-        addFunction(SCALAR_FJ_SUMMARY_ONE, scalarUnionMbrTypeComputer, true);
+        addFunction(SCALAR_FJ_SUMMARY_ONE, scalarSummaryOneTypeComputer, true);
 
         addAgg(SQL_FJ_SUMMARY_ONE);
         addAgg(LOCAL_SQL_FJ_SUMMARY_ONE);
@@ -2439,12 +2444,17 @@ public class BuiltinFunctions {
 
         addScalarAgg(SQL_FJ_SUMMARY_ONE, SCALAR_SQL_FJ_SUMMARY_ONE);
 
+
+
         //Summary Two
+        ScalarVersionOfAggregateResultType scalarSummaryTwoTypeComputer =
+                new ScalarVersionOfAggregateResultType(SummaryTwoTypeComputer.INSTANCE);
+
         addFunction(FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
         addPrivateFunction(LOCAL_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
         addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
         addPrivateFunction(GLOBAL_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
-        addFunction(SCALAR_FJ_SUMMARY_TWO, scalarUnionMbrTypeComputer, true);
+        addFunction(SCALAR_FJ_SUMMARY_TWO, scalarSummaryTwoTypeComputer, true);
 
         addAgg(SQL_FJ_SUMMARY_TWO);
         addAgg(LOCAL_SQL_FJ_SUMMARY_TWO);
