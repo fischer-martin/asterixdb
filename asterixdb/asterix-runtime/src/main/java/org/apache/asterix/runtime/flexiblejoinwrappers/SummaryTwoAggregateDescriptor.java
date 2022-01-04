@@ -21,7 +21,6 @@ package org.apache.asterix.runtime.flexiblejoinwrappers;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.runtime.aggregates.std.AbstractUnionMbrAggregateDescriptor;
-import org.apache.asterix.runtime.aggregates.std.UnionMbrAggregateFunction;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.runtime.base.IAggregateEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IAggregateEvaluatorFactory;
@@ -48,7 +47,7 @@ public class SummaryTwoAggregateDescriptor extends AbstractUnionMbrAggregateDesc
             @Override
             public IAggregateEvaluator createAggregateEvaluator(final IEvaluatorContext ctx)
                     throws HyracksDataException {
-                return new UnionMbrAggregateFunction(args, ctx, sourceLoc);
+                return new SummaryTwoAggregateFunction(args, ctx, sourceLoc);
             }
         };
     }

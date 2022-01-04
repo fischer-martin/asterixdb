@@ -18,21 +18,15 @@
  */
 package org.apache.asterix.runtime.flexiblejoinwrappers;
 
-import org.apache.asterix.dataflow.data.nontagged.Coordinate;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMutablePoint;
 import org.apache.asterix.om.base.AMutableRectangle;
 import org.apache.asterix.om.base.ARectangle;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
-import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
-import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.PointableHelper;
-import org.apache.asterix.runtime.exceptions.TypeMismatchException;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
@@ -96,7 +90,6 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                         int offset0 = inputArg0.getStartOffset();
                         int offset1 = inputArg1.getStartOffset();
-
 
                         result.set(resultStorage);
                     }

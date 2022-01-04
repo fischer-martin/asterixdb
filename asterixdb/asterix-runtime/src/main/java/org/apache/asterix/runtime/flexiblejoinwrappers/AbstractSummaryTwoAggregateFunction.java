@@ -18,6 +18,8 @@
  */
 package org.apache.asterix.runtime.flexiblejoinwrappers;
 
+import java.io.IOException;
+
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
 import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
@@ -42,8 +44,6 @@ import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
-import java.io.IOException;
-
 public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggregateFunction {
 
     private ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
@@ -62,7 +62,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ARECTANGLE);
 
     public AbstractSummaryTwoAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
-                                               SourceLocation sourceLoc) throws HyracksDataException {
+            SourceLocation sourceLoc) throws HyracksDataException {
         super(sourceLoc);
         this.eval = args[0].createScalarEvaluator(context);
         this.context = context;

@@ -1482,8 +1482,8 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "intermediate-fj-summary-one", 1);
     public static final FunctionIdentifier GLOBAL_FJ_SUMMARY_ONE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "global-fj-summary-one", 1);
-    public static final FunctionIdentifier SCALAR_FJ_SUMMARY_ONE =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-summary-one", 1);
+    public static final FlexibleJoinWrapperFunctionIdentifier SCALAR_FJ_SUMMARY_ONE =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-summary-one", 1);
     public static final FunctionIdentifier SCALAR_SQL_FJ_SUMMARY_ONE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "sql-fj-summary-one", 1);
     public static final FunctionIdentifier SQL_FJ_SUMMARY_ONE =
@@ -1506,8 +1506,8 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "global-fj-summary-two", 1);
     public static final FunctionIdentifier SCALAR_FJ_SUMMARY_TWO =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-summary-two", 1);
-    public static final FunctionIdentifier SCALAR_SQL_FJ_SUMMARY_TWO =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "sql-fj-summary-two", 1);
+    public static final FlexibleJoinWrapperFunctionIdentifier SCALAR_SQL_FJ_SUMMARY_TWO =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "sql-fj-summary-two", 1);
     public static final FunctionIdentifier SQL_FJ_SUMMARY_TWO =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-sql-fj-summary-two", 1);
     public static final FunctionIdentifier LOCAL_SQL_FJ_SUMMARY_TWO =
@@ -2443,8 +2443,6 @@ public class BuiltinFunctions {
         addGlobalAgg(SQL_FJ_SUMMARY_ONE, GLOBAL_SQL_FJ_SUMMARY_ONE);
 
         addScalarAgg(SQL_FJ_SUMMARY_ONE, SCALAR_SQL_FJ_SUMMARY_ONE);
-
-
 
         //Summary Two
         ScalarVersionOfAggregateResultType scalarSummaryTwoTypeComputer =

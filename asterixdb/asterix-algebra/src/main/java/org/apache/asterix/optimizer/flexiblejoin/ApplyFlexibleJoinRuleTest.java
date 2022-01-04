@@ -19,8 +19,6 @@
 package org.apache.asterix.optimizer.flexiblejoin;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 
 import org.apache.asterix.om.functions.BuiltinFunctions;
@@ -38,15 +36,15 @@ import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractLogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AggregateFunctionCallExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.ScalarFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
+import org.apache.hyracks.algebricks.core.algebra.functions.FlexibleJoinWrapperFunctionIdentifier;
 import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractAssignOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AggregateOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.ExchangeOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.ReplicateOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.VariableUtilities;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.AggregatePOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.OneToOneExchangePOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.RandomPartitionExchangePOperator;
@@ -55,7 +53,7 @@ import org.apache.hyracks.algebricks.core.algebra.util.OperatorManipulationUtil;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 import org.apache.hyracks.api.exceptions.SourceLocation;
 
-public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
+public class ApplyFlexibleJoinRuleTest implements IAlgebraicRewriteRule {
 
     @Override
     public boolean rewritePre(Mutable<ILogicalOperator> opRef, IOptimizationContext context)
@@ -68,85 +66,25 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
             throws AlgebricksException {
 
         AbstractLogicalOperator op = (AbstractLogicalOperator) opRef.getValue();
-        if (op.getOperatorTag() != LogicalOperatorTag.INNERJOIN) {
+        if (op.getOperatorTag() != LogicalOperatorTag.ASSIGN) {
             return false;
         }
 
-        AbstractBinaryJoinOperator joinOp = (AbstractBinaryJoinOperator) op;
-        Mutable<ILogicalExpression> joinConditionRef = joinOp.getCondition();
-        ILogicalExpression joinCondition = joinConditionRef.getValue();
+        AbstractAssignOperator assignOp = (AbstractAssignOperator) op;
+        Mutable<ILogicalExpression> FunctionRef = assignOp.getExpressions().get(0);
+        ILogicalExpression joinCondition = FunctionRef.getValue();
 
         if (joinCondition.getExpressionTag() != LogicalExpressionTag.FUNCTION_CALL) {
             return false;
         }
 
         AbstractFunctionCallExpression fjFuncExpr = (AbstractFunctionCallExpression) joinCondition;
-        if (!BuiltinFunctions.isFlexibleJoinCallerFunction(fjFuncExpr.getFunctionIdentifier())) {
-            return false;
+        if (BuiltinFunctions.SCALAR_FJ_SUMMARY_ONE == fjFuncExpr.getFunctionIdentifier()) {
+            FlexibleJoinWrapperFunctionIdentifier functionIdentifier =
+                    (FlexibleJoinWrapperFunctionIdentifier) fjFuncExpr.getFunctionIdentifier();
+            functionIdentifier.setLibraryName("test");
         }
-
-        // Left and right arguments of the refine function should be either variable or function call.
-        List<Mutable<ILogicalExpression>> fjFuncArgs = fjFuncExpr.getArguments();
-        Mutable<ILogicalExpression> fjFuncLeftArg = fjFuncArgs.get(0);
-        Mutable<ILogicalExpression> fjFuncRightArg = fjFuncArgs.get(1);
-
-        if (fjFuncLeftArg.getValue().getExpressionTag() == LogicalExpressionTag.CONSTANT
-                || fjFuncRightArg.getValue().getExpressionTag() == LogicalExpressionTag.CONSTANT) {
-            return false;
-        }
-
-        // Gets both input branches of the spatial join.
-        Mutable<ILogicalOperator> leftInputOp = op.getInputs().get(0);
-        Mutable<ILogicalOperator> rightInputOp = op.getInputs().get(1);
-
-        // Extract left and right variable of the predicate
-        LogicalVariable spatialJoinVar0 =
-                ((VariableReferenceExpression) fjFuncLeftArg.getValue()).getVariableReference();
-        LogicalVariable spatialJoinVar1 =
-                ((VariableReferenceExpression) fjFuncRightArg.getValue()).getVariableReference();
-
-        LogicalVariable leftInputVar;
-        LogicalVariable rightInputVar;
-        Collection<LogicalVariable> liveVars = new HashSet<>();
-        VariableUtilities.getLiveVariables(leftInputOp.getValue(), liveVars);
-        if (liveVars.contains(spatialJoinVar0)) {
-            leftInputVar = spatialJoinVar0;
-            rightInputVar = spatialJoinVar1;
-        } else {
-            leftInputVar = spatialJoinVar1;
-            rightInputVar = spatialJoinVar0;
-        }
-
-        BuiltinFunctions.FJ_SUMMARY_ONE.setLibraryName("fj_test");
-        IFunctionInfo SummaryOneInfo =
-                context.getMetadataProvider().lookupFunction(BuiltinFunctions.SCALAR_FJ_SUMMARY_ONE);
-
-        List<Mutable<ILogicalExpression>> argsSummaryOne = new ArrayList<>(1);
-        AbstractLogicalExpression inputVarRefSummaryOne =
-                new VariableReferenceExpression(leftInputVar, op.getSourceLocation());
-        argsSummaryOne.add(new MutableObject<>(inputVarRefSummaryOne));
-        AggregateFunctionCallExpression summaryOne =
-                new AggregateFunctionCallExpression(SummaryOneInfo, false, argsSummaryOne);
-
-        IFunctionInfo SummaryTwoInfo =
-                context.getMetadataProvider().lookupFunction(BuiltinFunctions.SCALAR_FJ_SUMMARY_TWO);
-
-        List<Mutable<ILogicalExpression>> argsSummaryTwo = new ArrayList<>(1);
-        AbstractLogicalExpression inputVarRefargsSummaryTwo =
-                new VariableReferenceExpression(rightInputVar, op.getSourceLocation());
-        argsSummaryTwo.add(new MutableObject<>(inputVarRefargsSummaryTwo));
-        AggregateFunctionCallExpression summaryTwo =
-                new AggregateFunctionCallExpression(SummaryTwoInfo, false, argsSummaryTwo);
-
-        BuiltinFunctions.FJ_DIVIDE.setLibraryName("fj_test");
-        IFunctionInfo DivideFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_DIVIDE);
-
-        ScalarFunctionCallExpression divide = new ScalarFunctionCallExpression(DivideFunctionInfo,
-                new MutableObject<>(summaryOne.cloneExpression()), new MutableObject<>(summaryTwo.cloneExpression()));
-
-        joinConditionRef.setValue(divide);
-        return true;
-
+        return false;
     }
 
     private static ReplicateOperator createReplicateOperator(Mutable<ILogicalOperator> inputOperator,

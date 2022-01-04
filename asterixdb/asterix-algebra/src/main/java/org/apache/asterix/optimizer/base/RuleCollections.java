@@ -26,6 +26,7 @@ import java.util.List;
 import org.apache.asterix.common.dataflow.ICcApplicationContext;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.optimizer.flexiblejoin.ApplyFlexibleJoinRule;
+import org.apache.asterix.optimizer.flexiblejoin.ApplyFlexibleJoinRuleTest;
 import org.apache.asterix.optimizer.rules.AddEquivalenceClassForRecordConstructorRule;
 import org.apache.asterix.optimizer.rules.AsterixConsolidateWindowOperatorsRule;
 import org.apache.asterix.optimizer.rules.AsterixExtractFunctionsFromJoinConditionRule;
@@ -284,6 +285,8 @@ public final class RuleCollections {
         fieldLoads.add(new FilterRefineSpatialJoinRuleForSTFunctions());
         fieldLoads.add(new FilterRefineSpatialJoinRuleForSTDistanceFunction());
         fieldLoads.add(new ApplyFlexibleJoinRule());
+        fieldLoads.add(new ApplyFlexibleJoinRuleTest());
+
         return fieldLoads;
     }
 

@@ -21,7 +21,8 @@ package org.apache.asterix.runtime.aggregates.scalar;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.IAType;
-import org.apache.asterix.runtime.aggregates.std.UnionMbrAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.SummaryOneAggregateDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.SummaryOneAggregateFunction;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 
 public class ScalarSummaryOneAggregateDescriptor extends AbstractScalarAggregateDescriptor {
@@ -31,7 +32,8 @@ public class ScalarSummaryOneAggregateDescriptor extends AbstractScalarAggregate
             createDescriptorFactory(ScalarSummaryOneAggregateDescriptor::new);
 
     private ScalarSummaryOneAggregateDescriptor() {
-        super(UnionMbrAggregateDescriptor.FACTORY);
+        super(SummaryOneAggregateDescriptor.FACTORY);
+
     }
 
     @Override

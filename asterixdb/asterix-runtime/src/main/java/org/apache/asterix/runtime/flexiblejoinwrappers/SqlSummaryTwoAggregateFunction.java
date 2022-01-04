@@ -25,7 +25,7 @@ import org.apache.hyracks.api.exceptions.SourceLocation;
 
 public class SqlSummaryTwoAggregateFunction extends AbstractSummaryTwoAggregateFunction {
     public SqlSummaryTwoAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
-                                          SourceLocation sourceLoc) throws HyracksDataException {
+            SourceLocation sourceLoc) throws HyracksDataException {
         super(args, context, sourceLoc);
     }
 }

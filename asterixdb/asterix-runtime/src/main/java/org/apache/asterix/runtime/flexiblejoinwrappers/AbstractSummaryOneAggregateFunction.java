@@ -18,23 +18,19 @@
  */
 package org.apache.asterix.runtime.flexiblejoinwrappers;
 
-import org.apache.asterix.dataflow.data.nontagged.Coordinate;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
-import org.apache.asterix.om.base.AMutablePoint;
-import org.apache.asterix.om.base.AMutableRectangle;
-import org.apache.asterix.om.base.ARectangle;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.runtime.aggregates.std.AbstractAggregateFunction;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
+import org.apache.asterix.runtime.flexiblejoin.Summary;
+import org.apache.asterix.runtime.flexiblejoin.WordCount;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
-import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.data.std.api.IPointable;
@@ -42,7 +38,13 @@ import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 
 public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggregateFunction {
 
@@ -50,17 +52,28 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     private IPointable inputVal = new VoidPointable();
     private final IScalarEvaluator eval;
     protected final IEvaluatorContext context;
+    private String libraryName = "";
+    private Summary summary;
+    Type type;
+
+
 
     public AbstractSummaryOneAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
-                                               SourceLocation sourceLoc) throws HyracksDataException {
+            SourceLocation sourceLoc) throws HyracksDataException {
         super(sourceLoc);
         this.eval = args[0].createScalarEvaluator(context);
         this.context = context;
+        this.libraryName = BuiltinFunctions.SCALAR_FJ_SUMMARY_ONE.getLibraryName();
+
+        Type[] genericInterfaces = WordCount.class.getGenericInterfaces();
+        type =  (((ParameterizedType) genericInterfaces[0]).getActualTypeArguments()[0]);
+
+        this.summary = new WordCount();
+
     }
 
     @Override
     public void init() throws HyracksDataException {
-
 
     }
 
@@ -71,23 +84,31 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         int offset = inputVal.getStartOffset();
         int len = inputVal.getLength();
 
+        ATypeTag typeTag =
+                EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(inputVal.getByteArray()[inputVal.getStartOffset()]);
+        ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len - 1);
+        DataInputStream dataIn = new DataInputStream(inStream);
+
+        if(typeTag == ATypeTag.STRING && type.equals(String.class)) {
+            String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
+            summary.add(key);
+        }
     }
 
     @Override
     public void finish(IPointable result) throws HyracksDataException {
         resultStorage.reset();
-
+        try {
+            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ANY).serialize(summary, resultStorage.getDataOutput());
+        } catch (IOException e) {
+            throw HyracksDataException.create(e);
+        }
         result.set(resultStorage);
     }
 
     @Override
     public void finishPartial(IPointable result) throws HyracksDataException {
-
-
         finish(result);
     }
 
-    protected void processNull(ATypeTag typeTag) throws UnsupportedItemTypeException {
-        throw new UnsupportedItemTypeException(sourceLoc, BuiltinFunctions.UNION_MBR, typeTag.serialize());
-    }
 }

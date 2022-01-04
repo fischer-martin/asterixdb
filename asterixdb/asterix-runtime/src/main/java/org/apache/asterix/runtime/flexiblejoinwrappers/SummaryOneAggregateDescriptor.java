@@ -20,8 +20,6 @@ package org.apache.asterix.runtime.flexiblejoinwrappers;
 
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
-import org.apache.asterix.runtime.aggregates.std.AbstractUnionMbrAggregateDescriptor;
-import org.apache.asterix.runtime.aggregates.std.UnionMbrAggregateFunction;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.runtime.base.IAggregateEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IAggregateEvaluatorFactory;
