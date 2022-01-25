@@ -135,8 +135,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
             summary.add(s);
 
         } catch (Exception e) {
-            System.out.println(e.getMessage());
-            System.out.println(String.valueOf(data));
+            throw HyracksDataException.create(e);
         }
 
     }

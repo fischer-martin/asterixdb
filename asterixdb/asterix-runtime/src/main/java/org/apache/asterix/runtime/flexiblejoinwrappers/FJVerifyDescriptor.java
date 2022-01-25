@@ -163,6 +163,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ABOOLEAN)
                                     .serialize(verifyResult ? ABoolean.TRUE : ABoolean.FALSE,
                                             resultStorage.getDataOutput());
+
                         } catch (IOException e) {
                             throw HyracksDataException.create(e);
                         }

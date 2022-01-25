@@ -133,21 +133,12 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
         try {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset, len+1);
             DataInputStream dataIn = new DataInputStream(inStream);
-            // Create byte array
-            byte[] b = new byte[len];
 
-            // Read data into byte array
-            int bytes = dataIn.read(b);
-
-            // Print number of bytes
-            // actually read
-            System.out.println(bytes);
-            Summary<String> s = SerializationUtils.deserialize(b);
+            Summary<String> s = SerializationUtils.deserialize(dataIn);
             summary.add(s);
 
         } catch (Exception e) {
-            System.out.println(e.getMessage());
-            System.out.println(String.valueOf(data));
+            throw HyracksDataException.create(e);
         }
 
     }

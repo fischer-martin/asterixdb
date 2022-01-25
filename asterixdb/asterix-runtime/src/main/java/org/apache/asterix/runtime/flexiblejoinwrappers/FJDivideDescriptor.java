@@ -79,8 +79,6 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                         byte[] bytes0 = inputArg0.getByteArray();
                         byte[] bytes1 = inputArg1.getByteArray();
 
-                        System.out.println(bytes0);
-
                         int offset0 = inputArg0.getStartOffset();
                         int offset1 = inputArg1.getStartOffset();
 
