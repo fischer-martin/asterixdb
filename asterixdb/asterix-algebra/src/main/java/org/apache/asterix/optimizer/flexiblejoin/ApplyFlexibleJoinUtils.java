@@ -119,7 +119,7 @@ public class ApplyFlexibleJoinUtils {
 
         String libraryName = "";
 
-        if(stFuncExpr.getFunctionIdentifier().equals(BuiltinFunctions.CUSTOM_TEXT_FUNCTION)) {
+        if (stFuncExpr.getFunctionIdentifier().equals(BuiltinFunctions.CUSTOM_TEXT_FUNCTION)) {
             libraryName = "org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin";
         } else {
             libraryName = "org.apache.asterix.runtime.flexiblejoin.SpatialJoin";
@@ -159,15 +159,13 @@ public class ApplyFlexibleJoinUtils {
         List<Mutable<ILogicalExpression>> getDivideFuncInputExprs = new ArrayList<>();
         getDivideFuncInputExprs.add(new MutableObject<>(new VariableReferenceExpression(leftSummary)));
         getDivideFuncInputExprs.add(new MutableObject<>(new VariableReferenceExpression(rightSummary)));
-        ScalarFunctionCallExpression getDivideFuncExpr = new ScalarFunctionCallExpression(
-                DivideFunctionInfo,
-                getDivideFuncInputExprs);
+        ScalarFunctionCallExpression getDivideFuncExpr =
+                new ScalarFunctionCallExpression(DivideFunctionInfo, getDivideFuncInputExprs);
         getDivideFuncExpr.setSourceLocation(joinOp.getSourceLocation());
 
         Mutable<ILogicalExpression> configurationExpr = new MutableObject<>(getDivideFuncExpr);
         LogicalVariable configuration = context.newVar();
-        AbstractLogicalOperator configurationAssignOperator =
-                new AssignOperator(configuration, configurationExpr);
+        AbstractLogicalOperator configurationAssignOperator = new AssignOperator(configuration, configurationExpr);
         configurationAssignOperator.setSourceLocation(joinOp.getSourceLocation());
         configurationAssignOperator.setExecutionMode(joinOp.getExecutionMode());
         configurationAssignOperator.setPhysicalOperator(new AssignPOperator());
@@ -185,8 +183,8 @@ public class ApplyFlexibleJoinUtils {
                 createBroadcastExchangeOp(configReplicateOperator, context, joinOp.getSourceLocation());
         MutableObject<ILogicalOperator> exchConfigToJoinOpLeftRef = new MutableObject<>(exchConfigToJoinOpLeft);
         Pair<LogicalVariable, Mutable<ILogicalOperator>> createLeftAssignProjectOperatorResult =
-                createAssignProjectOperator(joinOp, configuration, configReplicateOperator,
-                        exchConfigToJoinOpLeftRef, context);
+                createAssignProjectOperator(joinOp, configuration, configReplicateOperator, exchConfigToJoinOpLeftRef,
+                        context);
         LogicalVariable leftConfigurationVar = createLeftAssignProjectOperatorResult.getFirst();
         Mutable<ILogicalOperator> leftConfigurationRef = createLeftAssignProjectOperatorResult.getSecond();
 
@@ -195,16 +193,15 @@ public class ApplyFlexibleJoinUtils {
                 createBroadcastExchangeOp(configReplicateOperator, context, joinOp.getSourceLocation());
         MutableObject<ILogicalOperator> exchConfigToJoinOpRightRef = new MutableObject<>(exchConfigToJoinOpRight);
         Pair<LogicalVariable, Mutable<ILogicalOperator>> createRightAssignProjectOperatorResult =
-                createAssignProjectOperator(joinOp, configuration, configReplicateOperator,
-                        exchConfigToJoinOpRightRef, context);
+                createAssignProjectOperator(joinOp, configuration, configReplicateOperator, exchConfigToJoinOpRightRef,
+                        context);
         LogicalVariable rightConfigurationVar = createRightAssignProjectOperatorResult.getFirst();
         Mutable<ILogicalOperator> rightConfigurationRef = createRightAssignProjectOperatorResult.getSecond();
 
         // Replicate Configuration to the right branch of a later Nested Loop Join for the verify function
         ExchangeOperator exchConfigToVerifyJoinOp =
                 createBroadcastExchangeOp(configReplicateOperator, context, joinOp.getSourceLocation());
-        MutableObject<ILogicalOperator> exchConfigToVerifyJoinOpRef =
-                new MutableObject<>(exchConfigToVerifyJoinOp);
+        MutableObject<ILogicalOperator> exchConfigToVerifyJoinOpRef = new MutableObject<>(exchConfigToVerifyJoinOp);
 
         // Add left Join (TRUE)
         Mutable<ILogicalExpression> leftTrueCondition =
@@ -245,15 +242,13 @@ public class ApplyFlexibleJoinUtils {
         LogicalVariable rightBucketIdVar = ApplyFlexibleJoinUtils.injectAssignTwoUnnestOperator(context, rightInputOp,
                 rightInputVar, rightConfigurationExpr);
 
-
-        ScalarFunctionCallExpression verifyEquiJoinCondition =
-                createVerifyCondition(joinOp, verifyConfigurationExpr, leftBucketIdVar, rightBucketIdVar,
-                        leftInputVar, rightInputVar);
+        ScalarFunctionCallExpression verifyEquiJoinCondition = createVerifyCondition(joinOp, verifyConfigurationExpr,
+                leftBucketIdVar, rightBucketIdVar, leftInputVar, rightInputVar);
 
         ScalarFunctionCallExpression updatedJoinCondition;
 
         /*updatedJoinCondition = (ScalarFunctionCallExpression) stFuncExpr;
-
+        
         Mutable<ILogicalExpression> joinConditionRef = joinOp.getCondition();
         joinConditionRef.setValue(updatedJoinCondition);*/
 
@@ -272,8 +267,7 @@ public class ApplyFlexibleJoinUtils {
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
                 new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar)));
 
-        InnerJoinOperator flexibleJoinOp =
-                new InnerJoinOperator(new MutableObject<>(match), leftInputOp, rightInputOp);
+        InnerJoinOperator flexibleJoinOp = new InnerJoinOperator(new MutableObject<>(match), leftInputOp, rightInputOp);
         flexibleJoinOp.setSourceLocation(joinOp.getSourceLocation());
         //SpatialJoinUtils.setSpatialJoinOp(spatialJoinOp, keysLeftBranch, keysRightBranch, context);
         flexibleJoinOp.setSchema(joinOp.getSchema());
@@ -282,11 +276,10 @@ public class ApplyFlexibleJoinUtils {
         Mutable<ILogicalOperator> opRef = new MutableObject<>(joinOp);
         Mutable<ILogicalOperator> flexibleJoinOpRef = new MutableObject<>(flexibleJoinOp);
 
-        InnerJoinOperator verifyJoinOp =
-                new InnerJoinOperator(new MutableObject<>(verifyEquiJoinCondition), flexibleJoinOpRef,
-                        exchConfigToVerifyJoinOpRef);
-        verifyJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(
-                AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
+        InnerJoinOperator verifyJoinOp = new InnerJoinOperator(new MutableObject<>(verifyEquiJoinCondition),
+                flexibleJoinOpRef, exchConfigToVerifyJoinOpRef);
+        verifyJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
+                AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
         MutableObject<ILogicalOperator> referencePointTestJoinOpRef = new MutableObject<>(verifyJoinOp);
         verifyJoinOp.setSourceLocation(joinOp.getSourceLocation());
         context.computeAndSetTypeEnvironmentForOperator(verifyJoinOp);
@@ -350,7 +343,7 @@ public class ApplyFlexibleJoinUtils {
 
         // Create local aggregate operator
         FunctionIdentifier functionIdentifier = BuiltinFunctions.LOCAL_FJ_SUMMARY_ONE;
-        if(one == 1) {
+        if (one == 1) {
             functionIdentifier = BuiltinFunctions.LOCAL_FJ_SUMMARY_TWO;
         }
         IFunctionInfo localAggFunc = context.getMetadataProvider().lookupFunction(functionIdentifier);
@@ -377,11 +370,10 @@ public class ApplyFlexibleJoinUtils {
         AbstractLogicalExpression inputVarRef = new VariableReferenceExpression(inputVar, op.getSourceLocation());
         globalAggFuncArgs.add(new MutableObject<>(inputVarRef));
         FunctionIdentifier functionIdentifier = BuiltinFunctions.GLOBAL_FJ_SUMMARY_ONE;
-        if(one == 1) {
+        if (one == 1) {
             functionIdentifier = BuiltinFunctions.GLOBAL_FJ_SUMMARY_TWO;
         }
-        IFunctionInfo globalAggFunc =
-                context.getMetadataProvider().lookupFunction(functionIdentifier);
+        IFunctionInfo globalAggFunc = context.getMetadataProvider().lookupFunction(functionIdentifier);
         AggregateFunctionCallExpression globalAggExpr =
                 new AggregateFunctionCallExpression(globalAggFunc, true, globalAggFuncArgs);
         globalAggExpr.setStepOneAggregate(globalAggFunc);
@@ -453,9 +445,7 @@ public class ApplyFlexibleJoinUtils {
     }
 
     private static LogicalVariable injectAssignOneUnnestOperator(IOptimizationContext context,
-                                                                 Mutable<ILogicalOperator> op,
-                                                                 LogicalVariable unnestVar,
-                                                                 Mutable<ILogicalExpression> configureExpr)
+            Mutable<ILogicalOperator> op, LogicalVariable unnestVar, Mutable<ILogicalExpression> configureExpr)
             throws AlgebricksException {
         SourceLocation srcLoc = op.getValue().getSourceLocation();
         LogicalVariable bucketIdVar = context.newVar();
@@ -476,9 +466,7 @@ public class ApplyFlexibleJoinUtils {
     }
 
     private static LogicalVariable injectAssignTwoUnnestOperator(IOptimizationContext context,
-                                                                 Mutable<ILogicalOperator> op,
-                                                                 LogicalVariable unnestVar,
-                                                                 Mutable<ILogicalExpression> configureExpr)
+            Mutable<ILogicalOperator> op, LogicalVariable unnestVar, Mutable<ILogicalExpression> configureExpr)
             throws AlgebricksException {
         SourceLocation srcLoc = op.getValue().getSourceLocation();
         LogicalVariable bucketIdVar = context.newVar();
@@ -497,8 +485,9 @@ public class ApplyFlexibleJoinUtils {
         op.setValue(unnestOp);
         return bucketIdVar;
     }
+
     private static ExchangeOperator createBroadcastExchangeOp(ReplicateOperator replicateOperator,
-                                                              IOptimizationContext context, SourceLocation sourceLocation) throws AlgebricksException {
+            IOptimizationContext context, SourceLocation sourceLocation) throws AlgebricksException {
         ExchangeOperator exchangeOperator = new ExchangeOperator();
         exchangeOperator.setSourceLocation(sourceLocation);
         exchangeOperator.setPhysicalOperator(new BroadcastExchangePOperator(context.getComputationNodeDomain()));
@@ -542,20 +531,18 @@ public class ApplyFlexibleJoinUtils {
     }
 
     private static ScalarFunctionCallExpression createVerifyCondition(AbstractBinaryJoinOperator op,
-                                                                      Mutable<ILogicalExpression> referencePointTestMBRExpr, LogicalVariable leftTileIdVar,
-                                                                      LogicalVariable rightTileIdVar, LogicalVariable leftInputVar, LogicalVariable rightInputVar) {
+            Mutable<ILogicalExpression> referencePointTestMBRExpr, LogicalVariable leftTileIdVar,
+            LogicalVariable rightTileIdVar, LogicalVariable leftInputVar, LogicalVariable rightInputVar) {
         // Compute reference tile ID
-        ScalarFunctionCallExpression verify = new ScalarFunctionCallExpression(
-                BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.FJ_VERIFY),
-                new MutableObject<>(new VariableReferenceExpression(leftTileIdVar)),
-                new MutableObject<>(new VariableReferenceExpression(leftInputVar)),
-                new MutableObject<>(new VariableReferenceExpression(rightTileIdVar)),
-                new MutableObject<>(new VariableReferenceExpression(rightInputVar)),
-                referencePointTestMBRExpr
+        ScalarFunctionCallExpression verify =
+                new ScalarFunctionCallExpression(BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.FJ_VERIFY),
+                        new MutableObject<>(new VariableReferenceExpression(leftTileIdVar)),
+                        new MutableObject<>(new VariableReferenceExpression(leftInputVar)),
+                        new MutableObject<>(new VariableReferenceExpression(rightTileIdVar)),
+                        new MutableObject<>(new VariableReferenceExpression(rightInputVar)), referencePointTestMBRExpr
 
-        );
+                );
         verify.setSourceLocation(op.getSourceLocation());
-
 
         return verify;
     }

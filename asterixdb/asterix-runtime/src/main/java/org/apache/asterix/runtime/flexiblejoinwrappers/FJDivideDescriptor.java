@@ -18,6 +18,8 @@
  */
 package org.apache.asterix.runtime.flexiblejoinwrappers;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 
 import org.apache.asterix.om.functions.BuiltinFunctions;
@@ -82,10 +84,17 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                         int offset0 = inputArg0.getStartOffset();
                         int offset1 = inputArg1.getStartOffset();
 
-                        int len = inputArg0.getLength();
+                        int len0 = inputArg0.getLength();
+                        int len1 = inputArg1.getLength();
 
-                        Summary<String> summaryOne = SerializationUtils.deserialize(bytes0);
-                        Summary<String> summaryTwo = SerializationUtils.deserialize(bytes1);
+                        ByteArrayInputStream inStream0 = new ByteArrayInputStream(bytes0, offset0, len0+1);
+                        DataInputStream dataIn0 = new DataInputStream(inStream0);
+
+                        ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1, len1+1);
+                        DataInputStream dataIn1 = new DataInputStream(inStream1);
+
+                        Summary<String> summaryOne = SerializationUtils.deserialize(dataIn0);
+                        Summary<String> summaryTwo = SerializationUtils.deserialize(dataIn1);
 
                         SetSimilarityJoin fj = new SetSimilarityJoin(0.5);
                         SetSimilarityConfig C = fj.divide(summaryOne, summaryTwo);

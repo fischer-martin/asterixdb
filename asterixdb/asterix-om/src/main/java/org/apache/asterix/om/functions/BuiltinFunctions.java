@@ -1470,8 +1470,10 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "st-mbr-enlarge", 2);
 
     //Flexible Join Test Function
-    public static final FunctionIdentifier CUSTOM_SPATIAL_FUNCTION = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-spatial-function", 2);
-    public static final FunctionIdentifier CUSTOM_TEXT_FUNCTION = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-text-function", 3);
+    public static final FunctionIdentifier CUSTOM_SPATIAL_FUNCTION =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-spatial-function", 2);
+    public static final FunctionIdentifier CUSTOM_TEXT_FUNCTION =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-text-function", 3);
 
     //Flexible Join Wrapper Functions
     //Summary One - Aggregate
@@ -2436,7 +2438,6 @@ public class BuiltinFunctions {
         //Flexible Join Test Function
         addFunction(CUSTOM_SPATIAL_FUNCTION, ABooleanTypeComputer.INSTANCE, true);
         addFunction(CUSTOM_TEXT_FUNCTION, ABooleanTypeComputer.INSTANCE, true);
-
 
         //Flexible Join Wrapper Functions
         //Summary One

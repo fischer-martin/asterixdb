@@ -24,14 +24,9 @@ import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AInt64SerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AObjectSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARecordSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ANull;
-import org.apache.asterix.om.base.ARecord;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
@@ -76,14 +71,11 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
 
         Type[] genericInterfaces = WordCount.class.getGenericInterfaces();
         type = (((ParameterizedType) genericInterfaces[0]).getActualTypeArguments()[0]);
-
-
+        this.summary = new WordCount();
     }
 
     @Override
     public void init() throws HyracksDataException {
-        this.summary = new WordCount();
-        aggType = ATypeTag.SYSTEM_NULL;
     }
 
     @Override
@@ -100,9 +92,6 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
     }
 
     public void processDataValues(IFrameTupleReference tuple) throws HyracksDataException {
-        if (skipStep()) {
-            return;
-        }
         eval.evaluate(tuple, inputVal);
         byte[] data = inputVal.getByteArray();
         int offset = inputVal.getStartOffset();
@@ -114,8 +103,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
 
         if (typeTag == ATypeTag.NULL || typeTag == ATypeTag.MISSING) {
             processNull(typeTag);
-        }
-        else {
+        } else {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len - 1);
             DataInputStream dataIn = new DataInputStream(inStream);
 
@@ -127,42 +115,40 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
     }
 
     public void processPartialResults(IFrameTupleReference tuple) throws IOException {
-        if (skipStep()) {
-            return;
-        }
+
         eval.evaluate(tuple, inputVal);
         byte[] data = inputVal.getByteArray();
         int offset = inputVal.getStartOffset();
         int len = inputVal.getLength();
-        ATypeTag typeTag = null;
-        try {
-            typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        if(typeTag != null) {
-            aggType = typeTag;
-        }
+
         //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
         //int nullBitmapSize = 0;
         //int offset1 = ARecordSerializerDeserializer.getFieldOffsetById(data, offset, 0,
         //        nullBitmapSize, false);
         //int len = ARecordSerializerDeserializer.getRecordLength(data, 0);
 
-        //ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len + 1);
-        //DataInputStream dataIn = new DataInputStream(inStream);
+
         //System.out.println(dataIn.readAllBytes().toString());
         //String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
         try {
-            Summary<String> s = SerializationUtils.deserialize(data);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset, len+1);
+            DataInputStream dataIn = new DataInputStream(inStream);
+            // Create byte array
+            byte[] b = new byte[len];
+
+            // Read data into byte array
+            int bytes = dataIn.read(b);
+
+            // Print number of bytes
+            // actually read
+            System.out.println(bytes);
+            Summary<String> s = SerializationUtils.deserialize(b);
             summary.add(s);
-            aggType = ATypeTag.BINARY;
 
         } catch (Exception e) {
             System.out.println(e.getMessage());
             System.out.println(String.valueOf(data));
         }
-
 
     }
 
@@ -173,18 +159,14 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
     protected void finishFinalResults(IPointable result) throws HyracksDataException {
         resultStorage.reset();
         try {
-            if (summary == null) {
-                nullSerde.serialize(ANull.NULL, resultStorage.getDataOutput());
-            } else {
+            resultStorage.getDataOutput().write(SerializationUtils.serialize(this.summary));
 
-                System.out.println(SerializationUtils.serialize(summary));
-                resultStorage.getDataOutput().write(SerializationUtils.serialize(summary));
-            }
         } catch (IOException e) {
             throw HyracksDataException.create(e);
         }
         result.set(resultStorage);
     }
+
     protected boolean skipStep() {
         return false;
     }

@@ -29,7 +29,7 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 public class LocalSummaryOneAggregateFunction extends AbstractSummaryOneAggregateFunction {
 
     public LocalSummaryOneAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
-                                            SourceLocation sourceLoc) throws HyracksDataException {
+            SourceLocation sourceLoc) throws HyracksDataException {
         super(args, context, sourceLoc);
     }
 
@@ -49,6 +49,7 @@ public class LocalSummaryOneAggregateFunction extends AbstractSummaryOneAggregat
     public void finishPartial(IPointable result) throws HyracksDataException {
         finishFinalResults(result);
     }
+
     @Override
     protected boolean skipStep() {
         return aggType == ATypeTag.NULL;

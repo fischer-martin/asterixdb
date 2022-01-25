@@ -18,9 +18,9 @@
  */
 package org.apache.asterix.runtime.flexiblejoinwrappers;
 
+import java.io.IOException;
+
 import org.apache.asterix.om.types.ATypeTag;
-import org.apache.asterix.runtime.aggregates.std.AbstractSumAggregateFunction;
-import org.apache.asterix.runtime.evaluators.functions.PointableHelper;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -28,12 +28,10 @@ import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
-import java.io.IOException;
-
 public class GlobalSummaryTwoAggregateFunction extends AbstractSummaryTwoAggregateFunction {
 
     public GlobalSummaryTwoAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
-                                             SourceLocation sourceLoc) throws HyracksDataException {
+            SourceLocation sourceLoc) throws HyracksDataException {
         super(args, context, sourceLoc);
     }
 
@@ -57,6 +55,7 @@ public class GlobalSummaryTwoAggregateFunction extends AbstractSummaryTwoAggrega
     public void finishPartial(IPointable result) throws HyracksDataException {
         finishFinalResults(result);
     }
+
     @Override
     protected boolean skipStep() {
         return aggType == ATypeTag.NULL;

@@ -33,16 +33,16 @@ public class SqlSummaryOneAggregateFunction extends AbstractSummaryOneAggregateF
 
     @Override
     public void step(IFrameTupleReference tuple) throws HyracksDataException {
-
+        processDataValues(tuple);
     }
 
     @Override
     public void finish(IPointable result) throws HyracksDataException {
-
+        finishFinalResults(result);
     }
 
     @Override
     public void finishPartial(IPointable result) throws HyracksDataException {
-
+        finishFinalResults(result);
     }
 }

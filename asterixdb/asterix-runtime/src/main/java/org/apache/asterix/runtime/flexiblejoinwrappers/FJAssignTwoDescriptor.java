@@ -18,6 +18,9 @@
  */
 package org.apache.asterix.runtime.flexiblejoinwrappers;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMutableInt32;
@@ -42,9 +45,6 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
-
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
 
 public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescriptor {
     private static final long serialVersionUID = 1L;
@@ -93,6 +93,7 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                         int offset1 = inputArg1.getStartOffset();
 
                         int len = inputArg0.getLength();
+                        int len1 = inputArg1.getLength();
 
                         ATypeTag tag0 = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes0[offset0]);
 
@@ -102,7 +103,10 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
 
                         String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
 
-                        SetSimilarityConfig C = SerializationUtils.deserialize(bytes1);
+                        ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1, len1+1);
+                        DataInputStream dataIn1 = new DataInputStream(inStream1);
+
+                        SetSimilarityConfig C = SerializationUtils.deserialize(dataIn1);
 
                         SetSimilarityJoin sj = new SetSimilarityJoin(0.5);
                         pos = 0;

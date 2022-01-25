@@ -37,7 +37,7 @@ public class WordCount implements Summary<String> {
     @Override
     public void add(Summary<String> s) {
         WordCount wc = (WordCount) s;
-        for (String token : WordCountMap.keySet()) {
+        for (String token : wc.WordCountMap.keySet()) {
             WordCountMap.merge(token, wc.WordCountMap.get(token), Integer::sum);
         }
     }

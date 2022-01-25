@@ -93,6 +93,7 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
                         int offset1 = inputArg1.getStartOffset();
 
                         int len = inputArg0.getLength();
+                        int len1 = inputArg1.getLength();
 
                         ATypeTag tag0 = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes0[offset0]);
 
@@ -102,7 +103,11 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
 
                         String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
 
-                        SetSimilarityConfig C = SerializationUtils.deserialize(bytes1);
+                        ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1, len1+1);
+                        DataInputStream dataIn1 = new DataInputStream(inStream1);
+
+                        SetSimilarityConfig C = SerializationUtils.deserialize(dataIn1);
+
 
                         SetSimilarityJoin sj = new SetSimilarityJoin(0.5);
                         pos = 0;

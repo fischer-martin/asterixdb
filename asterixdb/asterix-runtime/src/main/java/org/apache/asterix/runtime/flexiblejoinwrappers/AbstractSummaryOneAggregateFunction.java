@@ -33,8 +33,6 @@ import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.runtime.aggregates.std.AbstractAggregateFunction;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
-import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
-import org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin;
 import org.apache.asterix.runtime.flexiblejoin.Summary;
 import org.apache.asterix.runtime.flexiblejoin.WordCount;
 import org.apache.commons.lang3.SerializationUtils;
@@ -74,15 +72,13 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
 
         Type[] genericInterfaces = WordCount.class.getGenericInterfaces();
         type = (((ParameterizedType) genericInterfaces[0]).getActualTypeArguments()[0]);
-
-
+        this.summary = new WordCount();
 
     }
 
     @Override
     public void init() throws HyracksDataException {
-        this.summary = new WordCount();
-        aggType = ATypeTag.SYSTEM_NULL;
+
     }
 
     @Override
@@ -95,9 +91,6 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     public abstract void finishPartial(IPointable result) throws HyracksDataException;
 
     public void processDataValues(IFrameTupleReference tuple) throws HyracksDataException {
-        if (skipStep()) {
-            return;
-        }
         eval.evaluate(tuple, inputVal);
         byte[] data = inputVal.getByteArray();
         int offset = inputVal.getStartOffset();
@@ -109,8 +102,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
 
         if (typeTag == ATypeTag.NULL || typeTag == ATypeTag.MISSING) {
             processNull(typeTag);
-        }
-        else {
+        } else {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len - 1);
             DataInputStream dataIn = new DataInputStream(inStream);
 
@@ -122,22 +114,11 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     }
 
     public void processPartialResults(IFrameTupleReference tuple) throws IOException {
-        if (skipStep()) {
-            return;
-        }
         eval.evaluate(tuple, inputVal);
         byte[] data = inputVal.getByteArray();
         int offset = inputVal.getStartOffset();
         int len = inputVal.getLength();
-        ATypeTag typeTag = null;
-        try {
-            typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        if(typeTag != null) {
-            aggType = typeTag;
-        }
+
         //int nullBitmapSize = 0;
         //int offset1 = ARecordSerializerDeserializer.getFieldOffsetById(data, offset, 0,
         //        nullBitmapSize, false);
@@ -148,15 +129,15 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         //System.out.println(dataIn.readAllBytes().toString());
         //String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
         try {
-            Summary<String> s = SerializationUtils.deserialize(data);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset, len+1);
+            DataInputStream dataIn = new DataInputStream(inStream);
+            Summary<String> s = SerializationUtils.deserialize(dataIn);
             summary.add(s);
-            aggType = ATypeTag.BINARY;
 
         } catch (Exception e) {
             System.out.println(e.getMessage());
             System.out.println(String.valueOf(data));
         }
-
 
     }
 
@@ -167,18 +148,13 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     protected void finishFinalResults(IPointable result) throws HyracksDataException {
         resultStorage.reset();
         try {
-            if (summary == null) {
-                nullSerde.serialize(ANull.NULL, resultStorage.getDataOutput());
-            } else {
-
-                System.out.println(SerializationUtils.serialize(summary));
-                resultStorage.getDataOutput().write(SerializationUtils.serialize(summary));
-            }
+            resultStorage.getDataOutput().write(SerializationUtils.serialize(summary));
         } catch (IOException e) {
             throw HyracksDataException.create(e);
         }
         result.set(resultStorage);
     }
+
     protected boolean skipStep() {
         return false;
     }

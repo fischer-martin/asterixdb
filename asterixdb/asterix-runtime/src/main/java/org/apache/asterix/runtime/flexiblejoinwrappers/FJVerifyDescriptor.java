@@ -103,6 +103,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                         int len3 = inputArg3.getLength();
                         int len1 = inputArg1.getLength();
+                        int len4 = inputArg4.getLength();
                         boolean verifyResult = false;
                         try {
 
@@ -123,7 +124,10 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                             SetSimilarityJoin fj = new SetSimilarityJoin(0.5);
 
-                            SetSimilarityConfig C = SerializationUtils.deserialize(bytes4);
+                            ByteArrayInputStream inStream4 = new ByteArrayInputStream(bytes4, offset4, len4+1);
+                            DataInputStream dataIn4 = new DataInputStream(inStream4);
+
+                            SetSimilarityConfig C = SerializationUtils.deserialize(dataIn4);
 
                             boolean verifyResult1 = fj.verify(bucketID1, key0, bucketID1, key1, C);
 
