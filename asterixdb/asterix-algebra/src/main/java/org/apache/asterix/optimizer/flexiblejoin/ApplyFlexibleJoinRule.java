@@ -39,6 +39,7 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCa
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractLogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AggregateFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.ScalarFunctionCallExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.UnnestingFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
 import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
@@ -100,24 +101,33 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
         Mutable<ILogicalOperator> rightInputOp = op.getInputs().get(1);
 
         // Extract left and right variable of the predicate
-        LogicalVariable spatialJoinVar0 =
+        LogicalVariable joinVar0 =
                 ((VariableReferenceExpression) fjFuncLeftArg.getValue()).getVariableReference();
-        LogicalVariable spatialJoinVar1 =
+        LogicalVariable joinVar1 =
                 ((VariableReferenceExpression) fjFuncRightArg.getValue()).getVariableReference();
 
         LogicalVariable leftInputVar;
         LogicalVariable rightInputVar;
         Collection<LogicalVariable> liveVars = new HashSet<>();
         VariableUtilities.getLiveVariables(leftInputOp.getValue(), liveVars);
-        if (liveVars.contains(spatialJoinVar0)) {
-            leftInputVar = spatialJoinVar0;
-            rightInputVar = spatialJoinVar1;
+
+        if (liveVars.contains(joinVar0)) {
+            leftInputVar = joinVar0;
+            rightInputVar = joinVar1;
         } else {
-            leftInputVar = spatialJoinVar1;
-            rightInputVar = spatialJoinVar0;
+            leftInputVar = joinVar1;
+            rightInputVar = joinVar0;
         }
 
-        BuiltinFunctions.FJ_SUMMARY_ONE.setLibraryName("fj_test");
+        String libraryName = "";
+
+        if(fjFuncExpr.getFunctionIdentifier().equals(BuiltinFunctions.CUSTOM_TEXT_FUNCTION)) {
+            libraryName = "org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin";
+        } else {
+            libraryName = "org.apache.asterix.runtime.flexiblejoin.SpatialJoin";
+        }
+
+        BuiltinFunctions.FJ_SUMMARY_ONE.setLibraryName(libraryName);
         IFunctionInfo SummaryOneInfo =
                 context.getMetadataProvider().lookupFunction(BuiltinFunctions.SCALAR_FJ_SUMMARY_ONE);
 
@@ -135,16 +145,64 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
         AbstractLogicalExpression inputVarRefargsSummaryTwo =
                 new VariableReferenceExpression(rightInputVar, op.getSourceLocation());
         argsSummaryTwo.add(new MutableObject<>(inputVarRefargsSummaryTwo));
+
         AggregateFunctionCallExpression summaryTwo =
                 new AggregateFunctionCallExpression(SummaryTwoInfo, false, argsSummaryTwo);
 
-        BuiltinFunctions.FJ_DIVIDE.setLibraryName("fj_test");
+        BuiltinFunctions.FJ_DIVIDE.setLibraryName(libraryName);
         IFunctionInfo DivideFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_DIVIDE);
 
         ScalarFunctionCallExpression divide = new ScalarFunctionCallExpression(DivideFunctionInfo,
                 new MutableObject<>(summaryOne.cloneExpression()), new MutableObject<>(summaryTwo.cloneExpression()));
 
-        joinConditionRef.setValue(divide);
+
+        SourceLocation srcLocLeft = leftInputOp.getValue().getSourceLocation();
+        SourceLocation srcLocRight = rightInputOp.getValue().getSourceLocation();
+
+
+        BuiltinFunctions.FJ_ASSIGN_ONE.setLibraryName(libraryName);
+        IFunctionInfo AssignOneInfo =
+                context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_ASSIGN_ONE);
+
+        List<Mutable<ILogicalExpression>> argsAssignOne = new ArrayList<>(2);
+        AbstractLogicalExpression inputVarRefAssignOne =
+                new VariableReferenceExpression(leftInputVar, op.getSourceLocation());
+        argsAssignOne.add(new MutableObject<>(inputVarRefAssignOne));
+
+        UnnestingFunctionCallExpression assignOne = new UnnestingFunctionCallExpression(
+                AssignOneInfo,
+                new MutableObject<>(inputVarRefAssignOne),
+                new MutableObject<>(divide.cloneExpression())
+        );
+
+        assignOne.setSourceLocation(srcLocLeft);
+
+        BuiltinFunctions.FJ_ASSIGN_TWO.setLibraryName(libraryName);
+        IFunctionInfo AssignTwoInfo =
+                context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_ASSIGN_TWO);
+
+        List<Mutable<ILogicalExpression>> argsAssignTwo = new ArrayList<>(2);
+        AbstractLogicalExpression inputVarRefAssignTwo =
+                new VariableReferenceExpression(rightInputVar, op.getSourceLocation());
+        argsAssignOne.add(new MutableObject<>(inputVarRefAssignTwo));
+
+
+
+        UnnestingFunctionCallExpression assignTwo = new UnnestingFunctionCallExpression(
+                AssignTwoInfo,
+                new MutableObject<>(inputVarRefAssignTwo),
+                new MutableObject<>(divide.cloneExpression())
+        );
+        assignTwo.setSourceLocation(srcLocRight);
+
+        BuiltinFunctions.FJ_MATCH.setLibraryName(libraryName);
+        IFunctionInfo MatchFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_MATCH);
+
+        ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(MatchFunctionInfo,
+                new MutableObject<>(assignOne.cloneExpression()), new MutableObject<>(assignTwo.cloneExpression()));
+
+
+        joinConditionRef.setValue(match);
         return true;
 
     }

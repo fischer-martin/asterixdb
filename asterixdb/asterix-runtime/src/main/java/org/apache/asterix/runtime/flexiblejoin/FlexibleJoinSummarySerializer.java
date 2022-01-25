@@ -18,10 +18,20 @@
  */
 package org.apache.asterix.runtime.flexiblejoin;
 
-import java.io.Serializable;
+import java.io.DataInput;
+import java.io.DataOutput;
 
-public interface Summary<T> extends Serializable {
-    void add(T k);
+import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
+import org.apache.hyracks.api.exceptions.HyracksDataException;
 
-    void add(Summary<T> s);
+public class FlexibleJoinSummarySerializer implements ISerializerDeserializer {
+    @Override
+    public Object deserialize(DataInput in) throws HyracksDataException {
+        return null;
+    }
+
+    @Override
+    public void serialize(Object instance, DataOutput out) throws HyracksDataException {
+
+    }
 }

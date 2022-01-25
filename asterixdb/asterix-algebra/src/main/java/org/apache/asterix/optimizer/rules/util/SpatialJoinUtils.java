@@ -442,7 +442,7 @@ public class SpatialJoinUtils {
         op.recomputeSchema();
     }
 
-    private static ScalarFunctionCallExpression createReferencePointTestCondition(AbstractBinaryJoinOperator op,
+    private static ScalarFunctionCallExpression  createReferencePointTestCondition(AbstractBinaryJoinOperator op,
             Mutable<ILogicalExpression> referencePointTestMBRExpr, LogicalVariable leftTileIdVar,
             LogicalVariable rightTileIdVar, LogicalVariable leftInputVar, LogicalVariable rightInputVar, int numRows,
             int numColumns) {

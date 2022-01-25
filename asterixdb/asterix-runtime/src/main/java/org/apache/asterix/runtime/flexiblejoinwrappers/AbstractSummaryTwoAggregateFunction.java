@@ -18,21 +18,29 @@
  */
 package org.apache.asterix.runtime.flexiblejoinwrappers;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 
-import org.apache.asterix.dataflow.data.nontagged.Coordinate;
 import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AInt64SerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AObjectSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ARecordSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
-import org.apache.asterix.om.base.AMutablePoint;
-import org.apache.asterix.om.base.AMutableRectangle;
-import org.apache.asterix.om.base.ARectangle;
+import org.apache.asterix.om.base.ANull;
+import org.apache.asterix.om.base.ARecord;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.runtime.aggregates.std.AbstractAggregateFunction;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
+import org.apache.asterix.runtime.flexiblejoin.Summary;
+import org.apache.asterix.runtime.flexiblejoin.WordCount;
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
@@ -50,91 +58,134 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
     private IPointable inputVal = new VoidPointable();
     private final IScalarEvaluator eval;
     protected final IEvaluatorContext context;
-    protected double currentMinX;
-    protected double currentMinY;
-    protected double currentMaxX;
-    protected double currentMaxY;
+    private String libraryName = "";
+    private Summary summary;
+    Type type;
+    protected ATypeTag aggType;
 
-    protected final AMutablePoint[] aPoint = { new AMutablePoint(0.0, 0.0), new AMutablePoint(0.0, 0.0) };
-    protected final AMutableRectangle aRect = new AMutableRectangle(aPoint[0], aPoint[1]);
-
-    private ISerializerDeserializer<ARectangle> rectangleSerde =
-            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ARECTANGLE);
+    @SuppressWarnings("unchecked")
+    private ISerializerDeserializer<ANull> nullSerde =
+            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ANULL);
 
     public AbstractSummaryTwoAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
             SourceLocation sourceLoc) throws HyracksDataException {
         super(sourceLoc);
         this.eval = args[0].createScalarEvaluator(context);
         this.context = context;
+        this.libraryName = BuiltinFunctions.SCALAR_FJ_SUMMARY_TWO.getLibraryName();
+
+        Type[] genericInterfaces = WordCount.class.getGenericInterfaces();
+        type = (((ParameterizedType) genericInterfaces[0]).getActualTypeArguments()[0]);
+
+
     }
 
     @Override
     public void init() throws HyracksDataException {
-        // Initialize the resulting mbr coordinates
-        currentMinX = Double.POSITIVE_INFINITY;
-        currentMinY = Double.POSITIVE_INFINITY;
-        currentMaxX = Double.NEGATIVE_INFINITY;
-        currentMaxY = Double.NEGATIVE_INFINITY;
+        this.summary = new WordCount();
+        aggType = ATypeTag.SYSTEM_NULL;
     }
 
     @Override
-    public void step(IFrameTupleReference tuple) throws HyracksDataException {
+    public abstract void step(IFrameTupleReference tuple) throws HyracksDataException;
+
+    @Override
+    public abstract void finish(IPointable result) throws HyracksDataException;
+
+    @Override
+    public abstract void finishPartial(IPointable result) throws HyracksDataException;
+
+    protected void processNull(ATypeTag typeTag) throws UnsupportedItemTypeException {
+        throw new UnsupportedItemTypeException(sourceLoc, BuiltinFunctions.FJ_SUMMARY_TWO, typeTag.serialize());
+    }
+
+    public void processDataValues(IFrameTupleReference tuple) throws HyracksDataException {
+        if (skipStep()) {
+            return;
+        }
         eval.evaluate(tuple, inputVal);
         byte[] data = inputVal.getByteArray();
         int offset = inputVal.getStartOffset();
         int len = inputVal.getLength();
-        ATypeTag typeTag =
-                EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(inputVal.getByteArray()[inputVal.getStartOffset()]);
+
+        //System.out.println(offset);
+        ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
+        aggType = typeTag;
+
         if (typeTag == ATypeTag.NULL || typeTag == ATypeTag.MISSING) {
             processNull(typeTag);
-        } else if (typeTag == ATypeTag.RECTANGLE) {
-            double minX = ADoubleSerializerDeserializer.getDouble(data,
-                    offset + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
-            double minY = ADoubleSerializerDeserializer.getDouble(data,
-                    offset + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
-            double maxX = ADoubleSerializerDeserializer.getDouble(data,
-                    offset + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
-            double maxY = ADoubleSerializerDeserializer.getDouble(data,
-                    offset + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
-            currentMinX = Math.min(currentMinX, minX);
-            currentMinY = Math.min(currentMinY, minY);
-            currentMaxX = Math.max(currentMaxX, maxX);
-            currentMaxY = Math.max(currentMaxY, maxY);
+        }
+        else {
+            ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len - 1);
+            DataInputStream dataIn = new DataInputStream(inStream);
+
+            if (typeTag == ATypeTag.STRING && type.equals(String.class)) {
+                String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
+                summary.add(key);
+            }
         }
     }
 
-    @Override
-    public void finish(IPointable result) throws HyracksDataException {
+    public void processPartialResults(IFrameTupleReference tuple) throws IOException {
+        if (skipStep()) {
+            return;
+        }
+        eval.evaluate(tuple, inputVal);
+        byte[] data = inputVal.getByteArray();
+        int offset = inputVal.getStartOffset();
+        int len = inputVal.getLength();
+        ATypeTag typeTag = null;
+        try {
+            typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if(typeTag != null) {
+            aggType = typeTag;
+        }
+        //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
+        //int nullBitmapSize = 0;
+        //int offset1 = ARecordSerializerDeserializer.getFieldOffsetById(data, offset, 0,
+        //        nullBitmapSize, false);
+        //int len = ARecordSerializerDeserializer.getRecordLength(data, 0);
+
+        //ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len + 1);
+        //DataInputStream dataIn = new DataInputStream(inStream);
+        //System.out.println(dataIn.readAllBytes().toString());
+        //String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
+        try {
+            Summary<String> s = SerializationUtils.deserialize(data);
+            summary.add(s);
+            aggType = ATypeTag.BINARY;
+
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            System.out.println(String.valueOf(data));
+        }
+
+
+    }
+
+    protected void finishPartialResults(IPointable result) throws HyracksDataException {
+        finishFinalResults(result);
+    }
+
+    protected void finishFinalResults(IPointable result) throws HyracksDataException {
         resultStorage.reset();
         try {
-            aPoint[0].setValue(currentMinX, currentMinY);
-            aPoint[1].setValue(currentMaxX, currentMaxY);
-            aRect.setValue(aPoint[0], aPoint[1]);
-            rectangleSerde.serialize(aRect, resultStorage.getDataOutput());
+            if (summary == null) {
+                nullSerde.serialize(ANull.NULL, resultStorage.getDataOutput());
+            } else {
+
+                System.out.println(SerializationUtils.serialize(summary));
+                resultStorage.getDataOutput().write(SerializationUtils.serialize(summary));
+            }
         } catch (IOException e) {
             throw HyracksDataException.create(e);
         }
         result.set(resultStorage);
     }
-
-    @Override
-    public void finishPartial(IPointable result) throws HyracksDataException {
-        if (!isValidCoordinates(currentMinX, currentMinY, currentMaxX, currentMaxY)) {
-            currentMinX = 0.0;
-            currentMinY = 0.0;
-            currentMaxX = 0.0;
-            currentMaxY = 0.0;
-        }
-
-        finish(result);
-    }
-
-    protected void processNull(ATypeTag typeTag) throws UnsupportedItemTypeException {
-        throw new UnsupportedItemTypeException(sourceLoc, BuiltinFunctions.UNION_MBR, typeTag.serialize());
-    }
-
-    private boolean isValidCoordinates(double minX, double minY, double maxX, double maxY) {
-        return (minX != Double.POSITIVE_INFINITY) && (minY != Double.POSITIVE_INFINITY)
-                && (maxX != Double.NEGATIVE_INFINITY) && (maxY != Double.NEGATIVE_INFINITY);
+    protected boolean skipStep() {
+        return false;
     }
 }

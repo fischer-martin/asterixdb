@@ -22,10 +22,27 @@ import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.SourceLocation;
+import org.apache.hyracks.data.std.api.IPointable;
+import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
 public class SqlSummaryTwoAggregateFunction extends AbstractSummaryTwoAggregateFunction {
     public SqlSummaryTwoAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
             SourceLocation sourceLoc) throws HyracksDataException {
         super(args, context, sourceLoc);
+    }
+
+    @Override
+    public void step(IFrameTupleReference tuple) throws HyracksDataException {
+
+    }
+
+    @Override
+    public void finish(IPointable result) throws HyracksDataException {
+
+    }
+
+    @Override
+    public void finishPartial(IPointable result) throws HyracksDataException {
+
     }
 }

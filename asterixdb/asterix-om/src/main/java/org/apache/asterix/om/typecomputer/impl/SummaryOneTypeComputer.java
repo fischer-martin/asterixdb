@@ -37,6 +37,7 @@ public class SummaryOneTypeComputer extends AggregateResultTypeComputer {
         switch (tag) {
             case ANY:
                 return BuiltinType.ANY;
+
             default:
                 // All other possible cases.
                 return BuiltinType.ANULL;

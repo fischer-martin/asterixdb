@@ -1,8 +1,25 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.asterix.runtime.flexiblejoin;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -11,9 +28,11 @@ import java.util.stream.Collectors;
 
 public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConfig> {
     Double SimilarityThreshold = 0.0;
+
     public SetSimilarityJoin(Double SimilarityThreshold) {
         this.SimilarityThreshold = SimilarityThreshold;
     }
+
     @Override
     public Summary<String> createSummarizer1() {
         return new WordCount();
@@ -23,13 +42,13 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
     public SetSimilarityConfig divide(Summary<String> s1, Summary<String> s2) {
         WordCount s1wc = (WordCount) s1;
         WordCount s2wc = (WordCount) s2;
-        for(String token: s1wc.WordCountMap.keySet()) {
+        for (String token : s1wc.WordCountMap.keySet()) {
             s2wc.WordCountMap.merge(token, s1wc.WordCountMap.get(token), Integer::sum);
         }
 
-        LinkedHashMap<String,Integer> SortedWordCountMap = s2wc.WordCountMap.entrySet().stream().
-                sorted(Map.Entry.comparingByValue()).
-                collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+        LinkedHashMap<String, Integer> SortedWordCountMap =
+                s2wc.WordCountMap.entrySet().stream().sorted(Map.Entry.comparingByValue()).collect(
+                        Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
         return new SetSimilarityConfig(SortedWordCountMap.keySet().toArray(String[]::new));
 
@@ -39,16 +58,18 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
     public int[] assign1(String k1, SetSimilarityConfig setSimilarityConfig) {
         ArrayList<String> tokens = Utilities.tokenizer(k1);
         int length = tokens.size();
-        int PrefixLength = (int)(length - Math.ceil(SimilarityThreshold * length) + 1);
+        int PrefixLength = (int) (length - Math.ceil(SimilarityThreshold * length) + 1);
         ArrayList<Integer> ranks = new ArrayList<>();
         for (String token : tokens) {
             int rank = setSimilarityConfig.S.get(token);
-            if (!ranks.contains(rank)) ranks.add(rank);
+            if (!ranks.contains(rank))
+                ranks.add(rank);
         }
         int[] ranksToReturn = new int[PrefixLength];
         Collections.sort(ranks);
-        for(int i = 0; i < PrefixLength; i++) {
-            if(i >= ranks.size()) break;
+        for (int i = 0; i < PrefixLength; i++) {
+            if (i >= ranks.size())
+                break;
             ranksToReturn[i] = ranks.get(i);
 
         }
@@ -65,15 +86,6 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
         return Utilities.calculateJaccardSimilarityS(k1, k2) >= SimilarityThreshold;
     }
 
-}
-
-class SetSimilarityConfig implements Configuration {
-    HashMap<String, Integer> S = new HashMap<>();
-    SetSimilarityConfig(String[] OrderedTokens) {
-        for(int i = 0; i < OrderedTokens.length; i++) {
-            this.S.put(OrderedTokens[i], i);
-        }
-    }
 }
 
 abstract class Utilities {
@@ -116,7 +128,7 @@ abstract class Utilities {
 
         for (int leftIndex = 0; leftIndex < leftLength; leftIndex++) {
             int i = 0;
-            for (String rt: rightTokens) {
+            for (String rt : rightTokens) {
                 if (leftTokens.get(leftIndex).equals(rt)) {
                     intersectionSize = intersectionSize + 1.0f;
                     rightTokens.remove(i);
@@ -126,7 +138,7 @@ abstract class Utilities {
             }
         }
         double sim = (intersectionSize / ((leftLength + rightLength) - intersectionSize));
-        sim = Math.round(sim * 100000000d)/100000000d;
+        sim = Math.round(sim * 100000000d) / 100000000d;
         return sim;
     }
 
@@ -148,7 +160,8 @@ abstract class Utilities {
 
             String token = lowerCaseText.substring(tokenStart, tokenEnd);
 
-            if(!token.isEmpty()) tokens.add(token);
+            if (!token.isEmpty())
+                tokens.add(token);
         }
         return tokens;
     }

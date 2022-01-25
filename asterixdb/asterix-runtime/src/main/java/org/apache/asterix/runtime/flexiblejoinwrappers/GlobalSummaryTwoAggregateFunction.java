@@ -18,6 +18,9 @@
  */
 package org.apache.asterix.runtime.flexiblejoinwrappers;
 
+import org.apache.asterix.om.types.ATypeTag;
+import org.apache.asterix.runtime.aggregates.std.AbstractSumAggregateFunction;
+import org.apache.asterix.runtime.evaluators.functions.PointableHelper;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -25,25 +28,38 @@ import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
-public class SummaryOneAggregateFunction extends AbstractSummaryOneAggregateFunction {
+import java.io.IOException;
 
-    public SummaryOneAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
-            SourceLocation sourceLoc) throws HyracksDataException {
+public class GlobalSummaryTwoAggregateFunction extends AbstractSummaryTwoAggregateFunction {
+
+    public GlobalSummaryTwoAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
+                                             SourceLocation sourceLoc) throws HyracksDataException {
         super(args, context, sourceLoc);
     }
 
+    // Called for each incoming tuple
     @Override
     public void step(IFrameTupleReference tuple) throws HyracksDataException {
-        processDataValues(tuple);
+        try {
+            processPartialResults(tuple);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
+    // Finish calculation
     @Override
     public void finish(IPointable result) throws HyracksDataException {
-        finishPartialResults(result);
+        finishFinalResults(result);
     }
 
     @Override
     public void finishPartial(IPointable result) throws HyracksDataException {
-        finishPartialResults(result);
+        finishFinalResults(result);
     }
+    @Override
+    protected boolean skipStep() {
+        return aggType == ATypeTag.NULL;
+    }
+
 }

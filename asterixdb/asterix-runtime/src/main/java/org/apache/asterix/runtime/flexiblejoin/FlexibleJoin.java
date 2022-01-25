@@ -18,10 +18,24 @@
  */
 package org.apache.asterix.runtime.flexiblejoin;
 
-import java.io.Serializable;
+public interface FlexibleJoin<T, C> {
+    Summary<T> createSummarizer1();
 
-public interface Summary<T> extends Serializable {
-    void add(T k);
+    default Summary<T> createSummarizer2() {
+        return createSummarizer1();
+    }
 
-    void add(Summary<T> s);
+    C divide(Summary<T> s1, Summary<T> s2);
+
+    int[] assign1(T k1, C c);
+
+    default int[] assign2(T k2, C c) {
+        return assign1(k2, c);
+    }
+
+    default boolean match(int b1, int b2) {
+        return b1 == b2;
+    }
+
+    boolean verify(int b1, T k1, int b2, T k2, C c);
 }

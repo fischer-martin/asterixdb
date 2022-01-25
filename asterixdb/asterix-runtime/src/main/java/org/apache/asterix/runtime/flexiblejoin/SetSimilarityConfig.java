@@ -18,10 +18,14 @@
  */
 package org.apache.asterix.runtime.flexiblejoin;
 
-import java.io.Serializable;
+import java.util.HashMap;
 
-public interface Summary<T> extends Serializable {
-    void add(T k);
+public class SetSimilarityConfig implements Configuration {
+    HashMap<String, Integer> S = new HashMap<>();
 
-    void add(Summary<T> s);
+    SetSimilarityConfig(String[] OrderedTokens) {
+        for (int i = 0; i < OrderedTokens.length; i++) {
+            this.S.put(OrderedTokens[i], i);
+        }
+    }
 }

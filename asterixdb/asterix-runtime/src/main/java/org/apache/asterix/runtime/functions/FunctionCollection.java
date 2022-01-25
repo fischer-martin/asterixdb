@@ -616,7 +616,11 @@ import org.apache.asterix.runtime.evaluators.functions.temporal.WeekOfYear2Descr
 import org.apache.asterix.runtime.evaluators.functions.temporal.WeekOfYearDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.temporal.YearMonthDurationGreaterThanComparatorDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.temporal.YearMonthDurationLessThanComparatorDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.FJAssignOneDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.FJAssignTwoDescriptor;
 import org.apache.asterix.runtime.flexiblejoinwrappers.FJDivideDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.FJMatchDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.FJVerifyDescriptor;
 import org.apache.asterix.runtime.flexiblejoinwrappers.GlobalSqlSummaryOneAggregateDescriptor;
 import org.apache.asterix.runtime.flexiblejoinwrappers.GlobalSqlSummaryTwoAggregateDescriptor;
 import org.apache.asterix.runtime.flexiblejoinwrappers.GlobalSummaryOneAggregateDescriptor;
@@ -1215,6 +1219,12 @@ public final class FunctionCollection implements IFunctionCollection {
         fc.add(IntermediateSqlSummaryTwoAggregateDescriptor.FACTORY);
         fc.add(GlobalSqlSummaryTwoAggregateDescriptor.FACTORY);
         fc.add(ScalarSqlSummaryTwoAggregateDescriptor.FACTORY);
+
+        fc.add(FJAssignOneDescriptor.FACTORY);
+        fc.add(FJAssignTwoDescriptor.FACTORY);
+
+        fc.add(FJMatchDescriptor.FACTORY);
+        fc.add(FJVerifyDescriptor.FACTORY);
 
         // full-text function
         fc.add(FullTextContainsFunctionDescriptor.FACTORY);

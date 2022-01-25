@@ -46,7 +46,7 @@ public class GlobalSummaryTwoAggregateDescriptor extends AbstractSummaryTwoAggre
             @Override
             public IAggregateEvaluator createAggregateEvaluator(final IEvaluatorContext ctx)
                     throws HyracksDataException {
-                return new SummaryTwoAggregateFunction(args, ctx, sourceLoc);
+                return new GlobalSummaryTwoAggregateFunction(args, ctx, sourceLoc);
             }
         };
     }

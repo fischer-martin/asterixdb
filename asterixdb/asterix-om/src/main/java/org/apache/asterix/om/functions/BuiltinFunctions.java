@@ -1470,7 +1470,8 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "st-mbr-enlarge", 2);
 
     //Flexible Join Test Function
-    public static final FunctionIdentifier FJ_TEST = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-test", 2);
+    public static final FunctionIdentifier CUSTOM_SPATIAL_FUNCTION = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-spatial-function", 2);
+    public static final FunctionIdentifier CUSTOM_TEXT_FUNCTION = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-text-function", 3);
 
     //Flexible Join Wrapper Functions
     //Summary One - Aggregate
@@ -1504,8 +1505,8 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "intermediate-fj-summary-two", 1);
     public static final FunctionIdentifier GLOBAL_FJ_SUMMARY_TWO =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "global-fj-summary-two", 1);
-    public static final FunctionIdentifier SCALAR_FJ_SUMMARY_TWO =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-summary-two", 1);
+    public static final FlexibleJoinWrapperFunctionIdentifier SCALAR_FJ_SUMMARY_TWO =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-summary-two", 1);
     public static final FlexibleJoinWrapperFunctionIdentifier SCALAR_SQL_FJ_SUMMARY_TWO =
             new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "sql-fj-summary-two", 1);
     public static final FunctionIdentifier SQL_FJ_SUMMARY_TWO =
@@ -1520,6 +1521,19 @@ public class BuiltinFunctions {
     //divide
     public static final FlexibleJoinWrapperFunctionIdentifier FJ_DIVIDE =
             new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-divide", 2);
+    //assign one - unnesting
+    public static final FlexibleJoinWrapperFunctionIdentifier FJ_ASSIGN_ONE =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-assign-one", 2);
+    //assign two - unnesting
+    public static final FlexibleJoinWrapperFunctionIdentifier FJ_ASSIGN_TWO =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-assign-two", 2);
+    //match
+    public static final FlexibleJoinWrapperFunctionIdentifier FJ_MATCH =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-match", 2);
+
+    //match
+    public static final FlexibleJoinWrapperFunctionIdentifier FJ_VERIFY =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-verify", 5);
 
     // Spatial and temporal type accessors
     public static final FunctionIdentifier ACCESSOR_TEMPORAL_YEAR =
@@ -2420,7 +2434,9 @@ public class BuiltinFunctions {
         addPrivateFunction(ST_MBR_ENLARGE, ARectangleTypeComputer.INSTANCE, true);
 
         //Flexible Join Test Function
-        addFunction(FJ_TEST, ABooleanTypeComputer.INSTANCE, true);
+        addFunction(CUSTOM_SPATIAL_FUNCTION, ABooleanTypeComputer.INSTANCE, true);
+        addFunction(CUSTOM_TEXT_FUNCTION, ABooleanTypeComputer.INSTANCE, true);
+
 
         //Flexible Join Wrapper Functions
         //Summary One
@@ -2431,7 +2447,9 @@ public class BuiltinFunctions {
         addPrivateFunction(LOCAL_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
         addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
         addPrivateFunction(GLOBAL_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
-        addFunction(SCALAR_FJ_SUMMARY_ONE, scalarSummaryOneTypeComputer, true);
+        addFunction(SCALAR_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
+
+        FJ_SUMMARY_ONE.setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
 
         addAgg(SQL_FJ_SUMMARY_ONE);
         addAgg(LOCAL_SQL_FJ_SUMMARY_ONE);
@@ -2452,7 +2470,7 @@ public class BuiltinFunctions {
         addPrivateFunction(LOCAL_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
         addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
         addPrivateFunction(GLOBAL_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
-        addFunction(SCALAR_FJ_SUMMARY_TWO, scalarSummaryTwoTypeComputer, true);
+        addFunction(SCALAR_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
 
         addAgg(SQL_FJ_SUMMARY_TWO);
         addAgg(LOCAL_SQL_FJ_SUMMARY_TWO);
@@ -2466,7 +2484,19 @@ public class BuiltinFunctions {
         addScalarAgg(SQL_FJ_SUMMARY_TWO, SCALAR_SQL_FJ_SUMMARY_TWO);
 
         //Divide
-        addFunction(FJ_DIVIDE, ABooleanTypeComputer.INSTANCE, true);
+        addFunction(FJ_DIVIDE, AnyTypeComputer.INSTANCE, true);
+
+        //Assign
+        addFunction(FJ_ASSIGN_ONE, AInt32TypeComputer.INSTANCE, true);
+
+        //Assign
+        addFunction(FJ_ASSIGN_TWO, AInt32TypeComputer.INSTANCE, true);
+
+        //Match
+        addFunction(FJ_MATCH, ABooleanTypeComputer.INSTANCE, true);
+
+        //Verify
+        addFunction(FJ_VERIFY, ABooleanTypeComputer.INSTANCE, true);
 
         // Binary functions
         addFunction(BINARY_HEX_CONSTRUCTOR, ABinaryTypeComputer.INSTANCE_NULLABLE, true);
@@ -3348,6 +3378,8 @@ public class BuiltinFunctions {
         addUnnestFun(SCAN_COLLECTION, false);
         addUnnestFun(SUBSET_COLLECTION, false);
         addUnnestFun(SPATIAL_TILE, false);
+        addUnnestFun(FJ_ASSIGN_ONE, true);
+        addUnnestFun(FJ_ASSIGN_TWO, true);
     }
 
     public enum DataSourceFunctionProperty implements BuiltinFunctionProperty {
@@ -3559,7 +3591,8 @@ public class BuiltinFunctions {
     }
 
     static {
-        flexibleJoinTestFunctions.add(FJ_TEST);
+        flexibleJoinTestFunctions.add(CUSTOM_SPATIAL_FUNCTION);
+        flexibleJoinTestFunctions.add(CUSTOM_TEXT_FUNCTION);
     }
 
     public static boolean isGlobalAggregateFunction(FunctionIdentifier fi) {
