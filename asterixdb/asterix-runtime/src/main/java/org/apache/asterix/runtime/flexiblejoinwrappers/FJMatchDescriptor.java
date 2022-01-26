@@ -84,6 +84,8 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor {
                         int bucketID0 = AInt32SerializerDeserializer.getInt(bytes0, offset0 + 1);
                         int bucketID1 = AInt32SerializerDeserializer.getInt(bytes1, offset1 + 1);
 
+                        System.out.println("bucket ids: " + bucketID0 + ", " + bucketID1);
+
                         SetSimilarityJoin fj = new SetSimilarityJoin(0.5);
                         try {
                             Class c = Class.forName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");

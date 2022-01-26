@@ -112,6 +112,11 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
                         SetSimilarityJoin sj = new SetSimilarityJoin(0.5);
                         pos = 0;
                         buckets = sj.assign1(key, C);
+                        System.out.println("\nAssign One:");
+                        for (int b:buckets
+                             ) {
+                            System.out.print(b + ", ");
+                        }
                     }
 
                     @SuppressWarnings("unchecked")

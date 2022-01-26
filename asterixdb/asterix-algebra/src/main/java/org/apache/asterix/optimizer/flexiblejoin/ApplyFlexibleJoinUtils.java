@@ -263,13 +263,14 @@ public class ApplyFlexibleJoinUtils {
         BuiltinFunctions.FJ_MATCH.setLibraryName(libraryName);
         IFunctionInfo MatchFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_MATCH);
 
-        ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(MatchFunctionInfo,
+        ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(
+                MatchFunctionInfo,
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
                 new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar)));
 
         InnerJoinOperator flexibleJoinOp = new InnerJoinOperator(new MutableObject<>(match), leftInputOp, rightInputOp);
         flexibleJoinOp.setSourceLocation(joinOp.getSourceLocation());
-        //SpatialJoinUtils.setSpatialJoinOp(spatialJoinOp, keysLeftBranch, keysRightBranch, context);
+        ApplyFlexibleJoinUtils.setFlexibleJoinOp(flexibleJoinOp, keysLeftBranch, keysRightBranch, context);
         flexibleJoinOp.setSchema(joinOp.getSchema());
         context.computeAndSetTypeEnvironmentForOperator(flexibleJoinOp);
 
@@ -531,19 +532,28 @@ public class ApplyFlexibleJoinUtils {
     }
 
     private static ScalarFunctionCallExpression createVerifyCondition(AbstractBinaryJoinOperator op,
-            Mutable<ILogicalExpression> referencePointTestMBRExpr, LogicalVariable leftTileIdVar,
-            LogicalVariable rightTileIdVar, LogicalVariable leftInputVar, LogicalVariable rightInputVar) {
-        // Compute reference tile ID
+            Mutable<ILogicalExpression> configurationExpr, LogicalVariable leftBucketIdVar,
+            LogicalVariable rightBucketIdVar, LogicalVariable leftInputVar, LogicalVariable rightInputVar) {
         ScalarFunctionCallExpression verify =
                 new ScalarFunctionCallExpression(BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.FJ_VERIFY),
-                        new MutableObject<>(new VariableReferenceExpression(leftTileIdVar)),
+                        new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
                         new MutableObject<>(new VariableReferenceExpression(leftInputVar)),
-                        new MutableObject<>(new VariableReferenceExpression(rightTileIdVar)),
-                        new MutableObject<>(new VariableReferenceExpression(rightInputVar)), referencePointTestMBRExpr
+                        new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar)),
+                        new MutableObject<>(new VariableReferenceExpression(rightInputVar)),
+                        configurationExpr
 
                 );
         verify.setSourceLocation(op.getSourceLocation());
-
         return verify;
+    }
+
+    private static void setFlexibleJoinOp(AbstractBinaryJoinOperator op, List<LogicalVariable> keysLeftBranch,
+                                         List<LogicalVariable> keysRightBranch, IOptimizationContext context) throws AlgebricksException {
+        /*ISpatialJoinUtilFactory isjuf = new IntersectSpatialJoinUtilFactory();
+        op.setPhysicalOperator(new SpatialJoinPOperator(op.getJoinKind(),
+                AbstractJoinPOperator.JoinPartitioningType.PAIRWISE, keysLeftBranch, keysRightBranch,
+                context.getPhysicalOptimizationConfig().getMaxFramesForJoin(), isjuf));
+        op.recomputeSchema();
+        context.computeAndSetTypeEnvironmentForOperator(op);*/
     }
 }
