@@ -18,6 +18,8 @@
  */
 package org.apache.asterix.algebra.operators.physical;
 
+import org.apache.asterix.runtime.operators.joins.flexible.FlexibleJoinOperatorDescriptor;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
 import org.apache.asterix.runtime.operators.joins.spatial.PlaneSweepJoinOperatorDescriptor;
 import org.apache.asterix.runtime.operators.joins.spatial.utils.ISpatialJoinUtilFactory;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -47,12 +49,12 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
     private final List<LogicalVariable> keysLeftBranch;
     private final List<LogicalVariable> keysRightBranch;
 
-    protected final ISpatialJoinUtilFactory mjcf;
+    protected final IFlexibleJoinUtilFactory mjcf;
     private final int memSizeInFrames;
 
     public FlexibleJoinPOperator(JoinKind kind, JoinPartitioningType partitioningType,
                                  List<LogicalVariable> keysLeftBranch, List<LogicalVariable> keysRightBranch, int memSizeInFrames,
-                                 ISpatialJoinUtilFactory mjcf) {
+                                 IFlexibleJoinUtilFactory mjcf) {
         super(kind, partitioningType);
         this.keysLeftBranch = keysLeftBranch;
         this.keysRightBranch = keysRightBranch;
@@ -66,7 +68,7 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
 
     @Override
     public PhysicalOperatorTag getOperatorTag() {
-        return PhysicalOperatorTag.SPATIAL_JOIN;
+        return PhysicalOperatorTag.FLEXIBLE_JOIN;
     }
 
     @Override
@@ -76,7 +78,7 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
 
     @Override
     public String toString() {
-        return "SPATIAL_JOIN" + " " + keysLeftBranch + " " + keysRightBranch;
+        return "FLEXIBLE_JOIN" + " " + keysLeftBranch + " " + keysRightBranch;
     }
 
     @Override
@@ -144,7 +146,7 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         RecordDescriptor recordDescriptor =
                 JobGenHelper.mkRecordDescriptor(context.getTypeEnvironment(op), propagatedSchema, context);
 
-        IOperatorDescriptor opDesc = new PlaneSweepJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe,
+        IOperatorDescriptor opDesc = new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe,
                 recordDescriptor, mjcf);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
 

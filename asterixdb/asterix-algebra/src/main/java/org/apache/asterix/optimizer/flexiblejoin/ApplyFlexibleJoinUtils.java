@@ -23,9 +23,12 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 
+import org.apache.asterix.algebra.operators.physical.FlexibleJoinPOperator;
 import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.FlexibleJoinUtilFactory;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -549,11 +552,11 @@ public class ApplyFlexibleJoinUtils {
 
     private static void setFlexibleJoinOp(AbstractBinaryJoinOperator op, List<LogicalVariable> keysLeftBranch,
                                          List<LogicalVariable> keysRightBranch, IOptimizationContext context) throws AlgebricksException {
-        /*ISpatialJoinUtilFactory isjuf = new IntersectSpatialJoinUtilFactory();
-        op.setPhysicalOperator(new SpatialJoinPOperator(op.getJoinKind(),
+        IFlexibleJoinUtilFactory isjuf = new FlexibleJoinUtilFactory();
+        op.setPhysicalOperator(new FlexibleJoinPOperator(op.getJoinKind(),
                 AbstractJoinPOperator.JoinPartitioningType.PAIRWISE, keysLeftBranch, keysRightBranch,
                 context.getPhysicalOptimizationConfig().getMaxFramesForJoin(), isjuf));
         op.recomputeSchema();
-        context.computeAndSetTypeEnvironmentForOperator(op);*/
+        context.computeAndSetTypeEnvironmentForOperator(op);
     }
 }
