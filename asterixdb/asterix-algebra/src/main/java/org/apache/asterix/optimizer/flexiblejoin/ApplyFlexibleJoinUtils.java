@@ -63,6 +63,7 @@ import org.apache.hyracks.algebricks.core.algebra.operators.physical.AbstractJoi
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.AggregatePOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.AssignPOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.BroadcastExchangePOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.HybridHashJoinPOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.NestedLoopJoinPOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.OneToOneExchangePOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.RandomPartitionExchangePOperator;
@@ -71,6 +72,7 @@ import org.apache.hyracks.algebricks.core.algebra.operators.physical.StreamProje
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.UnnestPOperator;
 import org.apache.hyracks.algebricks.core.algebra.util.OperatorManipulationUtil;
 import org.apache.hyracks.api.exceptions.SourceLocation;
+import org.apache.hyracks.dataflow.std.join.OptimizedHybridHashJoin;
 
 public class ApplyFlexibleJoinUtils {
 
@@ -266,6 +268,12 @@ public class ApplyFlexibleJoinUtils {
         BuiltinFunctions.FJ_MATCH.setLibraryName(libraryName);
         IFunctionInfo MatchFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_MATCH);
 
+        ScalarFunctionCallExpression matchEq =
+                new ScalarFunctionCallExpression(BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.EQ),
+                        new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
+                        new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar)));
+        matchEq.setSourceLocation(joinOp.getSourceLocation());
+
         ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(
                 MatchFunctionInfo,
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
@@ -273,22 +281,24 @@ public class ApplyFlexibleJoinUtils {
 
         InnerJoinOperator flexibleJoinOp = new InnerJoinOperator(new MutableObject<>(match), leftInputOp, rightInputOp);
         flexibleJoinOp.setSourceLocation(joinOp.getSourceLocation());
+        //ApplyFlexibleJoinUtils.setHashJoinOp(flexibleJoinOp, keysLeftBranch, keysRightBranch, context);
         ApplyFlexibleJoinUtils.setFlexibleJoinOp(flexibleJoinOp, keysLeftBranch, keysRightBranch, context);
+        //flexibleJoinOp.setPhysicalOperator();
         flexibleJoinOp.setSchema(joinOp.getSchema());
         context.computeAndSetTypeEnvironmentForOperator(flexibleJoinOp);
 
-        Mutable<ILogicalOperator> opRef = new MutableObject<>(joinOp);
+        //Mutable<ILogicalOperator> opRef = new MutableObject<>(joinOp);
         Mutable<ILogicalOperator> flexibleJoinOpRef = new MutableObject<>(flexibleJoinOp);
 
         InnerJoinOperator verifyJoinOp = new InnerJoinOperator(new MutableObject<>(verifyEquiJoinCondition),
                 flexibleJoinOpRef, exchConfigToVerifyJoinOpRef);
-        verifyJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
-                AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
-        MutableObject<ILogicalOperator> referencePointTestJoinOpRef = new MutableObject<>(verifyJoinOp);
+        //verifyJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
+        //        AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
+        //MutableObject<ILogicalOperator> referencePointTestJoinOpRef = new MutableObject<>(verifyJoinOp);
         verifyJoinOp.setSourceLocation(joinOp.getSourceLocation());
         context.computeAndSetTypeEnvironmentForOperator(verifyJoinOp);
         verifyJoinOp.recomputeSchema();
-        opRef.setValue(referencePointTestJoinOpRef.getValue());
+        //opRef.setValue(referencePointTestJoinOpRef.getValue());
         joinOp.getInputs().clear();
         joinOp.getInputs().addAll(verifyJoinOp.getInputs());
         joinOp.setPhysicalOperator(verifyJoinOp.getPhysicalOperator());
@@ -556,6 +566,17 @@ public class ApplyFlexibleJoinUtils {
         op.setPhysicalOperator(new FlexibleJoinPOperator(op.getJoinKind(),
                 AbstractJoinPOperator.JoinPartitioningType.PAIRWISE, keysLeftBranch, keysRightBranch,
                 context.getPhysicalOptimizationConfig().getMaxFramesForJoin(), isjuf));
+        op.recomputeSchema();
+        context.computeAndSetTypeEnvironmentForOperator(op);
+    }
+    private static void setHashJoinOp(AbstractBinaryJoinOperator op,
+                                      List<LogicalVariable> sideLeft, List<LogicalVariable> sideRight, IOptimizationContext context) throws AlgebricksException {
+        op.setPhysicalOperator(new HybridHashJoinPOperator(op.getJoinKind(),
+                AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
+                sideLeft, sideRight,
+                context.getPhysicalOptimizationConfig().getMaxFramesForJoinLeftInput(),
+                context.getPhysicalOptimizationConfig().getMaxRecordsPerFrame(),
+                context.getPhysicalOptimizationConfig().getFudgeFactor()));
         op.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(op);
     }

@@ -3379,8 +3379,8 @@ public class BuiltinFunctions {
         addUnnestFun(SCAN_COLLECTION, false);
         addUnnestFun(SUBSET_COLLECTION, false);
         addUnnestFun(SPATIAL_TILE, false);
-        addUnnestFun(FJ_ASSIGN_ONE, true);
-        addUnnestFun(FJ_ASSIGN_TWO, true);
+        addUnnestFun(FJ_ASSIGN_ONE, false);
+        addUnnestFun(FJ_ASSIGN_TWO, false);
     }
 
     public enum DataSourceFunctionProperty implements BuiltinFunctionProperty {

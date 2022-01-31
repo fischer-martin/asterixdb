@@ -110,7 +110,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             int bucketID0 = AInt32SerializerDeserializer.getInt(bytes0, offset0 + 1);
                             int bucketID1 = AInt32SerializerDeserializer.getInt(bytes2, offset2 + 1);
 
-                            System.out.println("bucket ids: " + bucketID0 + ", " + bucketID1);
+                            System.out.println("\nFJ VERIFY: bucket ids: " + bucketID0 + ", " + bucketID1);
 
 
                             ByteArrayInputStream inStream1 =
@@ -136,7 +136,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                             if (verifyResult1) {
 
-                                System.out.println("Verify 1");
+                                System.out.println("\nFJ VERIFY:Verify 1");
 
                                 int[] buckets1DA = fj.assign1(key0, C);
                                 int[] buckets2DA = fj.assign2(key1, C);
@@ -150,7 +150,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                         if (fj.match(b1, b2)) {
                                             if (b1 == bucketID0 && b2 == bucketID1) {
                                                 verifyResult = true;
-                                                System.out.println("Verify 2");
+                                                System.out.println("\nFJ VERIFY:Verify 2");
                                             }
                                             stop = true;
                                             break;
