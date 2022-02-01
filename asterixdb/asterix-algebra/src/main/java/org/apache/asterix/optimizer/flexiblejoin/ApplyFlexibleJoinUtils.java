@@ -29,6 +29,7 @@ import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.FlexibleJoinUtilFactory;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
+import org.apache.avro.Schema;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -49,27 +50,9 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.UnnestingFunctionC
 import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.AggregateOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.AssignOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.ExchangeOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.InnerJoinOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.ProjectOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.ReplicateOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.UnnestOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.*;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.VariableUtilities;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.AbstractJoinPOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.AggregatePOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.AssignPOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.BroadcastExchangePOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.HybridHashJoinPOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.NestedLoopJoinPOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.OneToOneExchangePOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.RandomPartitionExchangePOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.ReplicatePOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.StreamProjectPOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.UnnestPOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.*;
 import org.apache.hyracks.algebricks.core.algebra.util.OperatorManipulationUtil;
 import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.dataflow.std.join.OptimizedHybridHashJoin;
@@ -187,6 +170,7 @@ public class ApplyFlexibleJoinUtils {
         ExchangeOperator exchConfigToJoinOpLeft =
                 createBroadcastExchangeOp(configReplicateOperator, context, joinOp.getSourceLocation());
         MutableObject<ILogicalOperator> exchConfigToJoinOpLeftRef = new MutableObject<>(exchConfigToJoinOpLeft);
+
         Pair<LogicalVariable, Mutable<ILogicalOperator>> createLeftAssignProjectOperatorResult =
                 createAssignProjectOperator(joinOp, configuration, configReplicateOperator, exchConfigToJoinOpLeftRef,
                         context);
@@ -214,8 +198,8 @@ public class ApplyFlexibleJoinUtils {
         InnerJoinOperator leftJoinOp =
                 new InnerJoinOperator(leftTrueCondition, leftExchToJoinOpRef, leftConfigurationRef);
         leftJoinOp.setSourceLocation(joinOp.getSourceLocation());
-        leftJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
-                AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
+        //leftJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
+                //AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
         MutableObject<ILogicalOperator> leftJoinRef = new MutableObject<>(leftJoinOp);
         leftJoinOp.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(leftJoinOp);
@@ -227,8 +211,8 @@ public class ApplyFlexibleJoinUtils {
         InnerJoinOperator rightJoinOp =
                 new InnerJoinOperator(rightTrueCondition, rightExchToJoinOpRef, rightConfigurationRef);
         rightJoinOp.setSourceLocation(joinOp.getSourceLocation());
-        rightJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
-                AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
+        //rightJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
+                //AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
         MutableObject<ILogicalOperator> rightJoinRef = new MutableObject<>(rightJoinOp);
         rightJoinOp.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(rightJoinOp);
@@ -242,11 +226,12 @@ public class ApplyFlexibleJoinUtils {
                 new MutableObject<>(new VariableReferenceExpression(configuration));
 
         // Inject unnest operator to add bucket IDs to the left and right branch of the join operator
-        LogicalVariable leftBucketIdVar = ApplyFlexibleJoinUtils.injectAssignOneUnnestOperator(context, leftInputOp,
+        Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> leftBucketIdVarPair = ApplyFlexibleJoinUtils.injectAssignOneUnnestOperator(context, leftInputOp,
                 leftInputVar, leftConfigurationExpr);
-        LogicalVariable rightBucketIdVar = ApplyFlexibleJoinUtils.injectAssignTwoUnnestOperator(context, rightInputOp,
+        Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> rightBucketIdVarPair = ApplyFlexibleJoinUtils.injectAssignTwoUnnestOperator(context, rightInputOp,
                 rightInputVar, rightConfigurationExpr);
-
+        LogicalVariable leftBucketIdVar = leftBucketIdVarPair.first;
+        LogicalVariable rightBucketIdVar = rightBucketIdVarPair.first;
         ScalarFunctionCallExpression verifyEquiJoinCondition = createVerifyCondition(joinOp, verifyConfigurationExpr,
                 leftBucketIdVar, rightBucketIdVar, leftInputVar, rightInputVar);
 
@@ -265,6 +250,26 @@ public class ApplyFlexibleJoinUtils {
         keysRightBranch.add(rightBucketIdVar);
         keysRightBranch.add(rightInputVar);
 
+        List<Pair<OrderOperator.IOrder, Mutable<ILogicalExpression>>> orderExpressions1 = new ArrayList<>();
+        orderExpressions1.add(new Pair<>(OrderOperator.ASC_ORDER, new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar))));
+        OrderOperator orderOperator1 = new OrderOperator(orderExpressions1);
+        orderOperator1.setSourceLocation(joinOp.getSourceLocation());
+        orderOperator1.setPhysicalOperator(new StableSortPOperator());
+        orderOperator1.getInputs().add(new MutableObject<>(leftBucketIdVarPair.second));
+        orderOperator1.setExecutionMode(AbstractLogicalOperator.ExecutionMode.LOCAL);
+        orderOperator1.setSchema(leftBucketIdVarPair.second.getSchema());
+        context.computeAndSetTypeEnvironmentForOperator(orderOperator1);
+
+        List<Pair<OrderOperator.IOrder, Mutable<ILogicalExpression>>> orderExpressions2 = new ArrayList<>();
+        orderExpressions2.add(new Pair<>(OrderOperator.ASC_ORDER, new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar))));
+        OrderOperator orderOperator2 = new OrderOperator(orderExpressions2);
+        orderOperator2.setSourceLocation(joinOp.getSourceLocation());
+        orderOperator2.setPhysicalOperator(new StableSortPOperator());
+        orderOperator2.getInputs().add(new MutableObject<>(rightBucketIdVarPair.second));
+        orderOperator2.setExecutionMode(AbstractLogicalOperator.ExecutionMode.LOCAL);
+        orderOperator2.setSchema(rightBucketIdVarPair.second.getSchema());
+        context.computeAndSetTypeEnvironmentForOperator(orderOperator2);
+
         BuiltinFunctions.FJ_MATCH.setLibraryName(libraryName);
         IFunctionInfo MatchFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_MATCH);
 
@@ -279,13 +284,18 @@ public class ApplyFlexibleJoinUtils {
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
                 new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar)));
 
-        InnerJoinOperator flexibleJoinOp = new InnerJoinOperator(new MutableObject<>(match), leftInputOp, rightInputOp);
+        InnerJoinOperator flexibleJoinOp = new InnerJoinOperator(new MutableObject<>(matchEq), new MutableObject<>(orderOperator1), new MutableObject<>(orderOperator2));
+        //InnerJoinOperator flexibleJoinOp = new InnerJoinOperator(new MutableObject<>(match), leftInputOp, rightInputOp);
         flexibleJoinOp.setSourceLocation(joinOp.getSourceLocation());
+
+
+
         //ApplyFlexibleJoinUtils.setHashJoinOp(flexibleJoinOp, keysLeftBranch, keysRightBranch, context);
-        ApplyFlexibleJoinUtils.setFlexibleJoinOp(flexibleJoinOp, keysLeftBranch, keysRightBranch, context);
+        //ApplyFlexibleJoinUtils.setFlexibleJoinOp(flexibleJoinOp, keysLeftBranch, keysRightBranch, context);
         //flexibleJoinOp.setPhysicalOperator();
         flexibleJoinOp.setSchema(joinOp.getSchema());
         context.computeAndSetTypeEnvironmentForOperator(flexibleJoinOp);
+
 
         //Mutable<ILogicalOperator> opRef = new MutableObject<>(joinOp);
         Mutable<ILogicalOperator> flexibleJoinOpRef = new MutableObject<>(flexibleJoinOp);
@@ -298,7 +308,7 @@ public class ApplyFlexibleJoinUtils {
         verifyJoinOp.setSourceLocation(joinOp.getSourceLocation());
         context.computeAndSetTypeEnvironmentForOperator(verifyJoinOp);
         verifyJoinOp.recomputeSchema();
-        //opRef.setValue(referencePointTestJoinOpRef.getValue());
+        //opRef.setValue(verifyJoinOp.getValue());
         joinOp.getInputs().clear();
         joinOp.getInputs().addAll(verifyJoinOp.getInputs());
         joinOp.setPhysicalOperator(verifyJoinOp.getPhysicalOperator());
@@ -458,7 +468,7 @@ public class ApplyFlexibleJoinUtils {
         return aggregateOperator;
     }
 
-    private static LogicalVariable injectAssignOneUnnestOperator(IOptimizationContext context,
+    private static Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> injectAssignOneUnnestOperator(IOptimizationContext context,
             Mutable<ILogicalOperator> op, LogicalVariable unnestVar, Mutable<ILogicalExpression> configureExpr)
             throws AlgebricksException {
         SourceLocation srcLoc = op.getValue().getSourceLocation();
@@ -476,10 +486,10 @@ public class ApplyFlexibleJoinUtils {
         context.computeAndSetTypeEnvironmentForOperator(unnestOp);
         unnestOp.recomputeSchema();
         op.setValue(unnestOp);
-        return bucketIdVar;
+        return new Triple<>(bucketIdVar, unnestOp, spatialTileFuncExpr);
     }
 
-    private static LogicalVariable injectAssignTwoUnnestOperator(IOptimizationContext context,
+    private static Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> injectAssignTwoUnnestOperator(IOptimizationContext context,
             Mutable<ILogicalOperator> op, LogicalVariable unnestVar, Mutable<ILogicalExpression> configureExpr)
             throws AlgebricksException {
         SourceLocation srcLoc = op.getValue().getSourceLocation();
@@ -497,7 +507,7 @@ public class ApplyFlexibleJoinUtils {
         context.computeAndSetTypeEnvironmentForOperator(unnestOp);
         unnestOp.recomputeSchema();
         op.setValue(unnestOp);
-        return bucketIdVar;
+        return new Triple<>(bucketIdVar, unnestOp, spatialTileFuncExpr);
     }
 
     private static ExchangeOperator createBroadcastExchangeOp(ReplicateOperator replicateOperator,

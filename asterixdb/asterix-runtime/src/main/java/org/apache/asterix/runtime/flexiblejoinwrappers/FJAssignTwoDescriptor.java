@@ -34,6 +34,7 @@ import org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin;
 import org.apache.asterix.runtime.unnestingfunctions.base.AbstractUnnestingFunctionDynamicDescriptor;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
+import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
@@ -112,11 +113,13 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                         pos = 0;
                         buckets = sj.assign2(key, C);
 
-                        System.out.println("\nAssign Two:");
+                        String a = "";
                         for (int b:buckets
                         ) {
-                            System.out.print(b + ", ");
+                            a += b + ", ";
                         }
+                        AlgebricksConfig.ALGEBRICKS_LOGGER
+                                .info("Assign Two: "  + a + ".\n");
                     }
 
                     @SuppressWarnings("unchecked")
