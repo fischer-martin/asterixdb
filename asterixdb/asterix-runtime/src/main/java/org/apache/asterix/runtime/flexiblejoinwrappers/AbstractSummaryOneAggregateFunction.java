@@ -21,8 +21,11 @@ package org.apache.asterix.runtime.flexiblejoinwrappers;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
@@ -33,9 +36,15 @@ import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.runtime.aggregates.std.AbstractAggregateFunction;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
+import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
 import org.apache.asterix.runtime.flexiblejoin.Summary;
 import org.apache.asterix.runtime.flexiblejoin.WordCount;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
+import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
@@ -53,9 +62,22 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     private IPointable inputVal = new VoidPointable();
     private final IScalarEvaluator eval;
     protected final IEvaluatorContext context;
-    private String libraryName = "";
     private Summary summary;
     Type type;
+
+    private Class<?> flexibleJoinClass = null;
+    {
+        try {
+            String a = BuiltinFunctions.FJ_SUMMARY_ONE.getLibraryName();
+            System.out.println(a);
+            flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_SUMMARY_ONE.getLibraryName());
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private FlexibleJoin flexibleJoin = null;
+    private List<Mutable<ILogicalExpression>> parameters = BuiltinFunctions.FJ_SUMMARY_ONE.getParameters();
 
     protected ATypeTag aggType;
 
@@ -68,12 +90,39 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         super(sourceLoc);
         this.eval = args[0].createScalarEvaluator(context);
         this.context = context;
-        this.libraryName = BuiltinFunctions.SCALAR_FJ_SUMMARY_ONE.getLibraryName();
 
-        Type[] genericInterfaces = WordCount.class.getGenericInterfaces();
+        if(flexibleJoin == null) {
+            //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
+            Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
+            if(parameters != null) {
+                ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
+                IAlgebricksConstantValue d = c.getValue();
+                Double dx = Double.valueOf(d.toString());
+                try {
+                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(dx);
+                } catch (InstantiationException e) {
+                    e.printStackTrace();
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                } catch (InvocationTargetException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                try {
+                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
+                } catch (InstantiationException e) {
+                    e.printStackTrace();
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                } catch (InvocationTargetException e) {
+                    e.printStackTrace();
+                }
+            }
+            this.summary = flexibleJoin.createSummarizer1();
+        }
+
+        Type[] genericInterfaces = flexibleJoinClass.getGenericInterfaces();
         type = (((ParameterizedType) genericInterfaces[0]).getActualTypeArguments()[0]);
-        this.summary = new WordCount();
-
     }
 
     @Override
@@ -109,6 +158,8 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
             if (typeTag == ATypeTag.STRING && type.equals(String.class)) {
                 String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
                 summary.add(key);
+                AlgebricksConfig.ALGEBRICKS_LOGGER
+                        .info("Process Data Summary One: "  + key + " ID: " + context.getServiceContext().getControllerService().getId() + ".\n");
             }
         }
     }
@@ -118,6 +169,8 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         byte[] data = inputVal.getByteArray();
         int offset = inputVal.getStartOffset();
         int len = inputVal.getLength();
+
+
 
         //int nullBitmapSize = 0;
         //int offset1 = ARecordSerializerDeserializer.getFieldOffsetById(data, offset, 0,
@@ -133,6 +186,8 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
             DataInputStream dataIn = new DataInputStream(inStream);
             Summary<String> s = SerializationUtils.deserialize(dataIn);
             summary.add(s);
+            AlgebricksConfig.ALGEBRICKS_LOGGER
+                    .info("Process Partial Summary One ID: " + context.getServiceContext().getControllerService().getId() + ".\n");
 
         } catch (Exception e) {
             throw HyracksDataException.create(e);
@@ -141,10 +196,14 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     }
 
     protected void finishPartialResults(IPointable result) throws HyracksDataException {
+        AlgebricksConfig.ALGEBRICKS_LOGGER
+                .info("Finish Partial Summary One ID: " + context.getServiceContext().getControllerService().getId() + ".\n");
         finishFinalResults(result);
     }
 
     protected void finishFinalResults(IPointable result) throws HyracksDataException {
+        AlgebricksConfig.ALGEBRICKS_LOGGER
+                .info("Finish Final Summary One ID: " + context.getServiceContext().getControllerService().getId() + ".\n");
         resultStorage.reset();
         try {
             resultStorage.getDataOutput().write(SerializationUtils.serialize(summary));

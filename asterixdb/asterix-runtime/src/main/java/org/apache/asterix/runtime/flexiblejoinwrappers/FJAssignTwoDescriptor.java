@@ -119,7 +119,7 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                             a += b + ", ";
                         }
                         AlgebricksConfig.ALGEBRICKS_LOGGER
-                                .info("Assign Two: "  + a + ".\n");
+                                .info("Assign Two: " + key + " to "  +  a + " ID: " + ctx.getServiceContext().getControllerService().getId() + ".\n");
                     }
 
                     @SuppressWarnings("unchecked")
@@ -129,6 +129,8 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                             return false;
                         }
                         aInt32.setValue(buckets[pos]);
+                        AlgebricksConfig.ALGEBRICKS_LOGGER
+                                .info("Assign Two step : "+ buckets[pos] + " ID: " + ctx.getServiceContext().getControllerService().getId() + ".\n");
                         resultStorage.reset();
                         serde.serialize(aInt32, resultStorage.getDataOutput());
                         result.set(resultStorage);

@@ -37,9 +37,10 @@ package org.apache.asterix.runtime.flexiblejoin;
  * specific language governing permissions and limitations
  * under the License.
  */
+import java.io.Serializable;
 import java.util.ArrayList;
 
-class Rectangle {
+class Rectangle implements Serializable {
     double x1, x2, y1, y2 = 0.0;
 }
 

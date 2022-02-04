@@ -26,9 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-interface Configuration extends Serializable {
-}
-
 class Pair<K, V> {
     K k;
     V v;

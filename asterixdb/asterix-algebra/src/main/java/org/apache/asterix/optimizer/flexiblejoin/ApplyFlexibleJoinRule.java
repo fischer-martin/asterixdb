@@ -42,16 +42,9 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.ScalarFunctionCall
 import org.apache.hyracks.algebricks.core.algebra.expressions.UnnestingFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
 import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.AggregateOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.ExchangeOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.ReplicateOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.*;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.VariableUtilities;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.AggregatePOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.OneToOneExchangePOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.RandomPartitionExchangePOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.ReplicatePOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.*;
 import org.apache.hyracks.algebricks.core.algebra.util.OperatorManipulationUtil;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 import org.apache.hyracks.api.exceptions.SourceLocation;
@@ -97,8 +90,8 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
         }
 
         // Gets both input branches of the spatial join.
-        Mutable<ILogicalOperator> leftInputOp = op.getInputs().get(0);
-        Mutable<ILogicalOperator> rightInputOp = op.getInputs().get(1);
+        Mutable<ILogicalOperator> leftInputOp = joinOp.getInputs().get(0);
+        Mutable<ILogicalOperator> rightInputOp = joinOp.getInputs().get(1);
 
         // Extract left and right variable of the predicate
         LogicalVariable joinVar0 = ((VariableReferenceExpression) fjFuncLeftArg.getValue()).getVariableReference();
@@ -131,7 +124,7 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
 
         List<Mutable<ILogicalExpression>> argsSummaryOne = new ArrayList<>(1);
         AbstractLogicalExpression inputVarRefSummaryOne =
-                new VariableReferenceExpression(leftInputVar, op.getSourceLocation());
+                new VariableReferenceExpression(leftInputVar, joinOp.getSourceLocation());
         argsSummaryOne.add(new MutableObject<>(inputVarRefSummaryOne));
         AggregateFunctionCallExpression summaryOne =
                 new AggregateFunctionCallExpression(SummaryOneInfo, false, argsSummaryOne);
@@ -141,11 +134,12 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
 
         List<Mutable<ILogicalExpression>> argsSummaryTwo = new ArrayList<>(1);
         AbstractLogicalExpression inputVarRefargsSummaryTwo =
-                new VariableReferenceExpression(rightInputVar, op.getSourceLocation());
+                new VariableReferenceExpression(rightInputVar, joinOp.getSourceLocation());
         argsSummaryTwo.add(new MutableObject<>(inputVarRefargsSummaryTwo));
 
         AggregateFunctionCallExpression summaryTwo =
                 new AggregateFunctionCallExpression(SummaryTwoInfo, false, argsSummaryTwo);
+
 
         BuiltinFunctions.FJ_DIVIDE.setLibraryName(libraryName);
         IFunctionInfo DivideFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_DIVIDE);
@@ -161,7 +155,7 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
 
         List<Mutable<ILogicalExpression>> argsAssignOne = new ArrayList<>(2);
         AbstractLogicalExpression inputVarRefAssignOne =
-                new VariableReferenceExpression(leftInputVar, op.getSourceLocation());
+                new VariableReferenceExpression(leftInputVar, joinOp.getSourceLocation());
         argsAssignOne.add(new MutableObject<>(inputVarRefAssignOne));
 
         UnnestingFunctionCallExpression assignOne = new UnnestingFunctionCallExpression(AssignOneInfo,
@@ -174,20 +168,61 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
 
         List<Mutable<ILogicalExpression>> argsAssignTwo = new ArrayList<>(2);
         AbstractLogicalExpression inputVarRefAssignTwo =
-                new VariableReferenceExpression(rightInputVar, op.getSourceLocation());
-        argsAssignOne.add(new MutableObject<>(inputVarRefAssignTwo));
+                new VariableReferenceExpression(rightInputVar, joinOp.getSourceLocation());
+        argsAssignTwo.add(new MutableObject<>(inputVarRefAssignTwo));
 
         UnnestingFunctionCallExpression assignTwo = new UnnestingFunctionCallExpression(AssignTwoInfo,
                 new MutableObject<>(inputVarRefAssignTwo), new MutableObject<>(divide.cloneExpression()));
         assignTwo.setSourceLocation(srcLocRight);
 
+        LogicalVariable bucketID0 = context.newVar();
+        VariableReferenceExpression leftInputVarRef = new VariableReferenceExpression(leftInputVar);
+        leftInputVarRef.setSourceLocation(leftInputOp.getValue().getSourceLocation());
+        assignOne.setSourceLocation(leftInputOp.getValue().getSourceLocation());
+        UnnestOperator leftUnnestOp = new UnnestOperator(bucketID0, new MutableObject<>(assignOne));
+        leftUnnestOp.setPhysicalOperator(new UnnestPOperator());
+        leftUnnestOp.setSourceLocation(leftInputOp.getValue().getSourceLocation());
+        leftUnnestOp.getInputs().add(new MutableObject<>(leftInputOp.getValue()));
+        context.computeAndSetTypeEnvironmentForOperator(leftUnnestOp);
+        leftUnnestOp.recomputeSchema();
+        leftInputOp.setValue(leftUnnestOp);
+
+        LogicalVariable bucketID1 = context.newVar();
+        VariableReferenceExpression rightInputVarRef = new VariableReferenceExpression(leftInputVar);
+        rightInputVarRef.setSourceLocation(rightInputOp.getValue().getSourceLocation());
+        assignOne.setSourceLocation(rightInputOp.getValue().getSourceLocation());
+        UnnestOperator rightUnnestOp = new UnnestOperator(bucketID1, new MutableObject<>(assignTwo));
+        rightUnnestOp.setPhysicalOperator(new UnnestPOperator());
+        rightUnnestOp.setSourceLocation(rightInputOp.getValue().getSourceLocation());
+        rightUnnestOp.getInputs().add(new MutableObject<>(rightInputOp.getValue()));
+        context.computeAndSetTypeEnvironmentForOperator(rightUnnestOp);
+        //rightUnnestOp.recomputeSchema();
+        rightInputOp.setValue(rightUnnestOp);
+
         BuiltinFunctions.FJ_MATCH.setLibraryName(libraryName);
         IFunctionInfo MatchFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_MATCH);
 
         ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(MatchFunctionInfo,
-                new MutableObject<>(assignOne.cloneExpression()), new MutableObject<>(assignTwo.cloneExpression()));
+                new MutableObject<>(new VariableReferenceExpression(bucketID0)),
+                new MutableObject<>(new VariableReferenceExpression(bucketID1)));
 
-        joinConditionRef.setValue(match);
+        BuiltinFunctions.FJ_VERIFY.setLibraryName(libraryName);
+        IFunctionInfo VerifyFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_VERIFY);
+
+        ScalarFunctionCallExpression verify = new ScalarFunctionCallExpression(VerifyFunctionInfo,
+                new MutableObject<>(new VariableReferenceExpression(leftInputVar)),
+                new MutableObject<>(assignOne.cloneExpression()),
+                new MutableObject<>(new VariableReferenceExpression(rightInputVar)),
+                new MutableObject<>(assignOne.cloneExpression()),
+                new MutableObject<>(divide.cloneExpression()));
+
+        ScalarFunctionCallExpression and = new ScalarFunctionCallExpression(
+                context.getMetadataProvider().lookupFunction(BuiltinFunctions.AND),
+                new MutableObject<>(match),
+                new MutableObject<>(verify)
+        );
+
+        joinConditionRef.setValue(and);
         return true;
 
     }

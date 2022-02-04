@@ -1470,10 +1470,10 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "st-mbr-enlarge", 2);
 
     //Flexible Join Test Function
-    public static final FunctionIdentifier CUSTOM_SPATIAL_FUNCTION =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-spatial-function", 2);
-    public static final FunctionIdentifier CUSTOM_TEXT_FUNCTION =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-text-function", 3);
+    public static final FlexibleJoinWrapperFunctionIdentifier CUSTOM_SPATIAL_FUNCTION =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-spatial-function", 2);
+    public static final FlexibleJoinWrapperFunctionIdentifier CUSTOM_TEXT_FUNCTION =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-text-function", 3);
 
     //Flexible Join Wrapper Functions
     //Summary One - Aggregate
@@ -2006,7 +2006,7 @@ public class BuiltinFunctions {
         addFunction(POINT_CONSTRUCTOR, APointTypeComputer.INSTANCE, true);
         addFunction(POINT3D_CONSTRUCTOR, APoint3DTypeComputer.INSTANCE, true);
         addFunction(POLYGON_CONSTRUCTOR, APolygonTypeComputer.INSTANCE, true);
-        addPrivateFunction(PREFIX_LEN_JACCARD, AInt32TypeComputer.INSTANCE, true);
+        addFunction(PREFIX_LEN_JACCARD, AInt32TypeComputer.INSTANCE, true);
         addFunction(RANGE, AInt64TypeComputer.INSTANCE, true);
         addFunction(RECTANGLE_CONSTRUCTOR, ARectangleTypeComputer.INSTANCE, true);
 
@@ -2503,7 +2503,7 @@ public class BuiltinFunctions {
         addFunction(BINARY_HEX_CONSTRUCTOR, ABinaryTypeComputer.INSTANCE_NULLABLE, true);
         addFunction(BINARY_BASE64_CONSTRUCTOR, ABinaryTypeComputer.INSTANCE_NULLABLE, true);
 
-        addPrivateFunction(SUBSET_COLLECTION, SubsetCollectionTypeComputer.INSTANCE, true);
+        addFunction(SUBSET_COLLECTION, SubsetCollectionTypeComputer.INSTANCE, true);
         addFunction(SWITCH_CASE, SwitchCaseComputer.INSTANCE, true);
         addFunction(SLEEP, SleepTypeComputer.INSTANCE, false);
         addPrivateFunction(INJECT_FAILURE, InjectFailureTypeComputer.INSTANCE, true);

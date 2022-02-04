@@ -18,11 +18,18 @@
  */
 package org.apache.hyracks.algebricks.core.algebra.functions;
 
+import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
+
+import java.util.List;
+
 public class FlexibleJoinWrapperFunctionIdentifier extends FunctionIdentifier {
     private static final long serialVersionUID = 1L;
     public static final int VARARGS = -1;
 
     private String libraryName = "";
+    private List<Mutable<ILogicalExpression>> parameters;
+
 
     public FlexibleJoinWrapperFunctionIdentifier(String namespace, String name, int arity) {
         super(namespace, name, arity);
@@ -34,6 +41,12 @@ public class FlexibleJoinWrapperFunctionIdentifier extends FunctionIdentifier {
 
     public void setLibraryName(String libraryName) {
         this.libraryName = libraryName;
+    }
+    public void setParameters(List<Mutable<ILogicalExpression>> parameters) {
+        this.parameters = parameters;
+    }
+    public List<Mutable<ILogicalExpression>> getParameters(){
+        return this.parameters;
     }
 
 }

@@ -21,15 +21,21 @@ package org.apache.asterix.runtime.flexiblejoinwrappers;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
-import org.apache.asterix.runtime.flexiblejoin.SetSimilarityConfig;
-import org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin;
-import org.apache.asterix.runtime.flexiblejoin.Summary;
+import org.apache.asterix.runtime.flexiblejoin.*;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
+import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
@@ -65,6 +71,20 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private final IScalarEvaluator eval0 = args[0].createScalarEvaluator(ctx);
                     private final IScalarEvaluator eval1 = args[1].createScalarEvaluator(ctx);
 
+                    private Class<?> flexibleJoinClass = null;
+                    {
+                        try {
+                            String a = BuiltinFunctions.FJ_VERIFY.getLibraryName();
+                            flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_VERIFY.getLibraryName());
+                        } catch (ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    private FlexibleJoin flexibleJoin = null;
+                    private Configuration configuration = null;
+                    private List<Mutable<ILogicalExpression>> parameters = BuiltinFunctions.FJ_DIVIDE.getParameters();
+
                     @Override
                     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
                         resultStorage.reset();
@@ -91,11 +111,42 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                         ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1, len1+1);
                         DataInputStream dataIn1 = new DataInputStream(inStream1);
 
-                        Summary<String> summaryOne = SerializationUtils.deserialize(dataIn0);
-                        Summary<String> summaryTwo = SerializationUtils.deserialize(dataIn1);
+                        if(flexibleJoin == null) {
+                            //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
+                            Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
+                            if(parameters != null) {
+                                ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
+                                IAlgebricksConstantValue d = c.getValue();
+                                Double dx = Double.valueOf(d.toString());
+                                try {
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(dx);
+                                } catch (InstantiationException e) {
+                                    e.printStackTrace();
+                                } catch (IllegalAccessException e) {
+                                    e.printStackTrace();
+                                } catch (InvocationTargetException e) {
+                                    e.printStackTrace();
+                                }
+                            } else {
+                                try {
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
+                                } catch (InstantiationException e) {
+                                    e.printStackTrace();
+                                } catch (IllegalAccessException e) {
+                                    e.printStackTrace();
+                                } catch (InvocationTargetException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
 
-                        SetSimilarityJoin fj = new SetSimilarityJoin(0.5);
-                        SetSimilarityConfig C = fj.divide(summaryOne, summaryTwo);
+                        Summary summaryOne = SerializationUtils.deserialize(dataIn0);
+                        Summary summaryTwo = SerializationUtils.deserialize(dataIn1);
+
+                        AlgebricksConfig.ALGEBRICKS_LOGGER
+                                .info("\nFJ DIVIDE: ID: " + ctx.getServiceContext().getControllerService().getId());
+
+                        Configuration C = (Configuration) flexibleJoin.divide(summaryOne, summaryTwo);
                         try {
                             resultStorage.getDataOutput().write(SerializationUtils.serialize(C));
                         } catch (IOException e) {

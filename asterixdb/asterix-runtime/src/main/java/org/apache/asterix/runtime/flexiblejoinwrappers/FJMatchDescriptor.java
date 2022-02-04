@@ -29,6 +29,7 @@ import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
 import org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
+import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
@@ -84,7 +85,8 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor {
                         int bucketID0 = AInt32SerializerDeserializer.getInt(bytes0, offset0 + 1);
                         int bucketID1 = AInt32SerializerDeserializer.getInt(bytes1, offset1 + 1);
 
-                        System.out.println("\nFJ MATCH: bucket ids: " + bucketID0 + ", " + bucketID1);
+                        AlgebricksConfig.ALGEBRICKS_LOGGER
+                                .info("\nFJ MATCH: ID: " + ctx.getServiceContext().getControllerService().getId() + " bucket ids: " + bucketID0 + ", " + bucketID1);
 
                         SetSimilarityJoin fj = new SetSimilarityJoin(0.5);
                         try {
