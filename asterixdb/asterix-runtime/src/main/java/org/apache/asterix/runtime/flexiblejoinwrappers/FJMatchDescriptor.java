@@ -86,7 +86,8 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor {
                         int bucketID1 = AInt32SerializerDeserializer.getInt(bytes1, offset1 + 1);
 
                         AlgebricksConfig.ALGEBRICKS_LOGGER
-                                .info("\nFJ MATCH: ID: " + ctx.getServiceContext().getControllerService().getId() + " bucket ids: " + bucketID0 + ", " + bucketID1);
+                                .info("\nFJ MATCH: ID: " + ctx.getServiceContext().getControllerService().getId()
+                                        + " bucket ids: " + bucketID0 + ", " + bucketID1);
 
                         SetSimilarityJoin fj = new SetSimilarityJoin(0.5);
                         try {

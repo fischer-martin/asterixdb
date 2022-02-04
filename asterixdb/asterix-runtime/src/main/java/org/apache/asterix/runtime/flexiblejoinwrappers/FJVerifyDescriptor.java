@@ -25,7 +25,10 @@ import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.asterix.dataflow.data.nontagged.Coordinate;
+import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ABoolean;
@@ -37,8 +40,7 @@ import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
 import org.apache.asterix.runtime.flexiblejoin.Configuration;
 import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
-import org.apache.asterix.runtime.flexiblejoin.SetSimilarityConfig;
-import org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin;
+import org.apache.asterix.runtime.flexiblejoin.Rectangle;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
@@ -50,7 +52,6 @@ import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.api.lifecycle.LifeCycleComponentManager;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
@@ -69,7 +70,6 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
     @Override
     public IScalarEvaluatorFactory createEvaluatorFactory(final IScalarEvaluatorFactory[] args) {
 
-
         return new IScalarEvaluatorFactory() {
             private static final long serialVersionUID = 1L;
 
@@ -78,11 +78,9 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                 return new IScalarEvaluator() {
 
-
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
-                            String a = BuiltinFunctions.FJ_VERIFY.getLibraryName();
                             flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_VERIFY.getLibraryName());
                         } catch (ClassNotFoundException e) {
                             e.printStackTrace();
@@ -91,7 +89,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                     private FlexibleJoin flexibleJoin = null;
                     private Configuration configuration = null;
-                    private List<Mutable<ILogicalExpression>>  parameters = BuiltinFunctions.FJ_VERIFY.getParameters();
+                    private List<Mutable<ILogicalExpression>> parameters = BuiltinFunctions.FJ_VERIFY.getParameters();
 
                     private final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
                     private final IPointable inputArg0 = new VoidPointable();
@@ -139,10 +137,10 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             int bucketID0 = AInt32SerializerDeserializer.getInt(bytes0, offset0 + 1);
                             int bucketID1 = AInt32SerializerDeserializer.getInt(bytes2, offset2 + 1);
 
-                            if(flexibleJoin == null) {
+                            if (flexibleJoin == null) {
                                 //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
                                 Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
-                                if(parameters != null) {
+                                if (parameters != null) {
                                     ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
                                     IAlgebricksConstantValue d = c.getValue();
                                     Double dx = Double.valueOf(d.toString());
@@ -151,33 +149,65 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                     flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
                                 }
 
-                                ByteArrayInputStream inStream4 = new ByteArrayInputStream(bytes4, offset4, len4+1);
+                                ByteArrayInputStream inStream4 = new ByteArrayInputStream(bytes4, offset4, len4 + 1);
                                 DataInputStream dataIn4 = new DataInputStream(inStream4);
 
                                 configuration = SerializationUtils.deserialize(dataIn4);
                             }
 
-                            ByteArrayInputStream inStream1 =
-                                    new ByteArrayInputStream(inputArg1.getByteArray(), offset1 + 1, len1 - 1);
-                            DataInputStream dataIn1 = new DataInputStream(inStream1);
-                            String key0 = serde.deserialize(dataIn1).getStringValue();
+                            boolean verifyResult1 = false;
+                            ATypeTag tag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes1[offset1]);
+                            int[] buckets1DA = null;
+                            int[] buckets2DA = null;
 
-                            ByteArrayInputStream inStream3 =
-                                    new ByteArrayInputStream(inputArg3.getByteArray(), offset3 + 1, len3 - 1);
-                            DataInputStream dataIn3 = new DataInputStream(inStream3);
-                            String key1 = serde.deserialize(dataIn3).getStringValue();
+                            if (tag == ATypeTag.STRING) {
+                                ByteArrayInputStream inStream1 =
+                                        new ByteArrayInputStream(inputArg1.getByteArray(), offset1 + 1, len1 - 1);
+                                DataInputStream dataIn1 = new DataInputStream(inStream1);
+                                String key0 = serde.deserialize(dataIn1).getStringValue();
 
-                            boolean verifyResult1 = flexibleJoin.verify(bucketID1, key0, bucketID1, key1, configuration);
+                                ByteArrayInputStream inStream3 =
+                                        new ByteArrayInputStream(inputArg3.getByteArray(), offset3 + 1, len3 - 1);
+                                DataInputStream dataIn3 = new DataInputStream(inStream3);
+                                String key1 = serde.deserialize(dataIn3).getStringValue();
+
+                                verifyResult1 =
+                                        flexibleJoin.verify(bucketID1, key0, bucketID1, key1, configuration);
+                                buckets1DA = flexibleJoin.assign1(key0, configuration);
+                                buckets2DA = flexibleJoin.assign2(key1, configuration);
+                            } else if (tag == ATypeTag.RECTANGLE) {
+                                double minX1 = ADoubleSerializerDeserializer.getDouble(bytes1,
+                                        offset1 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
+                                double minY1 = ADoubleSerializerDeserializer.getDouble(bytes1,
+                                        offset1 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
+                                double maxX1 = ADoubleSerializerDeserializer.getDouble(bytes1,
+                                        offset1 + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
+                                double maxY1 = ADoubleSerializerDeserializer.getDouble(bytes1,
+                                        offset1 + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
+
+                                Rectangle key0 = new Rectangle(minX1, maxX1, minY1, maxY1);
+
+                                double minX2 = ADoubleSerializerDeserializer.getDouble(bytes3,
+                                        offset3 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
+                                double minY2 = ADoubleSerializerDeserializer.getDouble(bytes3,
+                                        offset3 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
+                                double maxX2 = ADoubleSerializerDeserializer.getDouble(bytes3,
+                                        offset3 + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
+                                double maxY2 = ADoubleSerializerDeserializer.getDouble(bytes3,
+                                        offset3 + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
+
+                                Rectangle key1 = new Rectangle(minX2, maxX2, minY2, maxY2);
+
+                                verifyResult1 =
+                                        flexibleJoin.verify(bucketID1, key0, bucketID1, key1, configuration);
+                                buckets1DA = flexibleJoin.assign1(key0, configuration);
+                                buckets2DA = flexibleJoin.assign2(key1, configuration);
+
+                            }
+
+
 
                             if (verifyResult1) {
-                                AlgebricksConfig.ALGEBRICKS_LOGGER
-                                        .info("\nFJ VERIFY ONE: node: "+ ctx.getServiceContext().getControllerService().getId() +
-                                                " bucket ids: " + bucketID0 + ", " + bucketID1 +
-                                                " keys: " + key0 + "," + key1);
-
-                                int[] buckets1DA = flexibleJoin.assign1(key0, configuration);
-                                int[] buckets2DA = flexibleJoin.assign2(key1, configuration);
-
                                 Arrays.sort(buckets1DA);
                                 Arrays.sort(buckets2DA);
 
@@ -187,10 +217,6 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                         if (flexibleJoin.match(b1, b2)) {
                                             if (b1 == bucketID0 && b2 == bucketID1) {
                                                 verifyResult = true;
-                                                AlgebricksConfig.ALGEBRICKS_LOGGER
-                                                        .info("\nFJ VERIFY TWO: node: "+ ctx.getServiceContext().getControllerService().getId() +
-                                                                " bucket ids: " + bucketID0 + ", " + bucketID1 +
-                                                                " keys: " + key0 + "," + key1);
                                             }
                                             stop = true;
                                             break;

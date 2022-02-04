@@ -18,28 +18,38 @@
  */
 package org.apache.asterix.algebra.operators.physical;
 
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+
 import org.apache.asterix.runtime.operators.joins.flexible.FlexibleJoinOperatorDescriptor;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
-import org.apache.asterix.runtime.operators.joins.spatial.PlaneSweepJoinOperatorDescriptor;
-import org.apache.asterix.runtime.operators.joins.spatial.utils.ISpatialJoinUtilFactory;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.ListSet;
-import org.apache.hyracks.algebricks.core.algebra.base.*;
+import org.apache.hyracks.algebricks.core.algebra.base.IHyracksJobBuilder;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
+import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
+import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
+import org.apache.hyracks.algebricks.core.algebra.base.PhysicalOperatorTag;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator.JoinKind;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.OrderOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.AbstractJoinPOperator;
-import org.apache.hyracks.algebricks.core.algebra.properties.*;
+import org.apache.hyracks.algebricks.core.algebra.properties.ILocalStructuralProperty;
+import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningProperty;
+import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningRequirementsCoordinator;
+import org.apache.hyracks.algebricks.core.algebra.properties.IPhysicalPropertiesVector;
+import org.apache.hyracks.algebricks.core.algebra.properties.LocalOrderProperty;
+import org.apache.hyracks.algebricks.core.algebra.properties.OrderColumn;
+import org.apache.hyracks.algebricks.core.algebra.properties.PhysicalRequirements;
+import org.apache.hyracks.algebricks.core.algebra.properties.StructuralPropertiesVector;
+import org.apache.hyracks.algebricks.core.algebra.properties.UnorderedPartitionedProperty;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenHelper;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
-
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
 
 /**
  * The right input is broadcast and the left input can be partitioned in any way.
@@ -53,8 +63,8 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
     private final int memSizeInFrames;
 
     public FlexibleJoinPOperator(JoinKind kind, JoinPartitioningType partitioningType,
-                                 List<LogicalVariable> keysLeftBranch, List<LogicalVariable> keysRightBranch, int memSizeInFrames,
-                                 IFlexibleJoinUtilFactory mjcf) {
+            List<LogicalVariable> keysLeftBranch, List<LogicalVariable> keysRightBranch, int memSizeInFrames,
+            IFlexibleJoinUtilFactory mjcf) {
         super(kind, partitioningType);
         this.keysLeftBranch = keysLeftBranch;
         this.keysRightBranch = keysRightBranch;
@@ -146,8 +156,8 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         RecordDescriptor recordDescriptor =
                 JobGenHelper.mkRecordDescriptor(context.getTypeEnvironment(op), propagatedSchema, context);
 
-        IOperatorDescriptor opDesc = new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe,
-                recordDescriptor, mjcf);
+        IOperatorDescriptor opDesc =
+                new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe, recordDescriptor, mjcf);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
 
         ILogicalOperator src1 = op.getInputs().get(0).getValue();

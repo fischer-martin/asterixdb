@@ -18,6 +18,9 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible;
 
+import java.nio.ByteBuffer;
+import java.util.LinkedList;
+
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtil;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsSideTuple;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
@@ -38,9 +41,6 @@ import org.apache.hyracks.dataflow.std.buffermanager.IDeallocatableFramePool;
 import org.apache.hyracks.dataflow.std.buffermanager.IDeletableTupleBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.VariableDeletableTupleMemoryManager;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
-
-import java.nio.ByteBuffer;
-import java.util.LinkedList;
 
 public class FlexibleJoiner {
     private final IDeallocatableFramePool framePool;
@@ -66,7 +66,7 @@ public class FlexibleJoiner {
     protected final FrameTupleCursor[] inputCursor;
 
     public FlexibleJoiner(IHyracksTaskContext ctx, int memorySize, IFlexibleJoinUtil mjc, int[] buildKeys,
-                          int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd) throws HyracksDataException {
+            int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd) throws HyracksDataException {
         this.mjc = mjc;
 
         // Memory (probe buffer)

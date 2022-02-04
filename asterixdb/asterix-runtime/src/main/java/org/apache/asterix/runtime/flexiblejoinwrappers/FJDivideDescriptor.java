@@ -28,7 +28,9 @@ import java.util.List;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
-import org.apache.asterix.runtime.flexiblejoin.*;
+import org.apache.asterix.runtime.flexiblejoin.Configuration;
+import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
+import org.apache.asterix.runtime.flexiblejoin.Summary;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
@@ -105,16 +107,16 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                         int len0 = inputArg0.getLength();
                         int len1 = inputArg1.getLength();
 
-                        ByteArrayInputStream inStream0 = new ByteArrayInputStream(bytes0, offset0, len0+1);
+                        ByteArrayInputStream inStream0 = new ByteArrayInputStream(bytes0, offset0, len0 + 1);
                         DataInputStream dataIn0 = new DataInputStream(inStream0);
 
-                        ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1, len1+1);
+                        ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1, len1 + 1);
                         DataInputStream dataIn1 = new DataInputStream(inStream1);
 
-                        if(flexibleJoin == null) {
+                        if (flexibleJoin == null) {
                             //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
                             Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
-                            if(parameters != null) {
+                            if (parameters != null) {
                                 ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
                                 IAlgebricksConstantValue d = c.getValue();
                                 Double dx = Double.valueOf(d.toString());

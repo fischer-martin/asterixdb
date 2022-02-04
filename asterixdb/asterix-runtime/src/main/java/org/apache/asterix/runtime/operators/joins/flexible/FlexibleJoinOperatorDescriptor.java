@@ -18,19 +18,27 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible;
 
+import java.nio.ByteBuffer;
+
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtil;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
-import org.apache.hyracks.api.dataflow.*;
+import org.apache.hyracks.api.dataflow.ActivityId;
+import org.apache.hyracks.api.dataflow.IActivity;
+import org.apache.hyracks.api.dataflow.IActivityGraphBuilder;
+import org.apache.hyracks.api.dataflow.IOperatorNodePushable;
+import org.apache.hyracks.api.dataflow.TaskId;
 import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.dataflow.common.comm.util.FrameUtils;
-import org.apache.hyracks.dataflow.std.base.*;
-
-import java.nio.ByteBuffer;
+import org.apache.hyracks.dataflow.std.base.AbstractActivityNode;
+import org.apache.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
+import org.apache.hyracks.dataflow.std.base.AbstractStateObject;
+import org.apache.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
+import org.apache.hyracks.dataflow.std.base.AbstractUnaryInputUnaryOutputOperatorNodePushable;
 
 public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
     private static final long serialVersionUID = 1L;
@@ -43,7 +51,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
     private final IFlexibleJoinUtilFactory imjcf;
 
     public FlexibleJoinOperatorDescriptor(IOperatorDescriptorRegistry spec, int memoryForJoin, int[] buildKeys,
-                                          int[] probeKeys, RecordDescriptor recordDescriptor, IFlexibleJoinUtilFactory imjcf) {
+            int[] probeKeys, RecordDescriptor recordDescriptor, IFlexibleJoinUtilFactory imjcf) {
         super(spec, 2, 1);
         outRecDescs[0] = recordDescriptor;
         this.buildKeys = buildKeys;

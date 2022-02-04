@@ -42,9 +42,18 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.ScalarFunctionCall
 import org.apache.hyracks.algebricks.core.algebra.expressions.UnnestingFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
 import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.*;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AggregateOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.ExchangeOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.ReplicateOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.UnnestOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.VariableUtilities;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.*;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.AggregatePOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.OneToOneExchangePOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.RandomPartitionExchangePOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.ReplicatePOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.UnnestPOperator;
 import org.apache.hyracks.algebricks.core.algebra.util.OperatorManipulationUtil;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 import org.apache.hyracks.api.exceptions.SourceLocation;
@@ -140,7 +149,6 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
         AggregateFunctionCallExpression summaryTwo =
                 new AggregateFunctionCallExpression(SummaryTwoInfo, false, argsSummaryTwo);
 
-
         BuiltinFunctions.FJ_DIVIDE.setLibraryName(libraryName);
         IFunctionInfo DivideFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_DIVIDE);
 
@@ -213,14 +221,11 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
                 new MutableObject<>(new VariableReferenceExpression(leftInputVar)),
                 new MutableObject<>(assignOne.cloneExpression()),
                 new MutableObject<>(new VariableReferenceExpression(rightInputVar)),
-                new MutableObject<>(assignOne.cloneExpression()),
-                new MutableObject<>(divide.cloneExpression()));
+                new MutableObject<>(assignOne.cloneExpression()), new MutableObject<>(divide.cloneExpression()));
 
-        ScalarFunctionCallExpression and = new ScalarFunctionCallExpression(
-                context.getMetadataProvider().lookupFunction(BuiltinFunctions.AND),
-                new MutableObject<>(match),
-                new MutableObject<>(verify)
-        );
+        ScalarFunctionCallExpression and =
+                new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(BuiltinFunctions.AND),
+                        new MutableObject<>(match), new MutableObject<>(verify));
 
         joinConditionRef.setValue(and);
         return true;

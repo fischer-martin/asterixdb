@@ -18,12 +18,17 @@
  */
 package org.apache.asterix.optimizer.flexiblejoin;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 
 import org.apache.asterix.algebra.operators.physical.FlexibleJoinPOperator;
 import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
+import org.apache.asterix.runtime.flexiblejoinwrappers.FJVerifyDescriptor;
+import org.apache.asterix.runtime.functions.FunctionCollection;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.FlexibleJoinUtilFactory;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
 import org.apache.commons.lang3.mutable.Mutable;
@@ -46,9 +51,26 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.UnnestingFunctionC
 import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.*;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AggregateOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AssignOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.ExchangeOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.InnerJoinOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.ProjectOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.ReplicateOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.UnnestOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.VariableUtilities;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.*;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.AbstractJoinPOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.AggregatePOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.AssignPOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.BroadcastExchangePOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.HybridHashJoinPOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.OneToOneExchangePOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.RandomPartitionExchangePOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.ReplicatePOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.StreamProjectPOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.UnnestPOperator;
 import org.apache.hyracks.algebricks.core.algebra.util.OperatorManipulationUtil;
 import org.apache.hyracks.api.exceptions.SourceLocation;
 
@@ -61,12 +83,43 @@ public class ApplyFlexibleJoinUtils {
             return false;
         }
 
-        AbstractFunctionCallExpression stFuncExpr = (AbstractFunctionCallExpression) joinCondition;
-        if (!BuiltinFunctions.isFlexibleJoinCallerFunction(stFuncExpr.getFunctionIdentifier())) {
+        AbstractFunctionCallExpression funcExpr = (AbstractFunctionCallExpression) joinCondition;
+        AbstractFunctionCallExpression flexibleFuncExpr = null;
+        List<Mutable<ILogicalExpression>> conditionExprs = new ArrayList<>();
+
+        if (funcExpr.getFunctionIdentifier().equals(BuiltinFunctions.AND)) {
+            // Join condition contains multiple conditions along with spatial_intersect
+            List<Mutable<ILogicalExpression>> inputExprs = funcExpr.getArguments();
+            if (inputExprs.size() == 0) {
+                return false;
+            }
+
+            boolean flexibleJoinExists = false;
+            boolean firstFlexible = true;
+            for (Mutable<ILogicalExpression> exp : inputExprs) {
+                AbstractFunctionCallExpression funcCallExp = (AbstractFunctionCallExpression) exp.getValue();
+                if (BuiltinFunctions.isFlexibleJoinCallerFunction(funcCallExp.getFunctionIdentifier()) && firstFlexible) {
+                    flexibleFuncExpr = funcCallExp;
+                    flexibleJoinExists = true;
+                    firstFlexible = false;
+                } else {
+                    // Retain the other conditions
+                    conditionExprs.add(exp);
+                }
+            }
+
+            if (!flexibleJoinExists) {
+                return false;
+            }
+        } else if (BuiltinFunctions.isFlexibleJoinCallerFunction(funcExpr.getFunctionIdentifier())) {
+            // Join condition is spatial_intersect only
+            flexibleFuncExpr = funcExpr;
+        } else {
             return false;
         }
+
         // Extracts spatial intersect function's arguments
-        List<Mutable<ILogicalExpression>> joinArgs = stFuncExpr.getArguments();
+        List<Mutable<ILogicalExpression>> joinArgs = flexibleFuncExpr.getArguments();
         /*if (joinArgs.size() != 2) {
             return false;
         }*/
@@ -100,15 +153,15 @@ public class ApplyFlexibleJoinUtils {
             rightInputVar = spatialJoinVar0;
         }
 
-        List<Mutable<ILogicalExpression>> parameters= null;
-        if(joinArgs.size() > 2) {
+        List<Mutable<ILogicalExpression>> parameters = null;
+        if (joinArgs.size() > 2) {
             parameters = joinArgs.subList(2, joinArgs.size());
 
         }
 
         String libraryName = "";
 
-        if (stFuncExpr.getFunctionIdentifier().equals(BuiltinFunctions.CUSTOM_TEXT_FUNCTION)) {
+        if (flexibleFuncExpr.getFunctionIdentifier().equals(BuiltinFunctions.CUSTOM_TEXT_FUNCTION)) {
             libraryName = "org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin";
             BuiltinFunctions.CUSTOM_TEXT_FUNCTION.setParameters(parameters);
             BuiltinFunctions.CUSTOM_TEXT_FUNCTION.setLibraryName(libraryName);
@@ -139,6 +192,11 @@ public class ApplyFlexibleJoinUtils {
 
         BuiltinFunctions.FJ_VERIFY.setParameters(parameters);
         BuiltinFunctions.FJ_VERIFY.setLibraryName(libraryName);
+
+        //BuiltinFunctions.addFunction();
+
+        //FJVerifyDescriptor fj_verify = (FJVerifyDescriptor) FJVerifyDescriptor.FACTORY;
+        //FunctionCollection
 
         //Add a dynamic workflof for the summary one
         Triple<MutableObject<ILogicalOperator>, List<LogicalVariable>, MutableObject<ILogicalOperator>> leftSummarizer =
@@ -252,23 +310,20 @@ public class ApplyFlexibleJoinUtils {
 
         // Inject unnest operator to add bucket IDs to the left and right branch of the join operator
         Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> leftBucketIdVarPair =
-                ApplyFlexibleJoinUtils.injectAssignOneUnnestOperator(context, leftInputOp,
-                leftInputVar, leftConfigurationExpr);
+                ApplyFlexibleJoinUtils.injectAssignOneUnnestOperator(context, leftInputOp, leftInputVar,
+                        leftConfigurationExpr);
         Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> rightBucketIdVarPair =
-                ApplyFlexibleJoinUtils.injectAssignTwoUnnestOperator(context, rightInputOp,
-                rightInputVar, rightConfigurationExpr);
+                ApplyFlexibleJoinUtils.injectAssignTwoUnnestOperator(context, rightInputOp, rightInputVar,
+                        rightConfigurationExpr);
 
         LogicalVariable leftBucketIdVar = leftBucketIdVarPair.first;
         LogicalVariable rightBucketIdVar = rightBucketIdVarPair.first;
 
-
-        ScalarFunctionCallExpression verifyJoinCondition =
-                createVerifyCondition(joinOp, verifyConfigurationExpr, leftBucketIdVar, rightBucketIdVar,
-                        leftInputVar, rightInputVar);
+        ScalarFunctionCallExpression verifyJoinCondition = createVerifyCondition(joinOp, verifyConfigurationExpr,
+                leftBucketIdVar, rightBucketIdVar, leftInputVar, rightInputVar);
 
 
-        Mutable<ILogicalExpression> joinConditionRef = joinOp.getCondition();
-        joinConditionRef.setValue(stFuncExpr);
+
 
         List<LogicalVariable> keysLeftBranch = new ArrayList<>();
         keysLeftBranch.add(leftBucketIdVar);
@@ -278,18 +333,27 @@ public class ApplyFlexibleJoinUtils {
         keysRightBranch.add(rightBucketIdVar);
         keysRightBranch.add(rightInputVar);
 
-
-
         BuiltinFunctions.FJ_MATCH.setLibraryName(libraryName);
         IFunctionInfo MatchFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.EQ);
 
-        ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(
-                MatchFunctionInfo,
+        ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(MatchFunctionInfo,
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
                 new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar)));
 
-        InnerJoinOperator matchJoinOp =
-                new InnerJoinOperator(new MutableObject<>(match), leftInputOp, rightInputOp);
+        conditionExprs.add(new MutableObject<>(match));
+
+        ScalarFunctionCallExpression updatedJoinCondition;
+        if (conditionExprs.size() > 1) {
+            updatedJoinCondition = new ScalarFunctionCallExpression(
+                    BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.AND), conditionExprs);
+            updatedJoinCondition.setSourceLocation(joinOp.getSourceLocation());
+        } else {
+            updatedJoinCondition = match;
+        }
+        Mutable<ILogicalExpression> joinConditionRef = joinOp.getCondition();
+        joinConditionRef.setValue(updatedJoinCondition);
+
+        InnerJoinOperator matchJoinOp = new InnerJoinOperator(new MutableObject<>(updatedJoinCondition), leftInputOp, rightInputOp);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());
         matchJoinOp.setSchema(joinOp.getSchema());
         context.computeAndSetTypeEnvironmentForOperator(matchJoinOp);
@@ -297,9 +361,8 @@ public class ApplyFlexibleJoinUtils {
         Mutable<ILogicalOperator> opRef = new MutableObject<>(joinOp);
         Mutable<ILogicalOperator> flexibleJoinOpRef = new MutableObject<>(matchJoinOp);
 
-        InnerJoinOperator verifyJoinOp =
-                new InnerJoinOperator(new MutableObject<>(verifyJoinCondition) , flexibleJoinOpRef,
-                        exchConfigToVerifyJoinOpRef);
+        InnerJoinOperator verifyJoinOp = new InnerJoinOperator(new MutableObject<>(verifyJoinCondition),
+                flexibleJoinOpRef, exchConfigToVerifyJoinOpRef);
         MutableObject<ILogicalOperator> verifyJoinOpRef = new MutableObject<>(verifyJoinOp);
         verifyJoinOp.setSourceLocation(joinOp.getSourceLocation());
         context.computeAndSetTypeEnvironmentForOperator(verifyJoinOp);
@@ -340,7 +403,6 @@ public class ApplyFlexibleJoinUtils {
         context.computeAndSetTypeEnvironmentForOperator(exchangeOperator);
         return exchangeOperator;
     }
-
 
     private static ExchangeOperator createOneToOneExchangeOp(ReplicateOperator replicateOperator,
             IOptimizationContext context, SourceLocation sourceLocation) throws AlgebricksException {
@@ -465,9 +527,9 @@ public class ApplyFlexibleJoinUtils {
         return aggregateOperator;
     }
 
-    private static Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> injectAssignOneUnnestOperator(IOptimizationContext context,
-            Mutable<ILogicalOperator> op, LogicalVariable unnestVar, Mutable<ILogicalExpression> configureExpr)
-            throws AlgebricksException {
+    private static Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> injectAssignOneUnnestOperator(
+            IOptimizationContext context, Mutable<ILogicalOperator> op, LogicalVariable unnestVar,
+            Mutable<ILogicalExpression> configureExpr) throws AlgebricksException {
         SourceLocation srcLoc = op.getValue().getSourceLocation();
         LogicalVariable bucketIdVar = context.newVar();
         VariableReferenceExpression unnestVarRef = new VariableReferenceExpression(unnestVar);
@@ -487,9 +549,9 @@ public class ApplyFlexibleJoinUtils {
         return new Triple<>(bucketIdVar, unnestOp, spatialTileFuncExpr);
     }
 
-    private static Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> injectAssignTwoUnnestOperator(IOptimizationContext context,
-            Mutable<ILogicalOperator> op, LogicalVariable unnestVar, Mutable<ILogicalExpression> configureExpr)
-            throws AlgebricksException {
+    private static Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> injectAssignTwoUnnestOperator(
+            IOptimizationContext context, Mutable<ILogicalOperator> op, LogicalVariable unnestVar,
+            Mutable<ILogicalExpression> configureExpr) throws AlgebricksException {
         SourceLocation srcLoc = op.getValue().getSourceLocation();
         LogicalVariable bucketIdVar = context.newVar();
         VariableReferenceExpression unnestVarRef = new VariableReferenceExpression(unnestVar);
@@ -524,7 +586,7 @@ public class ApplyFlexibleJoinUtils {
     }
 
     private static ExchangeOperator createHashExchangeOp(ReplicateOperator replicateOperator,
-                                                              IOptimizationContext context, SourceLocation sourceLocation) throws AlgebricksException {
+            IOptimizationContext context, SourceLocation sourceLocation) throws AlgebricksException {
         ExchangeOperator exchangeOperator = new ExchangeOperator();
         exchangeOperator.setSourceLocation(sourceLocation);
         exchangeOperator.setPhysicalOperator(new BroadcastExchangePOperator(context.getComputationNodeDomain()));
@@ -576,8 +638,7 @@ public class ApplyFlexibleJoinUtils {
                         new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
                         new MutableObject<>(new VariableReferenceExpression(leftInputVar)),
                         new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar)),
-                        new MutableObject<>(new VariableReferenceExpression(rightInputVar)),
-                        configurationExpr
+                        new MutableObject<>(new VariableReferenceExpression(rightInputVar)), configurationExpr
 
                 );
         verify.setSourceLocation(op.getSourceLocation());
@@ -585,7 +646,7 @@ public class ApplyFlexibleJoinUtils {
     }
 
     private static void setFlexibleJoinOp(AbstractBinaryJoinOperator op, List<LogicalVariable> keysLeftBranch,
-                                         List<LogicalVariable> keysRightBranch, IOptimizationContext context) throws AlgebricksException {
+            List<LogicalVariable> keysRightBranch, IOptimizationContext context) throws AlgebricksException {
         IFlexibleJoinUtilFactory isjuf = new FlexibleJoinUtilFactory();
         op.setPhysicalOperator(new FlexibleJoinPOperator(op.getJoinKind(),
                 AbstractJoinPOperator.JoinPartitioningType.PAIRWISE, keysLeftBranch, keysRightBranch,
@@ -593,14 +654,14 @@ public class ApplyFlexibleJoinUtils {
         op.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(op);
     }
-    private static void setHashJoinOp(AbstractBinaryJoinOperator op,
-                                      List<LogicalVariable> sideLeft, List<LogicalVariable> sideRight, IOptimizationContext context) throws AlgebricksException {
-        op.setPhysicalOperator(new HybridHashJoinPOperator(op.getJoinKind(),
-                AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
-                sideLeft, sideRight,
-                context.getPhysicalOptimizationConfig().getMaxFramesForJoinLeftInput(),
-                context.getPhysicalOptimizationConfig().getMaxRecordsPerFrame(),
-                context.getPhysicalOptimizationConfig().getFudgeFactor()));
+
+    private static void setHashJoinOp(AbstractBinaryJoinOperator op, List<LogicalVariable> sideLeft,
+            List<LogicalVariable> sideRight, IOptimizationContext context) throws AlgebricksException {
+        op.setPhysicalOperator(
+                new HybridHashJoinPOperator(op.getJoinKind(), AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
+                        sideLeft, sideRight, context.getPhysicalOptimizationConfig().getMaxFramesForJoinLeftInput(),
+                        context.getPhysicalOptimizationConfig().getMaxRecordsPerFrame(),
+                        context.getPhysicalOptimizationConfig().getFudgeFactor()));
         op.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(op);
     }

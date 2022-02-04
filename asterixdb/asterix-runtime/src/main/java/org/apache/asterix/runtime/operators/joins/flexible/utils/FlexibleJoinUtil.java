@@ -18,8 +18,6 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible.utils;
 
-import org.apache.asterix.om.base.ARectangle;
-import org.apache.asterix.runtime.evaluators.common.SpatialUtils;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;

@@ -18,10 +18,10 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible.utils;
 
+import java.io.Serializable;
+
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-
-import java.io.Serializable;
 
 public interface IFlexibleJoinUtilFactory extends Serializable {
 

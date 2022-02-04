@@ -18,9 +18,6 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible.utils;
 
-import org.apache.asterix.runtime.operators.joins.spatial.utils.ISpatialJoinUtil;
-import org.apache.asterix.runtime.operators.joins.spatial.utils.ISpatialJoinUtilFactory;
-import org.apache.asterix.runtime.operators.joins.spatial.utils.IntersectSpatialJoinUtil;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
@@ -30,7 +27,7 @@ public class FlexibleJoinUtilFactory implements IFlexibleJoinUtilFactory {
 
     @Override
     public IFlexibleJoinUtil createFlexibleJoinUtil(int[] buildKeys, int[] probeKeys, IHyracksTaskContext ctx,
-                                                    int nPartitions) throws HyracksDataException {
+            int nPartitions) throws HyracksDataException {
         return new FlexibleJoinUtil(buildKeys, probeKeys);
     }
 }

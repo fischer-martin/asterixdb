@@ -20,7 +20,13 @@ package org.apache.asterix.runtime.flexiblejoinwrappers;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 
+import org.apache.asterix.dataflow.data.nontagged.Coordinate;
+import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMutableInt32;
@@ -29,10 +35,13 @@ import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
-import org.apache.asterix.runtime.flexiblejoin.SetSimilarityConfig;
-import org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin;
+import org.apache.asterix.runtime.flexiblejoin.*;
 import org.apache.asterix.runtime.unnestingfunctions.base.AbstractUnnestingFunctionDynamicDescriptor;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
@@ -82,6 +91,19 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
                     private ISerializerDeserializer serde =
                             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT32);
 
+                    private Class<?> flexibleJoinClass = null;
+                    {
+                        try {
+                            flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_ASSIGN_ONE.getLibraryName());
+                        } catch (ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    private FlexibleJoin flexibleJoin = null;
+                    private Configuration configuration = null;
+                    private List<Mutable<ILogicalExpression>> parameters = BuiltinFunctions.FJ_ASSIGN_ONE.getParameters();
+
                     @Override
                     public void init(IFrameTupleReference tuple) throws HyracksDataException {
                         eval0.evaluate(tuple, inputArg0);
@@ -98,28 +120,58 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
 
                         ATypeTag tag0 = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes0[offset0]);
 
-                        ByteArrayInputStream inStream =
-                                new ByteArrayInputStream(inputArg0.getByteArray(), offset0 + 1, len - 1);
-                        DataInputStream dataIn = new DataInputStream(inStream);
-
-                        String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
-
-                        ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1, len1+1);
-                        DataInputStream dataIn1 = new DataInputStream(inStream1);
-
-                        SetSimilarityConfig C = SerializationUtils.deserialize(dataIn1);
-
-
-                        SetSimilarityJoin sj = new SetSimilarityJoin(0.5);
-                        pos = 0;
-                        buckets = sj.assign1(key, C);
-                        String a = "";
-                        for (int b:buckets
-                        ) {
-                            a += b + ", ";
+                        if (flexibleJoin == null) {
+                            //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
+                            Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
+                            if (parameters != null) {
+                                ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
+                                IAlgebricksConstantValue d = c.getValue();
+                                Double dx = Double.valueOf(d.toString());
+                                try {
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(dx);
+                                } catch (InstantiationException e) {
+                                    e.printStackTrace();
+                                } catch (IllegalAccessException e) {
+                                    e.printStackTrace();
+                                } catch (InvocationTargetException e) {
+                                    e.printStackTrace();
+                                }
+                            } else {
+                                try {
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
+                                } catch (InstantiationException e) {
+                                    e.printStackTrace();
+                                } catch (IllegalAccessException e) {
+                                    e.printStackTrace();
+                                } catch (InvocationTargetException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1, len1 + 1);
+                            DataInputStream dataIn1 = new DataInputStream(inStream1);
+                            configuration = SerializationUtils.deserialize(dataIn1);
                         }
-                        AlgebricksConfig.ALGEBRICKS_LOGGER
-                                .info("Assign One: "+ key + " to "  + a + " ID: " + ctx.getServiceContext().getControllerService().getId() + ".\n");
+
+                        if (tag0 == ATypeTag.STRING) {
+                            ByteArrayInputStream inStream =
+                                    new ByteArrayInputStream(inputArg0.getByteArray(), offset0 + 1, len - 1);
+                            DataInputStream dataIn = new DataInputStream(inStream);
+                            String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
+                            buckets = flexibleJoin.assign1(key, configuration);
+                        } else if (tag0 == ATypeTag.RECTANGLE) {
+                            double minX = ADoubleSerializerDeserializer.getDouble(bytes0,
+                                    offset0 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
+                            double minY = ADoubleSerializerDeserializer.getDouble(bytes0,
+                                    offset0 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
+                            double maxX = ADoubleSerializerDeserializer.getDouble(bytes0,
+                                    offset0 + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
+                            double maxY = ADoubleSerializerDeserializer.getDouble(bytes0,
+                                    offset0 + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
+
+                            Rectangle key = new Rectangle(minX, maxX, minY, maxY);
+                            buckets = flexibleJoin.assign1(key, configuration);
+                        }
+                        pos = 0;
 
                     }
 
@@ -130,8 +182,8 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
                             return false;
                         }
                         aInt32.setValue(buckets[pos]);
-                        AlgebricksConfig.ALGEBRICKS_LOGGER
-                                .info("Assign One step : "+ buckets[pos] + " ID: " + ctx.getServiceContext().getControllerService().getId() + ".\n");
+                        AlgebricksConfig.ALGEBRICKS_LOGGER.info("Assign One step : " + buckets[pos] + " ID: "
+                                + ctx.getServiceContext().getControllerService().getId() + ".\n");
                         resultStorage.reset();
                         serde.serialize(aInt32, resultStorage.getDataOutput());
                         result.set(resultStorage);

@@ -450,8 +450,7 @@ public class SpatialJoinUtils {
         ScalarFunctionCallExpression referenceTileId = new ScalarFunctionCallExpression(
                 BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.REFERENCE_TILE),
                 new MutableObject<>(new VariableReferenceExpression(leftInputVar)),
-                new MutableObject<>(new VariableReferenceExpression(rightInputVar)),
-                referencePointTestMBRExpr,
+                new MutableObject<>(new VariableReferenceExpression(rightInputVar)), referencePointTestMBRExpr,
                 new MutableObject<>(new ConstantExpression(new AsterixConstantValue(new AInt64(numRows)))),
                 new MutableObject<>(new ConstantExpression(new AsterixConstantValue(new AInt64(numColumns)))),
                 new MutableObject<>(new VariableReferenceExpression(rightTileIdVar)));

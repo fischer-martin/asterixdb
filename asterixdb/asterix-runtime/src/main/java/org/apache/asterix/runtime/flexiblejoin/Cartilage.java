@@ -19,7 +19,6 @@
 
 package org.apache.asterix.runtime.flexiblejoin;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
