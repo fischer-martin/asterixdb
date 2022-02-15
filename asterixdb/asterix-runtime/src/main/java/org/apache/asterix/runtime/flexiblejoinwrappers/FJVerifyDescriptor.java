@@ -155,10 +155,8 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 configuration = SerializationUtils.deserialize(dataIn4);
                             }
 
-                            boolean verifyResult1 = false;
+
                             ATypeTag tag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes1[offset1]);
-                            int[] buckets1DA = null;
-                            int[] buckets2DA = null;
 
                             if (tag == ATypeTag.STRING) {
                                 ByteArrayInputStream inStream1 =
@@ -171,10 +169,8 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 DataInputStream dataIn3 = new DataInputStream(inStream3);
                                 String key1 = serde.deserialize(dataIn3).getStringValue();
 
-                                verifyResult1 =
-                                        flexibleJoin.verify(bucketID1, key0, bucketID1, key1, configuration);
-                                buckets1DA = flexibleJoin.assign1(key0, configuration);
-                                buckets2DA = flexibleJoin.assign2(key1, configuration);
+                                verifyResult =
+                                        flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration);
                             } else if (tag == ATypeTag.RECTANGLE) {
                                 double minX1 = ADoubleSerializerDeserializer.getDouble(bytes1,
                                         offset1 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
@@ -198,33 +194,9 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                                 Rectangle key1 = new Rectangle(minX2, maxX2, minY2, maxY2);
 
-                                verifyResult1 =
-                                        flexibleJoin.verify(bucketID1, key0, bucketID1, key1, configuration);
-                                buckets1DA = flexibleJoin.assign1(key0, configuration);
-                                buckets2DA = flexibleJoin.assign2(key1, configuration);
+                                verifyResult =
+                                        flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration);
 
-                            }
-
-
-
-                            if (verifyResult1) {
-                                Arrays.sort(buckets1DA);
-                                Arrays.sort(buckets2DA);
-
-                                boolean stop = false;
-                                for (int b1 : buckets1DA) {
-                                    for (int b2 : buckets2DA) {
-                                        if (flexibleJoin.match(b1, b2)) {
-                                            if (b1 == bucketID0 && b2 == bucketID1) {
-                                                verifyResult = true;
-                                            }
-                                            stop = true;
-                                            break;
-                                        }
-                                    }
-                                    if (stop)
-                                        break;
-                                }
                             }
 
                         } catch (Exception e) {

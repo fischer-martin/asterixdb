@@ -163,8 +163,10 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
             if (typeTag == ATypeTag.STRING && type.equals(String.class)) {
                 String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
                 summary.add(key);
-                AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Data Summary One: " + key + " ID: "
-                        + context.getServiceContext().getControllerService().getId() + ".\n");
+                if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
+                    AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Data Summary One: " + key + " ID: "
+                            + context.getServiceContext().getControllerService().getId() + ".\n");
+                }
             } else if (typeTag == ATypeTag.RECTANGLE) {
                 double minX = ADoubleSerializerDeserializer.getDouble(data,
                         offset + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
@@ -201,8 +203,10 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
             DataInputStream dataIn = new DataInputStream(inStream);
             Summary<String> s = SerializationUtils.deserialize(dataIn);
             summary.add(s);
-            AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Partial Summary One ID: "
-                    + context.getServiceContext().getControllerService().getId() + ".\n");
+            if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
+                AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Partial Summary One ID: "
+                        + context.getServiceContext().getControllerService().getId() + ".\n");
+            }
 
         } catch (Exception e) {
             throw HyracksDataException.create(e);
@@ -217,8 +221,10 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     }
 
     protected void finishFinalResults(IPointable result) throws HyracksDataException {
-        AlgebricksConfig.ALGEBRICKS_LOGGER.info(
-                "Finish Final Summary One ID: " + context.getServiceContext().getControllerService().getId() + ".\n");
+        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
+            AlgebricksConfig.ALGEBRICKS_LOGGER.info(
+                    "Finish Final Summary One ID: " + context.getServiceContext().getControllerService().getId() + ".\n");
+        }
         resultStorage.reset();
         try {
             resultStorage.getDataOutput().write(SerializationUtils.serialize(summary));

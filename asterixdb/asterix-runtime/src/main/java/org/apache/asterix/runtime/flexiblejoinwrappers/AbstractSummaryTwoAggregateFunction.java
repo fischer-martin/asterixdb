@@ -164,8 +164,10 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
             if (typeTag == ATypeTag.STRING && type.equals(String.class)) {
                 String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
                 summary.add(key);
-                AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Data Summary Two: " + key + " ID: "
-                        + context.getServiceContext().getControllerService().getId() + ".\n");
+                if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
+                    AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Data Summary Two: " + key + " ID: "
+                            + context.getServiceContext().getControllerService().getId() + ".\n");
+                }
             } else if (typeTag == ATypeTag.RECTANGLE) {
                 double minX = ADoubleSerializerDeserializer.getDouble(data,
                         offset + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
@@ -203,8 +205,10 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
 
             Summary<String> s = SerializationUtils.deserialize(dataIn);
             summary.add(s);
-            AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Partial Summary Two ID: "
-                    + context.getServiceContext().getControllerService().getId() + ".\n");
+            if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
+                AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Partial Summary Two ID: "
+                        + context.getServiceContext().getControllerService().getId() + ".\n");
+            }
 
         } catch (Exception e) {
             throw HyracksDataException.create(e);
@@ -217,8 +221,10 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
     }
 
     protected void finishFinalResults(IPointable result) throws HyracksDataException {
-        AlgebricksConfig.ALGEBRICKS_LOGGER.info(
-                "Finish Final Summary Two ID: " + context.getServiceContext().getControllerService().getId() + ".\n");
+        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
+            AlgebricksConfig.ALGEBRICKS_LOGGER.info(
+                    "Finish Final Summary Two ID: " + context.getServiceContext().getControllerService().getId() + ".\n");
+        }
         resultStorage.reset();
         try {
             resultStorage.getDataOutput().write(SerializationUtils.serialize(this.summary));

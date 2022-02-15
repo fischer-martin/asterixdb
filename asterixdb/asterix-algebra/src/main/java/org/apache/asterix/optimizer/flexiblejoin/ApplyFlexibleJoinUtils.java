@@ -66,6 +66,7 @@ import org.apache.hyracks.algebricks.core.algebra.operators.physical.AggregatePO
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.AssignPOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.BroadcastExchangePOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.HybridHashJoinPOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.NestedLoopJoinPOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.OneToOneExchangePOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.RandomPartitionExchangePOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.ReplicatePOperator;
@@ -218,6 +219,11 @@ public class ApplyFlexibleJoinUtils {
         Mutable<ILogicalExpression> trueCondition =
                 new MutableObject<>(new ConstantExpression(new AsterixConstantValue(ABoolean.TRUE)));
         InnerJoinOperator summaryJoinOp = new InnerJoinOperator(trueCondition, leftGlobalAgg, rightGlobalAgg);
+        NestedLoopJoinPOperator nj = new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
+                AbstractJoinPOperator.JoinPartitioningType.BROADCAST);
+        nj.createLocalMemoryRequirements(summaryJoinOp);
+        summaryJoinOp.setPhysicalOperator(nj);
+
         summaryJoinOp.setSourceLocation(joinOp.getSourceLocation());
         MutableObject<ILogicalOperator> divideJoinRef = new MutableObject<>(summaryJoinOp);
         summaryJoinOp.recomputeSchema();

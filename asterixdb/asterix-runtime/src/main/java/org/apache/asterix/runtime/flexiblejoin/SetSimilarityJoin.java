@@ -82,8 +82,8 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
     }
 
     @Override
-    public boolean verify(int b1, String k1, int b2, String k2, SetSimilarityConfig setSimilarityConfig) {
-        return Utilities.calculateJaccardSimilarityS(k1, k2) >= SimilarityThreshold;
+    public boolean verify(String k1, String k2) {
+        return Utilities.calculateJaccardSimilarity(k1, k2) >= SimilarityThreshold;
     }
 
 }

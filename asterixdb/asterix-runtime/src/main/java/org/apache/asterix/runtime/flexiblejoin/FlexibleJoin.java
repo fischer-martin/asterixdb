@@ -18,6 +18,8 @@
  */
 package org.apache.asterix.runtime.flexiblejoin;
 
+import java.util.Arrays;
+
 public interface FlexibleJoin<T, C> {
     Summary<T> createSummarizer1();
 
@@ -37,5 +39,36 @@ public interface FlexibleJoin<T, C> {
         return b1 == b2;
     }
 
-    boolean verify(int b1, T k1, int b2, T k2, C c);
+    default boolean verify(int b1, T k1, int b2, T k2, C c) {
+
+        if(verify(k1, k2)) {
+            //Duplicate avoidance
+            int[] buckets1DA = assign1(k1, c);
+            int[] buckets2DA = assign2(k2, c);
+
+            Arrays.sort(buckets1DA);
+            Arrays.sort(buckets2DA);
+
+            boolean stop = false;
+            for (int bt1 : buckets1DA) {
+                for (int bt2 : buckets2DA) {
+
+                    if (match(bt1, bt2)) {
+                        if (bt1 == b1 && bt2 == b2) {
+                            return true;
+                        }
+                        stop = true;
+                        break;
+                    }
+                }
+                if (stop) break;
+            }
+            return false;
+        } else {
+            return false;
+        }
+
+    };
+
+    boolean verify(T k1, T k2);
 }

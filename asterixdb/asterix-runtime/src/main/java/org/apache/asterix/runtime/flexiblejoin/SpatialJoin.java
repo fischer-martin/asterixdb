@@ -139,8 +139,7 @@ public class SpatialJoin implements FlexibleJoin<Rectangle, SpatialJoinConfigura
     }
 
     @Override
-    public boolean verify(int b1, Rectangle k1, int b2, Rectangle k2,
-            SpatialJoinConfiguration spatialJoinConfiguration) {
+    public boolean verify(Rectangle k1, Rectangle k2) {
         double x1 = Math.max(k1.x1, k2.x1);
         double y1 = Math.max(k1.y1, k2.y1);
 
