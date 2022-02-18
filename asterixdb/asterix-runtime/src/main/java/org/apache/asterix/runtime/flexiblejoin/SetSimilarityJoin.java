@@ -18,6 +18,8 @@
  */
 package org.apache.asterix.runtime.flexiblejoin;
 
+import org.apache.commons.text.similarity.JaccardSimilarity;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -56,8 +58,8 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
 
     @Override
     public int[] assign1(String k1, SetSimilarityConfig setSimilarityConfig) {
-        ArrayList<String> tokens = Utilities.tokenizer(k1);
-        int length = tokens.size();
+        String[] tokens = Utilities.tokenizer(k1);
+        int length = tokens.length;
         int PrefixLength = (int) (length - Math.ceil(SimilarityThreshold * length) + 1);
         ArrayList<Integer> ranks = new ArrayList<>();
         for (String token : tokens) {
@@ -83,12 +85,18 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
 
     @Override
     public boolean verify(String k1, String k2) {
-        return Utilities.calculateJaccardSimilarity(k1, k2) >= SimilarityThreshold;
+        return true;
+        //return Utilities.cjs(k1, k2) >= SimilarityThreshold;
+        //return Utilities.calculateJaccardSimilarityS(k1, k2) >= SimilarityThreshold;
     }
 
 }
 
 abstract class Utilities {
+    private static final JaccardSimilarity js = new JaccardSimilarity();
+    public static Double cjs(CharSequence left, CharSequence right) {
+        return js.apply(left, right);
+    }
     public static Double calculateJaccardSimilarity(CharSequence left, CharSequence right) {
         Set<String> intersectionSet = new HashSet<String>();
         Set<String> unionSet = new HashSet<String>();
@@ -117,24 +125,24 @@ abstract class Utilities {
     public static double calculateJaccardSimilarityS(String left, String right) {
 
         double intersectionSize = 0;
-        ArrayList<String> leftTokens = tokenizer(left);
-        ArrayList<String> rightTokens = tokenizer(right);
+        String[] leftTokens = tokenizer(left);
+        String[] rightTokens = tokenizer(right);
 
-        int leftLength = leftTokens.size();
-        int rightLength = rightTokens.size();
+        int leftLength = leftTokens.length;
+        int rightLength = rightTokens.length;
         if (leftLength == 0 || rightLength == 0) {
             return 0f;
         }
 
         for (int leftIndex = 0; leftIndex < leftLength; leftIndex++) {
-            int i = 0;
-            for (String rt : rightTokens) {
-                if (leftTokens.get(leftIndex).equals(rt)) {
+
+            for (int i = 0; i < rightLength; i++) {
+                if(rightTokens[i] == null) continue;
+                if (leftTokens[leftIndex].equals(rightTokens[i])) {
                     intersectionSize = intersectionSize + 1.0f;
-                    rightTokens.remove(i);
+                    rightTokens[i] = null;
                     break;
                 }
-                i++;
             }
         }
         double sim = (intersectionSize / ((leftLength + rightLength) - intersectionSize));
@@ -142,7 +150,7 @@ abstract class Utilities {
         return sim;
     }
 
-    public static ArrayList<String> tokenizer(String text) {
+    public static String[] tokenizer(String text) {
         ArrayList<String> tokens = new ArrayList<>();
         String lowerCaseText = text.toLowerCase();
         int startIx = 0;
@@ -162,8 +170,11 @@ abstract class Utilities {
 
             if (!token.isEmpty())
                 tokens.add(token);
+
         }
-        return tokens;
+        String[] arr = new String[tokens.size()];
+        arr = tokens.toArray(arr);
+        return arr;
     }
 
     private static boolean isSeparator(char c) {

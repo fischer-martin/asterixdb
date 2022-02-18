@@ -41,7 +41,7 @@ public interface FlexibleJoin<T, C> {
 
     default boolean verify(int b1, T k1, int b2, T k2, C c) {
 
-        if(verify(k1, k2)) {
+        if (verify(k1, k2)) {
             //Duplicate avoidance
             int[] buckets1DA = assign1(k1, c);
             int[] buckets2DA = assign2(k2, c);
@@ -61,7 +61,8 @@ public interface FlexibleJoin<T, C> {
                         break;
                     }
                 }
-                if (stop) break;
+                if (stop)
+                    break;
             }
             return false;
         } else {

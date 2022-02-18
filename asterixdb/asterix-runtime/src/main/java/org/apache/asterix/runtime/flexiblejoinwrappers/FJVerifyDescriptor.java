@@ -22,7 +22,6 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
@@ -138,6 +137,8 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             int bucketID1 = AInt32SerializerDeserializer.getInt(bytes2, offset2 + 1);
 
                             if (flexibleJoin == null) {
+                                AlgebricksConfig.ALGEBRICKS_LOGGER
+                                        .info("FJ VERIFY: ID: " + ctx.getServiceContext().getControllerService().getId());
                                 //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
                                 Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
                                 if (parameters != null) {
@@ -155,7 +156,6 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 configuration = SerializationUtils.deserialize(dataIn4);
                             }
 
-
                             ATypeTag tag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes1[offset1]);
 
                             if (tag == ATypeTag.STRING) {
@@ -169,33 +169,31 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 DataInputStream dataIn3 = new DataInputStream(inStream3);
                                 String key1 = serde.deserialize(dataIn3).getStringValue();
 
-                                verifyResult =
-                                        flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration);
+                                verifyResult = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration);
                             } else if (tag == ATypeTag.RECTANGLE) {
-                                double minX1 = ADoubleSerializerDeserializer.getDouble(bytes1,
-                                        offset1 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
-                                double minY1 = ADoubleSerializerDeserializer.getDouble(bytes1,
-                                        offset1 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
-                                double maxX1 = ADoubleSerializerDeserializer.getDouble(bytes1,
-                                        offset1 + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
-                                double maxY1 = ADoubleSerializerDeserializer.getDouble(bytes1,
-                                        offset1 + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
+                                double minX1 = ADoubleSerializerDeserializer.getDouble(bytes1, offset1 + 1
+                                        + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
+                                double minY1 = ADoubleSerializerDeserializer.getDouble(bytes1, offset1 + 1
+                                        + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
+                                double maxX1 = ADoubleSerializerDeserializer.getDouble(bytes1, offset1 + 1
+                                        + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
+                                double maxY1 = ADoubleSerializerDeserializer.getDouble(bytes1, offset1 + 1
+                                        + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
 
                                 Rectangle key0 = new Rectangle(minX1, maxX1, minY1, maxY1);
 
-                                double minX2 = ADoubleSerializerDeserializer.getDouble(bytes3,
-                                        offset3 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
-                                double minY2 = ADoubleSerializerDeserializer.getDouble(bytes3,
-                                        offset3 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
-                                double maxX2 = ADoubleSerializerDeserializer.getDouble(bytes3,
-                                        offset3 + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
-                                double maxY2 = ADoubleSerializerDeserializer.getDouble(bytes3,
-                                        offset3 + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
+                                double minX2 = ADoubleSerializerDeserializer.getDouble(bytes3, offset3 + 1
+                                        + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
+                                double minY2 = ADoubleSerializerDeserializer.getDouble(bytes3, offset3 + 1
+                                        + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
+                                double maxX2 = ADoubleSerializerDeserializer.getDouble(bytes3, offset3 + 1
+                                        + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
+                                double maxY2 = ADoubleSerializerDeserializer.getDouble(bytes3, offset3 + 1
+                                        + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
 
                                 Rectangle key1 = new Rectangle(minX2, maxX2, minY2, maxY2);
 
-                                verifyResult =
-                                        flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration);
+                                verifyResult = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration);
 
                             }
 

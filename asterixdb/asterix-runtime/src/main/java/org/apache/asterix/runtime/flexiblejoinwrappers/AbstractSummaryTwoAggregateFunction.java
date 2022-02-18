@@ -73,7 +73,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
     private Class<?> flexibleJoinClass = null;
     {
         try {
-            String a = BuiltinFunctions.FJ_SUMMARY_TWO.getLibraryName();
+            //String a = BuiltinFunctions.FJ_SUMMARY_TWO.getLibraryName();
             flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_SUMMARY_TWO.getLibraryName());
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
@@ -222,8 +222,8 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
 
     protected void finishFinalResults(IPointable result) throws HyracksDataException {
         if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
-            AlgebricksConfig.ALGEBRICKS_LOGGER.info(
-                    "Finish Final Summary Two ID: " + context.getServiceContext().getControllerService().getId() + ".\n");
+            AlgebricksConfig.ALGEBRICKS_LOGGER.info("Finish Final Summary Two ID: "
+                    + context.getServiceContext().getControllerService().getId() + ".\n");
         }
         resultStorage.reset();
         try {

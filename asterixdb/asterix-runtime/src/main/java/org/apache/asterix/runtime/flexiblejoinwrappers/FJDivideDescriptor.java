@@ -23,8 +23,11 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.asterix.om.base.ADouble;
+import org.apache.asterix.om.base.AInt32;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
@@ -76,7 +79,10 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
-                            String a = BuiltinFunctions.FJ_VERIFY.getLibraryName();
+                            if(BuiltinFunctions.FJ_VERIFY.getLibraryName().isEmpty()) {
+                                BuiltinFunctions.FJ_VERIFY.setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+
+                            }
                             flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_VERIFY.getLibraryName());
                         } catch (ClassNotFoundException e) {
                             e.printStackTrace();
@@ -89,6 +95,8 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                     @Override
                     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
+                        AlgebricksConfig.ALGEBRICKS_LOGGER
+                                .info("FJ DIVIDE: ID: " + ctx.getServiceContext().getControllerService().getId());
                         resultStorage.reset();
 
                         eval0.evaluate(tuple, inputArg0);
@@ -131,7 +139,7 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 }
                             } else {
                                 try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(0.5);
                                 } catch (InstantiationException e) {
                                     e.printStackTrace();
                                 } catch (IllegalAccessException e) {
@@ -144,6 +152,7 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                         Summary summaryOne = SerializationUtils.deserialize(dataIn0);
                         Summary summaryTwo = SerializationUtils.deserialize(dataIn1);
+
                         if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
                             AlgebricksConfig.ALGEBRICKS_LOGGER
                                     .info("\nFJ DIVIDE: ID: " + ctx.getServiceContext().getControllerService().getId());

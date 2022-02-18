@@ -2444,13 +2444,11 @@ public class BuiltinFunctions {
         ScalarVersionOfAggregateResultType scalarSummaryOneTypeComputer =
                 new ScalarVersionOfAggregateResultType(SummaryOneTypeComputer.INSTANCE);
 
-        addFunction(FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
-        addPrivateFunction(LOCAL_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
-        addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
-        addPrivateFunction(GLOBAL_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
-        addFunction(SCALAR_FJ_SUMMARY_ONE, AnyTypeComputer.INSTANCE, true);
-
-        FJ_SUMMARY_ONE.setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+        addFunction(FJ_SUMMARY_ONE, ABinaryTypeComputer.INSTANCE, true);
+        addPrivateFunction(LOCAL_FJ_SUMMARY_ONE, ABinaryTypeComputer.INSTANCE, true);
+        addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_ONE, ABinaryTypeComputer.INSTANCE, true);
+        addPrivateFunction(GLOBAL_FJ_SUMMARY_ONE, ABinaryTypeComputer.INSTANCE, true);
+        addFunction(SCALAR_FJ_SUMMARY_ONE, ABinaryTypeComputer.INSTANCE, true);
 
         addAgg(SQL_FJ_SUMMARY_ONE);
         addAgg(LOCAL_SQL_FJ_SUMMARY_ONE);
@@ -2467,11 +2465,11 @@ public class BuiltinFunctions {
         ScalarVersionOfAggregateResultType scalarSummaryTwoTypeComputer =
                 new ScalarVersionOfAggregateResultType(SummaryTwoTypeComputer.INSTANCE);
 
-        addFunction(FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
-        addPrivateFunction(LOCAL_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
-        addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
-        addPrivateFunction(GLOBAL_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
-        addFunction(SCALAR_FJ_SUMMARY_TWO, AnyTypeComputer.INSTANCE, true);
+        addFunction(FJ_SUMMARY_TWO, ABinaryTypeComputer.INSTANCE, true);
+        addPrivateFunction(LOCAL_FJ_SUMMARY_TWO, ABinaryTypeComputer.INSTANCE, true);
+        addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_TWO, ABinaryTypeComputer.INSTANCE, true);
+        addPrivateFunction(GLOBAL_FJ_SUMMARY_TWO, ABinaryTypeComputer.INSTANCE, true);
+        addFunction(SCALAR_FJ_SUMMARY_TWO, ABinaryTypeComputer.INSTANCE, true);
 
         addAgg(SQL_FJ_SUMMARY_TWO);
         addAgg(LOCAL_SQL_FJ_SUMMARY_TWO);
@@ -2485,7 +2483,7 @@ public class BuiltinFunctions {
         addScalarAgg(SQL_FJ_SUMMARY_TWO, SCALAR_SQL_FJ_SUMMARY_TWO);
 
         //Divide
-        addFunction(FJ_DIVIDE, AnyTypeComputer.INSTANCE, true);
+        addFunction(FJ_DIVIDE, ABinaryTypeComputer.INSTANCE, true);
 
         //Assign
         addFunction(FJ_ASSIGN_ONE, AInt32TypeComputer.INSTANCE, true);

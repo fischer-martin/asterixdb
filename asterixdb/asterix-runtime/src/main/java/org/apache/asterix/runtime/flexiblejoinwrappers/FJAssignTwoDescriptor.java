@@ -35,7 +35,9 @@ import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
-import org.apache.asterix.runtime.flexiblejoin.*;
+import org.apache.asterix.runtime.flexiblejoin.Configuration;
+import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
+import org.apache.asterix.runtime.flexiblejoin.Rectangle;
 import org.apache.asterix.runtime.unnestingfunctions.base.AbstractUnnestingFunctionDynamicDescriptor;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
@@ -102,7 +104,8 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
 
                     private FlexibleJoin flexibleJoin = null;
                     private Configuration configuration = null;
-                    private List<Mutable<ILogicalExpression>> parameters = BuiltinFunctions.FJ_ASSIGN_ONE.getParameters();
+                    private List<Mutable<ILogicalExpression>> parameters =
+                            BuiltinFunctions.FJ_ASSIGN_ONE.getParameters();
 
                     @Override
                     public void init(IFrameTupleReference tuple) throws HyracksDataException {
@@ -121,6 +124,8 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                         ATypeTag tag0 = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes0[offset0]);
 
                         if (flexibleJoin == null) {
+                            AlgebricksConfig.ALGEBRICKS_LOGGER
+                                    .info("FJ ASSIGN TWO: ID: " + ctx.getServiceContext().getControllerService().getId());
                             //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
                             Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
                             if (parameters != null) {
@@ -157,19 +162,19 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                                     new ByteArrayInputStream(inputArg0.getByteArray(), offset0 + 1, len - 1);
                             DataInputStream dataIn = new DataInputStream(inStream);
                             String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
-                            buckets = flexibleJoin.assign1(key, configuration);
+                            buckets = flexibleJoin.assign2(key, configuration);
                         } else if (tag0 == ATypeTag.RECTANGLE) {
-                            double minX = ADoubleSerializerDeserializer.getDouble(bytes0,
-                                    offset0 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
-                            double minY = ADoubleSerializerDeserializer.getDouble(bytes0,
-                                    offset0 + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
-                            double maxX = ADoubleSerializerDeserializer.getDouble(bytes0,
-                                    offset0 + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
-                            double maxY = ADoubleSerializerDeserializer.getDouble(bytes0,
-                                    offset0 + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
+                            double minX = ADoubleSerializerDeserializer.getDouble(bytes0, offset0 + 1
+                                    + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
+                            double minY = ADoubleSerializerDeserializer.getDouble(bytes0, offset0 + 1
+                                    + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
+                            double maxX = ADoubleSerializerDeserializer.getDouble(bytes0, offset0 + 1
+                                    + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
+                            double maxY = ADoubleSerializerDeserializer.getDouble(bytes0, offset0 + 1
+                                    + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
 
                             Rectangle key = new Rectangle(minX, maxX, minY, maxY);
-                            buckets = flexibleJoin.assign1(key, configuration);
+                            buckets = flexibleJoin.assign2(key, configuration);
                         }
                         pos = 0;
                     }

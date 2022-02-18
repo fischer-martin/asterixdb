@@ -28,7 +28,7 @@ public class WordCount implements Summary<String> {
 
     @Override
     public void add(String k) {
-        ArrayList<String> tokens = Utilities.tokenizer(k);
+        String[] tokens = Utilities.tokenizer(k);
         for (String token : tokens) {
             WordCountMap.merge(token, 1, Integer::sum);
         }

@@ -19,6 +19,9 @@
 package org.apache.asterix.runtime.flexiblejoinwrappers;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
@@ -27,7 +30,13 @@ import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
+import org.apache.asterix.runtime.flexiblejoin.Configuration;
+import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
 import org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin;
+import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
@@ -59,6 +68,19 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor {
 
                 return new IScalarEvaluator() {
 
+                    private Class<?> flexibleJoinClass = null;
+                    {
+                        try {
+                            flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_VERIFY.getLibraryName());
+                        } catch (ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    private FlexibleJoin flexibleJoin = null;
+                    private Configuration configuration = null;
+                    private List<Mutable<ILogicalExpression>> parameters = BuiltinFunctions.FJ_VERIFY.getParameters();
+
                     private final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
                     private final IPointable inputArg0 = new VoidPointable();
                     private final IPointable inputArg1 = new VoidPointable();
@@ -71,6 +93,38 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor {
 
                         eval0.evaluate(tuple, inputArg0);
                         eval1.evaluate(tuple, inputArg1);
+
+                        if (flexibleJoin == null) {
+                            AlgebricksConfig.ALGEBRICKS_LOGGER
+                                    .info("FJ MATCH: ID: " + ctx.getServiceContext().getControllerService().getId());
+                            //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
+                            Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
+                            if (parameters != null) {
+                                ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
+                                IAlgebricksConstantValue d = c.getValue();
+                                Double dx = Double.valueOf(d.toString());
+                                try {
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(dx);
+                                } catch (InstantiationException e) {
+                                    e.printStackTrace();
+                                } catch (IllegalAccessException e) {
+                                    e.printStackTrace();
+                                } catch (InvocationTargetException e) {
+                                    e.printStackTrace();
+                                }
+                            } else {
+                                try {
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
+                                } catch (InstantiationException e) {
+                                    e.printStackTrace();
+                                } catch (IllegalAccessException e) {
+                                    e.printStackTrace();
+                                } catch (InvocationTargetException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+
+                        }
 
                         //if (PointableHelper.checkAndSetMissingOrNull(result, inputArg0, inputArg1)) {
                         //    return;
@@ -90,15 +144,8 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor {
                                     .info("\nFJ MATCH: ID: " + ctx.getServiceContext().getControllerService().getId()
                                             + " bucket ids: " + bucketID0 + ", " + bucketID1);
                         }
-                        SetSimilarityJoin fj = new SetSimilarityJoin(0.5);
-                        try {
-                            Class c = Class.forName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
 
-                        } catch (ClassNotFoundException e) {
-                            e.printStackTrace();
-                        }
-
-                        boolean matchResult = fj.match(bucketID0, bucketID1);
+                        boolean matchResult = flexibleJoin.match(bucketID0, bucketID1);
 
                         try {
                             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ABOOLEAN)

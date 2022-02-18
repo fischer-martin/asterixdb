@@ -28,12 +28,13 @@ import java.lang.reflect.Type;
 import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
+import org.apache.asterix.dataflow.data.nontagged.serde.ABinarySerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
+import org.apache.asterix.om.base.ABinary;
 import org.apache.asterix.om.base.ANull;
-import org.apache.asterix.om.base.ARectangle;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
@@ -72,8 +73,10 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     private Class<?> flexibleJoinClass = null;
     {
         try {
-            String a = BuiltinFunctions.FJ_SUMMARY_ONE.getLibraryName();
-            System.out.println(a);
+            if(BuiltinFunctions.FJ_SUMMARY_ONE.getLibraryName().isEmpty()) {
+                BuiltinFunctions.FJ_SUMMARY_ONE.setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+
+            }
             flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_SUMMARY_ONE.getLibraryName());
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
@@ -83,12 +86,12 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     private FlexibleJoin flexibleJoin = null;
     private List<Mutable<ILogicalExpression>> parameters = BuiltinFunctions.FJ_SUMMARY_ONE.getParameters();
 
-
     protected ATypeTag aggType;
 
     @SuppressWarnings("unchecked")
     private ISerializerDeserializer<ANull> nullSerde =
             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ANULL);
+
 
     public AbstractSummaryOneAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
             SourceLocation sourceLoc) throws HyracksDataException {
@@ -114,7 +117,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
                 }
             } else {
                 try {
-                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
+                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(0.5);
                 } catch (InstantiationException e) {
                     e.printStackTrace();
                 } catch (IllegalAccessException e) {
@@ -162,6 +165,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
 
             if (typeTag == ATypeTag.STRING && type.equals(String.class)) {
                 String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
+
                 summary.add(key);
                 if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
                     AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Data Summary One: " + key + " ID: "
@@ -222,8 +226,8 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
 
     protected void finishFinalResults(IPointable result) throws HyracksDataException {
         if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
-            AlgebricksConfig.ALGEBRICKS_LOGGER.info(
-                    "Finish Final Summary One ID: " + context.getServiceContext().getControllerService().getId() + ".\n");
+            AlgebricksConfig.ALGEBRICKS_LOGGER.info("Finish Final Summary One ID: "
+                    + context.getServiceContext().getControllerService().getId() + ".\n");
         }
         resultStorage.reset();
         try {

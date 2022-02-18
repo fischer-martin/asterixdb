@@ -23,12 +23,13 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 
+import org.apache.asterix.algebra.operators.physical.AssignBatchPOperator;
 import org.apache.asterix.algebra.operators.physical.FlexibleJoinPOperator;
 import org.apache.asterix.om.base.ABoolean;
+import org.apache.asterix.om.base.ADouble;
+import org.apache.asterix.om.base.AInt32;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
-import org.apache.asterix.runtime.flexiblejoinwrappers.FJVerifyDescriptor;
-import org.apache.asterix.runtime.functions.FunctionCollection;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.FlexibleJoinUtilFactory;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
 import org.apache.commons.lang3.mutable.Mutable;
@@ -99,7 +100,8 @@ public class ApplyFlexibleJoinUtils {
             boolean firstFlexible = true;
             for (Mutable<ILogicalExpression> exp : inputExprs) {
                 AbstractFunctionCallExpression funcCallExp = (AbstractFunctionCallExpression) exp.getValue();
-                if (BuiltinFunctions.isFlexibleJoinCallerFunction(funcCallExp.getFunctionIdentifier()) && firstFlexible) {
+                if (BuiltinFunctions.isFlexibleJoinCallerFunction(funcCallExp.getFunctionIdentifier())
+                        && firstFlexible) {
                     flexibleFuncExpr = funcCallExp;
                     flexibleJoinExists = true;
                     firstFlexible = false;
@@ -219,10 +221,11 @@ public class ApplyFlexibleJoinUtils {
         Mutable<ILogicalExpression> trueCondition =
                 new MutableObject<>(new ConstantExpression(new AsterixConstantValue(ABoolean.TRUE)));
         InnerJoinOperator summaryJoinOp = new InnerJoinOperator(trueCondition, leftGlobalAgg, rightGlobalAgg);
-        NestedLoopJoinPOperator nj = new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
-                AbstractJoinPOperator.JoinPartitioningType.BROADCAST);
-        nj.createLocalMemoryRequirements(summaryJoinOp);
-        summaryJoinOp.setPhysicalOperator(nj);
+        summaryJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
+                AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
+        summaryJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.UNPARTITIONED);
+        summaryJoinOp.recomputeSchema();
+        context.computeAndSetTypeEnvironmentForOperator(summaryJoinOp);
 
         summaryJoinOp.setSourceLocation(joinOp.getSourceLocation());
         MutableObject<ILogicalOperator> divideJoinRef = new MutableObject<>(summaryJoinOp);
@@ -243,6 +246,7 @@ public class ApplyFlexibleJoinUtils {
         Mutable<ILogicalExpression> configurationExpr = new MutableObject<>(getDivideFuncExpr);
         LogicalVariable configuration = context.newVar();
         AbstractLogicalOperator configurationAssignOperator = new AssignOperator(configuration, configurationExpr);
+        //configurationAssignOperator.
         configurationAssignOperator.setSourceLocation(joinOp.getSourceLocation());
         configurationAssignOperator.setExecutionMode(joinOp.getExecutionMode());
         configurationAssignOperator.setPhysicalOperator(new AssignPOperator());
@@ -328,9 +332,6 @@ public class ApplyFlexibleJoinUtils {
         ScalarFunctionCallExpression verifyJoinCondition = createVerifyCondition(joinOp, verifyConfigurationExpr,
                 leftBucketIdVar, rightBucketIdVar, leftInputVar, rightInputVar);
 
-
-
-
         List<LogicalVariable> keysLeftBranch = new ArrayList<>();
         keysLeftBranch.add(leftBucketIdVar);
         keysLeftBranch.add(leftInputVar);
@@ -346,6 +347,31 @@ public class ApplyFlexibleJoinUtils {
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
                 new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar)));
 
+
+        ScalarFunctionCallExpression wt1 = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
+                BuiltinFunctions.WORD_TOKENS),
+                new MutableObject<>(new VariableReferenceExpression(leftInputVar)));
+
+
+        ScalarFunctionCallExpression wt2 = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
+                BuiltinFunctions.WORD_TOKENS),
+                new MutableObject<>(new VariableReferenceExpression(rightInputVar)));
+
+
+
+        ScalarFunctionCallExpression simjac = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
+                BuiltinFunctions.SIMILARITY_JACCARD_CHECK),
+                new MutableObject<>(wt1),
+                new MutableObject<>(wt2),
+                new MutableObject<>(new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
+
+        ScalarFunctionCallExpression bsimjac = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
+                BuiltinFunctions.GET_ITEM),
+                new MutableObject<>(simjac),
+                new MutableObject<>(new ConstantExpression(new AsterixConstantValue(new AInt32(0)))));
+
+
+
         conditionExprs.add(new MutableObject<>(match));
 
         ScalarFunctionCallExpression updatedJoinCondition;
@@ -359,7 +385,8 @@ public class ApplyFlexibleJoinUtils {
         Mutable<ILogicalExpression> joinConditionRef = joinOp.getCondition();
         joinConditionRef.setValue(updatedJoinCondition);
 
-        InnerJoinOperator matchJoinOp = new InnerJoinOperator(new MutableObject<>(updatedJoinCondition), leftInputOp, rightInputOp);
+        InnerJoinOperator matchJoinOp =
+                new InnerJoinOperator(new MutableObject<>(updatedJoinCondition), leftInputOp, rightInputOp);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());
         matchJoinOp.setSchema(joinOp.getSchema());
         context.computeAndSetTypeEnvironmentForOperator(matchJoinOp);
