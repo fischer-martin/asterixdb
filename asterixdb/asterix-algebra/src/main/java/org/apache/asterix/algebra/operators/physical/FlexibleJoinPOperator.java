@@ -128,15 +128,15 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
 
         List<ILocalStructuralProperty> localProperties1 = new ArrayList<>();
         List<OrderColumn> orderColumns1 = new ArrayList<OrderColumn>();
-        orderColumns1.add(new OrderColumn(keysLeftBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
-        orderColumns1.add(new OrderColumn(keysLeftBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
-        localProperties1.add(new LocalOrderProperty(orderColumns1));
+        //orderColumns1.add(new OrderColumn(keysLeftBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
+        //orderColumns1.add(new OrderColumn(keysLeftBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
+        //localProperties1.add(new LocalOrderProperty(orderColumns1));
 
         List<ILocalStructuralProperty> localProperties2 = new ArrayList<>();
         List<OrderColumn> orderColumns2 = new ArrayList<OrderColumn>();
-        orderColumns2.add(new OrderColumn(keysRightBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
-        orderColumns2.add(new OrderColumn(keysRightBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
-        localProperties2.add(new LocalOrderProperty(orderColumns2));
+        //orderColumns2.add(new OrderColumn(keysRightBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
+        //orderColumns2.add(new OrderColumn(keysRightBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
+        //localProperties2.add(new LocalOrderProperty(orderColumns2));
 
         StructuralPropertiesVector[] pv = new StructuralPropertiesVector[2];
         pv[0] = new StructuralPropertiesVector(pp1, localProperties1);

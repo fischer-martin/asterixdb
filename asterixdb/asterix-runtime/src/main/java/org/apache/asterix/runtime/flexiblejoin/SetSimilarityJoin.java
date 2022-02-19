@@ -30,6 +30,8 @@ import java.util.stream.Collectors;
 
 public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConfig> {
     Double SimilarityThreshold = 0.0;
+    public static int verifyCounter = 0;
+    public static int matchCounter = 0;
 
     public SetSimilarityJoin(Double SimilarityThreshold) {
         this.SimilarityThreshold = SimilarityThreshold;
@@ -80,11 +82,13 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
 
     @Override
     public boolean match(int b1, int b2) {
+        matchCounter++;
         return FlexibleJoin.super.match(b1, b2);
     }
 
     @Override
     public boolean verify(String k1, String k2) {
+        verifyCounter++;
         return true;
         //return Utilities.cjs(k1, k2) >= SimilarityThreshold;
         //return Utilities.calculateJaccardSimilarityS(k1, k2) >= SimilarityThreshold;

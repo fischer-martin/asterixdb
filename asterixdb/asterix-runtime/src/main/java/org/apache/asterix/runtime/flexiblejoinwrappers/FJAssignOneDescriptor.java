@@ -147,7 +147,7 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
                                 }
                             } else {
                                 try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(0.5);
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
                                 } catch (InstantiationException e) {
                                     e.printStackTrace();
                                 } catch (IllegalAccessException e) {

@@ -256,6 +256,8 @@ public class ApplyFlexibleJoinUtils {
         MutableObject<ILogicalOperator> configurationAssignOperatorRef =
                 new MutableObject<>(configurationAssignOperator);
 
+
+
         ReplicateOperator configReplicateOperator =
                 createReplicateOperator(configurationAssignOperatorRef, context, joinOp.getSourceLocation(), 3);
 
@@ -341,7 +343,7 @@ public class ApplyFlexibleJoinUtils {
         keysRightBranch.add(rightInputVar);
 
         BuiltinFunctions.FJ_MATCH.setLibraryName(libraryName);
-        IFunctionInfo MatchFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.EQ);
+        IFunctionInfo MatchFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_MATCH);
 
         ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(MatchFunctionInfo,
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
@@ -386,7 +388,8 @@ public class ApplyFlexibleJoinUtils {
         joinConditionRef.setValue(updatedJoinCondition);
 
         InnerJoinOperator matchJoinOp =
-                new InnerJoinOperator(new MutableObject<>(updatedJoinCondition), leftInputOp, rightInputOp);
+                new InnerJoinOperator(new MutableObject<>(updatedJoinCondition), new MutableObject<>(leftBucketIdVarPair.second), new MutableObject<>(rightBucketIdVarPair.second));
+        //setFlexibleJoinOp(matchJoinOp,keysLeftBranch, keysRightBranch, context);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());
         matchJoinOp.setSchema(joinOp.getSchema());
         context.computeAndSetTypeEnvironmentForOperator(matchJoinOp);

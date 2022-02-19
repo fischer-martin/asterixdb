@@ -79,8 +79,8 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
-                            if(BuiltinFunctions.FJ_VERIFY.getLibraryName().isEmpty()) {
-                                BuiltinFunctions.FJ_VERIFY.setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+                            if(BuiltinFunctions.FJ_DIVIDE.getLibraryName().isEmpty()) {
+                                BuiltinFunctions.FJ_DIVIDE.setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
 
                             }
                             flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_VERIFY.getLibraryName());
@@ -139,7 +139,7 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 }
                             } else {
                                 try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(0.5);
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
                                 } catch (InstantiationException e) {
                                     e.printStackTrace();
                                 } catch (IllegalAccessException e) {

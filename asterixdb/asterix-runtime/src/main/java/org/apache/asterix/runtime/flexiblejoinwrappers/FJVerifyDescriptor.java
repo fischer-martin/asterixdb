@@ -40,6 +40,7 @@ import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicD
 import org.apache.asterix.runtime.flexiblejoin.Configuration;
 import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
 import org.apache.asterix.runtime.flexiblejoin.Rectangle;
+import org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
@@ -80,6 +81,10 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
+                            if(BuiltinFunctions.FJ_VERIFY.getLibraryName().isEmpty()) {
+                                BuiltinFunctions.FJ_VERIFY.setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+
+                            }
                             flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_VERIFY.getLibraryName());
                         } catch (ClassNotFoundException e) {
                             e.printStackTrace();
@@ -139,6 +144,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             if (flexibleJoin == null) {
                                 AlgebricksConfig.ALGEBRICKS_LOGGER
                                         .info("FJ VERIFY: ID: " + ctx.getServiceContext().getControllerService().getId());
+
                                 //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
                                 Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
                                 if (parameters != null) {
@@ -154,6 +160,9 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 DataInputStream dataIn4 = new DataInputStream(inStream4);
 
                                 configuration = SerializationUtils.deserialize(dataIn4);
+
+                                AlgebricksConfig.ALGEBRICKS_LOGGER
+                                        .info("MATCH COUNTER:" + SetSimilarityJoin.matchCounter);
                             }
 
                             ATypeTag tag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes1[offset1]);
