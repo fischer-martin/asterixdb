@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.asterix.om.base.ADouble;
-import org.apache.asterix.om.base.AInt32;
+import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
@@ -36,6 +36,7 @@ import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
 import org.apache.asterix.runtime.flexiblejoin.Summary;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
@@ -79,11 +80,16 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
-                            if(BuiltinFunctions.FJ_DIVIDE.getLibraryName().isEmpty()) {
-                                BuiltinFunctions.FJ_DIVIDE.setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+                            if (BuiltinFunctions.FJ_DIVIDE.getLibraryName().isEmpty()) {
+                                BuiltinFunctions.FJ_DIVIDE
+                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+                                List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
+                                parameters.add(new MutableObject<>(
+                                        new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
+                                BuiltinFunctions.FJ_DIVIDE.setParameters(parameters);
 
                             }
-                            flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_VERIFY.getLibraryName());
+                            flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_DIVIDE.getLibraryName());
                         } catch (ClassNotFoundException e) {
                             e.printStackTrace();
                         }

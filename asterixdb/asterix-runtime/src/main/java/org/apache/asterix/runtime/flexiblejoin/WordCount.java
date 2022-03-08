@@ -18,7 +18,6 @@
  */
 package org.apache.asterix.runtime.flexiblejoin;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 

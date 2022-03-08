@@ -25,6 +25,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
@@ -32,7 +33,9 @@ import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeseria
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
+import org.apache.asterix.om.base.ADouble;
 import org.apache.asterix.om.base.ANull;
+import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
@@ -44,6 +47,7 @@ import org.apache.asterix.runtime.flexiblejoin.Rectangle;
 import org.apache.asterix.runtime.flexiblejoin.Summary;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
@@ -73,7 +77,14 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
     private Class<?> flexibleJoinClass = null;
     {
         try {
-            //String a = BuiltinFunctions.FJ_SUMMARY_TWO.getLibraryName();
+            if (BuiltinFunctions.FJ_SUMMARY_TWO.getLibraryName().isEmpty()) {
+                BuiltinFunctions.FJ_SUMMARY_TWO
+                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+                List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
+                parameters.add(new MutableObject<>(new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
+                BuiltinFunctions.FJ_SUMMARY_TWO.setParameters(parameters);
+
+            }
             flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_SUMMARY_TWO.getLibraryName());
         } catch (ClassNotFoundException e) {
             e.printStackTrace();

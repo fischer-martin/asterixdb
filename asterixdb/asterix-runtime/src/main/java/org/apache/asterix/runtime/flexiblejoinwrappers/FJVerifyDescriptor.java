@@ -22,6 +22,7 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
@@ -31,6 +32,8 @@ import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDese
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ABoolean;
+import org.apache.asterix.om.base.ADouble;
+import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.ATypeTag;
@@ -43,6 +46,7 @@ import org.apache.asterix.runtime.flexiblejoin.Rectangle;
 import org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
@@ -81,8 +85,13 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
-                            if(BuiltinFunctions.FJ_VERIFY.getLibraryName().isEmpty()) {
-                                BuiltinFunctions.FJ_VERIFY.setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+                            if (BuiltinFunctions.FJ_VERIFY.getLibraryName().isEmpty()) {
+                                BuiltinFunctions.FJ_VERIFY
+                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+                                List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
+                                parameters.add(new MutableObject<>(
+                                        new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
+                                BuiltinFunctions.FJ_VERIFY.setParameters(parameters);
 
                             }
                             flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_VERIFY.getLibraryName());
@@ -142,8 +151,8 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             int bucketID1 = AInt32SerializerDeserializer.getInt(bytes2, offset2 + 1);
 
                             if (flexibleJoin == null) {
-                                AlgebricksConfig.ALGEBRICKS_LOGGER
-                                        .info("FJ VERIFY: ID: " + ctx.getServiceContext().getControllerService().getId());
+                                AlgebricksConfig.ALGEBRICKS_LOGGER.info(
+                                        "FJ VERIFY: ID: " + ctx.getServiceContext().getControllerService().getId());
 
                                 //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
                                 Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];

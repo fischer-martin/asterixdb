@@ -18,8 +18,6 @@
  */
 package org.apache.asterix.runtime.flexiblejoin;
 
-import org.apache.commons.text.similarity.JaccardSimilarity;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -27,6 +25,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.apache.commons.text.similarity.JaccardSimilarity;
 
 public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConfig> {
     Double SimilarityThreshold = 0.0;
@@ -66,8 +66,7 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
         ArrayList<Integer> ranks = new ArrayList<>();
         for (String token : tokens) {
             int rank = setSimilarityConfig.S.get(token);
-            if (!ranks.contains(rank))
-                ranks.add(rank);
+            ranks.add(rank);
         }
         int[] ranksToReturn = new int[PrefixLength];
         Collections.sort(ranks);
@@ -89,6 +88,7 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
     @Override
     public boolean verify(String k1, String k2) {
         verifyCounter++;
+        if(verifyCounter%100000 == 0) System.out.println("Verify counter:"+verifyCounter);
         return true;
         //return Utilities.cjs(k1, k2) >= SimilarityThreshold;
         //return Utilities.calculateJaccardSimilarityS(k1, k2) >= SimilarityThreshold;
@@ -98,9 +98,11 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
 
 abstract class Utilities {
     private static final JaccardSimilarity js = new JaccardSimilarity();
+
     public static Double cjs(CharSequence left, CharSequence right) {
         return js.apply(left, right);
     }
+
     public static Double calculateJaccardSimilarity(CharSequence left, CharSequence right) {
         Set<String> intersectionSet = new HashSet<String>();
         Set<String> unionSet = new HashSet<String>();
@@ -141,7 +143,8 @@ abstract class Utilities {
         for (int leftIndex = 0; leftIndex < leftLength; leftIndex++) {
 
             for (int i = 0; i < rightLength; i++) {
-                if(rightTokens[i] == null) continue;
+                if (rightTokens[i] == null)
+                    continue;
                 if (leftTokens[leftIndex].equals(rightTokens[i])) {
                     intersectionSize = intersectionSize + 1.0f;
                     rightTokens[i] = null;

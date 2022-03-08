@@ -21,19 +21,22 @@ package org.apache.asterix.runtime.flexiblejoinwrappers;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ABoolean;
+import org.apache.asterix.om.base.ADouble;
+import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
 import org.apache.asterix.runtime.flexiblejoin.Configuration;
 import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
-import org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin;
 import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
@@ -71,7 +74,16 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor {
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
-                            flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_VERIFY.getLibraryName());
+                            if (BuiltinFunctions.FJ_MATCH.getLibraryName().isEmpty()) {
+                                BuiltinFunctions.FJ_MATCH
+                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+                                List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
+                                parameters.add(new MutableObject<>(
+                                        new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
+                                BuiltinFunctions.FJ_MATCH.setParameters(parameters);
+
+                            }
+                            flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_MATCH.getLibraryName());
                         } catch (ClassNotFoundException e) {
                             e.printStackTrace();
                         }
