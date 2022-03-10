@@ -254,7 +254,7 @@ public class ApplyFlexibleJoinUtils {
                 new MutableObject<>(configurationAssignOperator);
 
         ReplicateOperator configReplicateOperator =
-                createReplicateOperator(configurationAssignOperatorRef, context, joinOp.getSourceLocation(), 2);
+                createReplicateOperator(configurationAssignOperatorRef, context, joinOp.getSourceLocation(), 3);
 
         configReplicateOperator.getOutputMaterializationFlags()[0] = true;
 
@@ -280,9 +280,9 @@ public class ApplyFlexibleJoinUtils {
         Mutable<ILogicalOperator> rightConfigurationRef = createRightAssignProjectOperatorResult.getSecond();
 
         //Replicate Configuration to the right branch of a later Nested Loop Join for the verify function
-        /*ExchangeOperator exchConfigToVerifyJoinOp =
+        ExchangeOperator exchConfigToVerifyJoinOp =
                 createBroadcastExchangeOp(configReplicateOperator, context, joinOp.getSourceLocation());
-        MutableObject<ILogicalOperator> exchConfigToVerifyJoinOpRef = new MutableObject<>(exchConfigToVerifyJoinOp);*/
+        MutableObject<ILogicalOperator> exchConfigToVerifyJoinOpRef = new MutableObject<>(exchConfigToVerifyJoinOp);
 
 
 
@@ -330,8 +330,8 @@ public class ApplyFlexibleJoinUtils {
         LogicalVariable leftBucketIdVar = leftBucketIdVarPair.first;
         LogicalVariable rightBucketIdVar = rightBucketIdVarPair.first;
 
-        //ScalarFunctionCallExpression verifyJoinCondition = createVerifyCondition(joinOp, verifyConfigurationExpr,
-        //        leftBucketIdVar, rightBucketIdVar, leftInputVar, rightInputVar);
+        ScalarFunctionCallExpression verifyJoinCondition = createVerifyCondition(joinOp, verifyConfigurationExpr,
+                leftBucketIdVar, rightBucketIdVar, leftInputVar, rightInputVar);
 
         List<LogicalVariable> keysLeftBranch = new ArrayList<>();
         keysLeftBranch.add(leftBucketIdVar);
@@ -370,7 +370,7 @@ public class ApplyFlexibleJoinUtils {
                 new MutableObject<>(simjac),
                 new MutableObject<>(new ConstantExpression(new AsterixConstantValue(new AInt32(0)))));*/
 
-        conditionExprs.add(new MutableObject<>(match));
+        conditionExprs.add(new MutableObject<>(verifyJoinCondition));
 
         ScalarFunctionCallExpression updatedJoinCondition;
         if (conditionExprs.size() > 1) {
@@ -378,12 +378,12 @@ public class ApplyFlexibleJoinUtils {
                     BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.AND), conditionExprs);
             updatedJoinCondition.setSourceLocation(joinOp.getSourceLocation());
         } else {
-            updatedJoinCondition = match;
+            updatedJoinCondition = verifyJoinCondition;
         }
         Mutable<ILogicalExpression> joinConditionRef = joinOp.getCondition();
         joinConditionRef.setValue(updatedJoinCondition);
 
-        InnerJoinOperator matchJoinOp = new InnerJoinOperator(new MutableObject<>(updatedJoinCondition),
+        InnerJoinOperator matchJoinOp = new InnerJoinOperator(new MutableObject<>(match),
                 new MutableObject<>(leftBucketIdVarPair.second), new MutableObject<>(rightBucketIdVarPair.second));
         //setFlexibleJoinOp(matchJoinOp,keysLeftBranch, keysRightBranch, context);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());
@@ -393,17 +393,17 @@ public class ApplyFlexibleJoinUtils {
         Mutable<ILogicalOperator> opRef = new MutableObject<>(joinOp);
         Mutable<ILogicalOperator> flexibleJoinOpRef = new MutableObject<>(matchJoinOp);
 
-        //InnerJoinOperator verifyJoinOp = new InnerJoinOperator(new MutableObject<>(verifyJoinCondition),
-        //        flexibleJoinOpRef, exchConfigToVerifyJoinOpRef);
-        MutableObject<ILogicalOperator> verifyJoinOpRef = new MutableObject<>(matchJoinOp);
-        matchJoinOp.setSourceLocation(joinOp.getSourceLocation());
-        context.computeAndSetTypeEnvironmentForOperator(matchJoinOp);
-        matchJoinOp.recomputeSchema();
+        InnerJoinOperator verifyJoinOp = new InnerJoinOperator(new MutableObject<>(updatedJoinCondition),
+                flexibleJoinOpRef, exchConfigToVerifyJoinOpRef);
+        MutableObject<ILogicalOperator> verifyJoinOpRef = new MutableObject<>(verifyJoinOp);
+        verifyJoinOp.setSourceLocation(joinOp.getSourceLocation());
+        context.computeAndSetTypeEnvironmentForOperator(verifyJoinOp);
+        verifyJoinOp.recomputeSchema();
         opRef.setValue(verifyJoinOpRef.getValue());
         joinOp.getInputs().clear();
-        joinOp.getInputs().addAll(matchJoinOp.getInputs());
-        joinOp.setPhysicalOperator(matchJoinOp.getPhysicalOperator());
-        joinOp.getCondition().setValue(matchJoinOp.getCondition().getValue());
+        joinOp.getInputs().addAll(verifyJoinOp.getInputs());
+        joinOp.setPhysicalOperator(verifyJoinOp.getPhysicalOperator());
+        joinOp.getCondition().setValue(verifyJoinOp.getCondition().getValue());
         context.computeAndSetTypeEnvironmentForOperator(joinOp);
         joinOp.recomputeSchema();
 

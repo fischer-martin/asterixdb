@@ -40,34 +40,26 @@ public interface FlexibleJoin<T, C> {
     }
 
     default boolean verify(int b1, T k1, int b2, T k2, C c) {
-        return verify(k1, k2);
-        /*if (verify(k1, k2)) {
+        //return verify(k1, k2);
+        if (verify(k1, k2)) {
             //Duplicate avoidance
             int[] buckets1DA = assign1(k1, c);
             int[] buckets2DA = assign2(k2, c);
-
-            Arrays.sort(buckets1DA);
-            Arrays.sort(buckets2DA);
-
-            boolean stop = false;
-            for (int bt1 : buckets1DA) {
-                for (int bt2 : buckets2DA) {
-
-                    if (match(bt1, bt2)) {
-                        if (bt1 == b1 && bt2 == b2) {
-                            return true;
-                        }
-                        stop = true;
-                        break;
-                    }
+            int i = 0;
+            int j = 0;
+            while(i < buckets1DA.length && j < buckets2DA.length) {
+                if(buckets1DA[i] == buckets2DA[j])
+                    return buckets1DA[i] == b1 && buckets2DA[j] == b2;
+                else {
+                    if(buckets1DA[i] > buckets2DA[j]) {
+                        j++;
+                    } else i++;
                 }
-                if (stop)
-                    break;
             }
             return false;
         } else {
             return false;
-        }*/
+        }
 
     };
 

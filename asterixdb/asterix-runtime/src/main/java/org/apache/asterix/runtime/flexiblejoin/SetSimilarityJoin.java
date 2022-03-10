@@ -18,12 +18,7 @@
  */
 package org.apache.asterix.runtime.flexiblejoin;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.text.similarity.JaccardSimilarity;
@@ -60,6 +55,26 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
 
     @Override
     public int[] assign1(String k1, SetSimilarityConfig setSimilarityConfig) {
+        /*int startIx = 0;
+        int l = k1.length();
+
+        // Skip separators at beginning of string.
+
+        while (startIx < l) {
+            while (startIx < l && isSeparator(k1.charAt(startIx))) {
+                startIx++;
+            }
+            int tokenStart = startIx;
+
+            while (startIx < l && !isSeparator(k1.charAt(startIx))) {
+                startIx++;
+            }
+            int tokenEnd = startIx;
+
+            // Emit token.
+            String token = k1.substring(tokenStart, tokenEnd);
+
+        }*/
         String[] tokens = Utilities.tokenizer(k1);
         int length = tokens.length;
         int PrefixLength = (int) (length - Math.ceil(SimilarityThreshold * length) + 1);
@@ -81,17 +96,204 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
 
     @Override
     public boolean match(int b1, int b2) {
-        matchCounter++;
+        //matchCounter++;
         return FlexibleJoin.super.match(b1, b2);
     }
 
     @Override
     public boolean verify(String k1, String k2) {
-        verifyCounter++;
-        if(verifyCounter%100000 == 0) System.out.println("Verify counter:"+verifyCounter);
-        return true;
-        //return Utilities.cjs(k1, k2) >= SimilarityThreshold;
-        //return Utilities.calculateJaccardSimilarityS(k1, k2) >= SimilarityThreshold;
+        //String[] leftTokens = tokenizer(k1);
+        //String[] rightTokens = tokenizer(k2);
+
+        int leftLength = k1.length();
+        int rightLength = k2.length();
+
+        // apply length filter
+        int lengthLowerBound = (int) Math.ceil(SimilarityThreshold * leftLength);
+
+        boolean passesLengthFilter =
+                (lengthLowerBound <= rightLength) && (rightLength <= 1.0f / SimilarityThreshold * leftLength);
+        if (!passesLengthFilter) {
+            return false;
+        }
+
+        return calculateJaccardSimilarityHashMap(k1, k2) >= SimilarityThreshold;
+
+    }
+
+    public static double calculateJaccardSimilaritySorted(String[] left, String[] right) {
+
+        double intersectionSize = 0;
+
+        int leftLength = left.length;
+        int rightLength = right.length;
+
+        Arrays.sort(left);
+        Arrays.sort(right);
+
+        int leftIndex = 0;
+        int rightIndex = 0;
+        while (leftIndex < leftLength && rightIndex < rightLength) {
+            if(left[leftIndex].equals(right[rightIndex])) {
+                leftIndex++;
+                rightIndex++;
+                intersectionSize++;
+            } else if(left[leftIndex].compareTo(right[rightIndex]) > 0) {
+                rightIndex++;
+            } else {
+                leftIndex++;
+            }
+        }
+        double sim = (intersectionSize / ((leftLength + rightLength) - intersectionSize));
+        sim = Math.round(sim * 100000000d) / 100000000d;
+        return sim;
+    }
+
+    public static double calculateJaccardSimilarityHashMap(String left, String right) {
+
+        double intersectionSize = 0;
+
+        int leftLength = left.length();
+        int rightLength = right.length();
+
+        int leftTokenC = 0;
+        int rightTokenC = 0;
+
+        HashMap<String, Integer> map = new HashMap<>();
+
+        String probe = null;
+        String build = null;
+        if(leftLength<rightLength) {
+            build = left.toLowerCase();
+            probe = right.toLowerCase();
+        } else {
+            build = right.toLowerCase();
+            probe = left.toLowerCase();
+        }
+
+        int startIx = 0;
+        int l = build.length();
+
+        // Skip separators at beginning of string.
+
+        while (startIx < l) {
+            while (startIx < l && isSeparator(build.charAt(startIx))) {
+                startIx++;
+            }
+            int tokenStart = startIx;
+
+            while (startIx < l && !isSeparator(build.charAt(startIx))) {
+                startIx++;
+            }
+            int tokenEnd = startIx;
+
+            // Emit token.
+            String token = build.substring(tokenStart, tokenEnd);
+            if(!token.isEmpty()) {
+                map.merge(token, 1, Integer::sum);
+                leftTokenC++;
+            }
+        }
+
+        startIx = 0;
+        l = probe.length();
+
+        // Skip separators at beginning of string.
+
+        while (startIx < l) {
+            while (startIx < l && isSeparator(probe.charAt(startIx))) {
+                startIx++;
+            }
+            int tokenStart = startIx;
+
+            while (startIx < l && !isSeparator(probe.charAt(startIx))) {
+                startIx++;
+            }
+            int tokenEnd = startIx;
+
+            // Emit token.
+            String token = probe.substring(tokenStart, tokenEnd);
+            if(!token.isEmpty()) {
+                if (map.containsKey(token)) {
+                    map.merge(token, -1, Integer::sum);
+                    if (map.get(token) == 0) map.remove(token);
+                    intersectionSize++;
+                }
+                rightTokenC++;
+            }
+        }
+
+        double sim = (intersectionSize / ((leftTokenC + rightTokenC) - intersectionSize));
+        sim = Math.round(sim * 100000000d) / 100000000d;
+        return sim;
+    }
+
+    public static double calculateJaccardSimilarityHashMap(String[] left, String[] right) {
+
+        double intersectionSize = 0;
+
+        int leftLength = left.length;
+        int rightLength = right.length;
+
+        HashMap<String, Integer> map = new HashMap<>();
+
+        String[] probe = null;
+        String[] build = null;
+        if(leftLength<rightLength) {
+            build = left;
+            probe = right;
+        } else {
+            build = right;
+            probe = left;
+        }
+
+        for(String s: build) {
+            map.merge(s, 1, Integer::sum);
+        }
+        for(String s: probe) {
+            if(map.containsKey(s)) {
+                map.merge(s, -1, Integer::sum);
+                if(map.get(s) == 0) map.remove(s);
+                intersectionSize++;
+            }
+        }
+
+        double sim = (intersectionSize / ((leftLength + rightLength) - intersectionSize));
+        sim = Math.round(sim * 100000000d) / 100000000d;
+        return sim;
+    }
+
+    public static String[] tokenizer(String text) {
+        ArrayList<String> tokens = new ArrayList<>();
+        String lowerCaseText = text.toLowerCase();
+        int startIx = 0;
+        int l = lowerCaseText.length();
+
+        // Skip separators at beginning of string.
+
+        while (startIx < l) {
+            while (startIx < l && isSeparator(lowerCaseText.charAt(startIx))) {
+                startIx++;
+            }
+            int tokenStart = startIx;
+
+            while (startIx < l && !isSeparator(lowerCaseText.charAt(startIx))) {
+                startIx++;
+            }
+            int tokenEnd = startIx;
+
+            // Emit token.
+            String token = lowerCaseText.substring(tokenStart, tokenEnd);
+            tokens.add(token);
+        }
+        String[] arr = new String[tokens.size()];
+        arr = tokens.toArray(arr);
+        return arr;
+    }
+
+    private static boolean isSeparator(char c) {
+        return !(Character.isLetterOrDigit(c) || Character.getType(c) == Character.OTHER_LETTER
+                || Character.getType(c) == Character.OTHER_NUMBER);
     }
 
 }
@@ -126,35 +328,6 @@ abstract class Utilities {
             unionFilled = true;
         }
         return (Double.valueOf(intersectionSet.size()) / Double.valueOf(unionSet.size()));
-    }
-
-    public static double calculateJaccardSimilarityS(String left, String right) {
-
-        double intersectionSize = 0;
-        String[] leftTokens = tokenizer(left);
-        String[] rightTokens = tokenizer(right);
-
-        int leftLength = leftTokens.length;
-        int rightLength = rightTokens.length;
-        if (leftLength == 0 || rightLength == 0) {
-            return 0f;
-        }
-
-        for (int leftIndex = 0; leftIndex < leftLength; leftIndex++) {
-
-            for (int i = 0; i < rightLength; i++) {
-                if (rightTokens[i] == null)
-                    continue;
-                if (leftTokens[leftIndex].equals(rightTokens[i])) {
-                    intersectionSize = intersectionSize + 1.0f;
-                    rightTokens[i] = null;
-                    break;
-                }
-            }
-        }
-        double sim = (intersectionSize / ((leftLength + rightLength) - intersectionSize));
-        sim = Math.round(sim * 100000000d) / 100000000d;
-        return sim;
     }
 
     public static String[] tokenizer(String text) {
