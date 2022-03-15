@@ -26,10 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.*;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.base.ADouble;
@@ -55,11 +52,13 @@ import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
+import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
+import org.apache.hyracks.dataflow.common.data.marshalling.BooleanSerializerDeserializer;
 
 public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor {
     private static final long serialVersionUID = 1L;
@@ -118,6 +117,11 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private final IScalarEvaluator eval4 = args[4].createScalarEvaluator(ctx);
 
                     private final AStringSerializerDeserializer serde = AStringSerializerDeserializer.INSTANCE;
+                    private final ISerializerDeserializer bserde = SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ABOOLEAN);
+                    private final EnumDeserializer<ATypeTag> eser = EnumDeserializer.ATYPETAGDESERIALIZER;
+
+                    private ATypeTag tag;
+                    private ABoolean res;
 
                     @Override
                     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
@@ -144,7 +148,6 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                         int len3 = inputArg3.getLength();
                         int len1 = inputArg1.getLength();
                         int len4 = inputArg4.getLength();
-                        boolean verifyResult = false;
                         try {
 
                             int bucketID0 = AInt32SerializerDeserializer.getInt(bytes0, offset0 + 1);
@@ -172,9 +175,10 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                                 AlgebricksConfig.ALGEBRICKS_LOGGER
                                         .info("MATCH COUNTER:" + SetSimilarityJoin.matchCounter);
+
                             }
 
-                            ATypeTag tag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes1[offset1]);
+                            tag = eser.deserialize(bytes1[offset1]);
 
                             if (tag == ATypeTag.STRING) {
                                 ByteArrayInputStream inStream1 =
@@ -187,7 +191,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 DataInputStream dataIn3 = new DataInputStream(inStream3);
                                 String key1 = serde.deserialize(dataIn3).getStringValue();
 
-                                verifyResult = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration);
+                                res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)? ABoolean.TRUE:ABoolean.FALSE;
                             } else if (tag == ATypeTag.RECTANGLE) {
                                 double minX1 = ADoubleSerializerDeserializer.getDouble(bytes1, offset1 + 1
                                         + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
@@ -211,7 +215,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                                 Rectangle key1 = new Rectangle(minX2, maxX2, minY2, maxY2);
 
-                                verifyResult = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration);
+                                res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)? ABoolean.TRUE:ABoolean.FALSE;
 
                             }
 
@@ -219,15 +223,10 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             e.printStackTrace();
                         }
 
-                        try {
-                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ABOOLEAN)
-                                    .serialize(verifyResult ? ABoolean.TRUE : ABoolean.FALSE,
-                                            resultStorage.getDataOutput());
-
-                        } catch (IOException e) {
-                            throw HyracksDataException.create(e);
-                        }
+                        //ABooleanSerializerDeserializer.INSTANCE.serialize(res, resultStorage.getDataOutput());
+                        bserde.serialize(res, resultStorage.getDataOutput());
                         result.set(resultStorage);
+
                     }
                 };
             }

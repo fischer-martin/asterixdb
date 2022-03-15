@@ -57,9 +57,10 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
     public int[] assign1(String k1, SetSimilarityConfig setSimilarityConfig) {
         /*int startIx = 0;
         int l = k1.length();
+        k1 = k1.toLowerCase();
 
-        // Skip separators at beginning of string.
-
+        ArrayList<Integer> ranks = new ArrayList<>();
+        int length = 0;
         while (startIx < l) {
             while (startIx < l && isSeparator(k1.charAt(startIx))) {
                 startIx++;
@@ -72,9 +73,35 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
             int tokenEnd = startIx;
 
             // Emit token.
-            String token = k1.substring(tokenStart, tokenEnd);
 
-        }*/
+            String token = k1.substring(tokenStart, tokenEnd);
+            if(!token.isEmpty()) {
+                ranks.add(setSimilarityConfig.S.get(token));
+                length++;
+            }
+
+        }
+
+        int PrefixLength = (int) (length - Math.ceil(SimilarityThreshold * length) + 1);
+
+        int[] ranksToReturn = new int[PrefixLength];
+        Collections.sort(ranks);
+        for (int i = 0; i < PrefixLength; i++) {
+            ranksToReturn[i] = ranks.get(i);
+        }
+        return ranksToReturn;
+
+        String[] tokens = Utilities.tokenizer(k1);
+        int length = tokens.length;
+        int[] ranksToReturn = new int[length];
+        int PrefixLength = (int) (length - Math.ceil(SimilarityThreshold * length) + 1);
+        for (int i = 0; i < PrefixLength; i++) {
+            int rank = setSimilarityConfig.S.getOrDefault(tokens[i], 0);
+            ranksToReturn[i] = rank;
+        }
+        Arrays.sort(ranksToReturn);
+        return Arrays.copyOf(ranksToReturn, PrefixLength);
+*/
         String[] tokens = Utilities.tokenizer(k1);
         int length = tokens.length;
         int PrefixLength = (int) (length - Math.ceil(SimilarityThreshold * length) + 1);
@@ -161,8 +188,9 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
 
         HashMap<String, Integer> map = new HashMap<>();
 
-        String probe = null;
-        String build = null;
+        String probe;
+        String build;
+
         if(leftLength<rightLength) {
             build = left.toLowerCase();
             probe = right.toLowerCase();

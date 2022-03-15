@@ -18,10 +18,7 @@
  */
 package org.apache.asterix.optimizer.flexiblejoin;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 
 import org.apache.asterix.algebra.operators.physical.FlexibleJoinPOperator;
 import org.apache.asterix.om.base.ABoolean;
@@ -220,7 +217,7 @@ public class ApplyFlexibleJoinUtils {
         InnerJoinOperator summaryJoinOp = new InnerJoinOperator(trueCondition, leftGlobalAgg, rightGlobalAgg);
         summaryJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
                 AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
-        summaryJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.UNPARTITIONED);
+        //summaryJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.UNPARTITIONED);
         summaryJoinOp.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(summaryJoinOp);
 
@@ -256,7 +253,7 @@ public class ApplyFlexibleJoinUtils {
         ReplicateOperator configReplicateOperator =
                 createReplicateOperator(configurationAssignOperatorRef, context, joinOp.getSourceLocation(), 3);
 
-        configReplicateOperator.getOutputMaterializationFlags()[0] = true;
+        //configReplicateOperator.getOutputMaterializationFlags()[0] = true;
 
         // Replicate configuration to the left branch
         ExchangeOperator exchConfigToJoinOpLeft =
@@ -284,16 +281,14 @@ public class ApplyFlexibleJoinUtils {
                 createBroadcastExchangeOp(configReplicateOperator, context, joinOp.getSourceLocation());
         MutableObject<ILogicalOperator> exchConfigToVerifyJoinOpRef = new MutableObject<>(exchConfigToVerifyJoinOp);
 
-
-
         // Add left Join (TRUE)
         Mutable<ILogicalExpression> leftTrueCondition =
                 new MutableObject<>(new ConstantExpression(new AsterixConstantValue(ABoolean.TRUE)));
         InnerJoinOperator leftJoinOp =
                 new InnerJoinOperator(leftTrueCondition, leftExchToJoinOpRef, leftConfigurationRef);
         leftJoinOp.setSourceLocation(joinOp.getSourceLocation());
-        //leftJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
-        //        AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
+        leftJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
+                AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
         MutableObject<ILogicalOperator> leftJoinRef = new MutableObject<>(leftJoinOp);
         leftJoinOp.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(leftJoinOp);
@@ -305,8 +300,8 @@ public class ApplyFlexibleJoinUtils {
         InnerJoinOperator rightJoinOp =
                 new InnerJoinOperator(rightTrueCondition, rightExchToJoinOpRef, rightConfigurationRef);
         rightJoinOp.setSourceLocation(joinOp.getSourceLocation());
-        //rightJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
-        //        AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
+        rightJoinOp.setPhysicalOperator(new NestedLoopJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER,
+                AbstractJoinPOperator.JoinPartitioningType.BROADCAST));
         MutableObject<ILogicalOperator> rightJoinRef = new MutableObject<>(rightJoinOp);
         rightJoinOp.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(rightJoinOp);
@@ -351,14 +346,11 @@ public class ApplyFlexibleJoinUtils {
         /*ScalarFunctionCallExpression wt1 = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
                 BuiltinFunctions.WORD_TOKENS),
                 new MutableObject<>(new VariableReferenceExpression(leftInputVar)));
-        
-        
+
         ScalarFunctionCallExpression wt2 = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
                 BuiltinFunctions.WORD_TOKENS),
                 new MutableObject<>(new VariableReferenceExpression(rightInputVar)));
-        
-        
-        
+
         ScalarFunctionCallExpression simjac = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
                 BuiltinFunctions.SIMILARITY_JACCARD_CHECK),
                 new MutableObject<>(wt1),
@@ -380,12 +372,16 @@ public class ApplyFlexibleJoinUtils {
         } else {
             updatedJoinCondition = verifyJoinCondition;
         }
-        Mutable<ILogicalExpression> joinConditionRef = joinOp.getCondition();
-        joinConditionRef.setValue(updatedJoinCondition);
+        //Mutable<ILogicalExpression> joinConditionRef = joinOp.getCondition();
+        //joinConditionRef.setValue(updatedJoinCondition);
 
         InnerJoinOperator matchJoinOp = new InnerJoinOperator(new MutableObject<>(match),
                 new MutableObject<>(leftBucketIdVarPair.second), new MutableObject<>(rightBucketIdVarPair.second));
+        //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
+        //        keysLeftBranch, keysRightBranch, ));
         //setFlexibleJoinOp(matchJoinOp,keysLeftBranch, keysRightBranch, context);
+        //setHashJoinOp(matchJoinOp,keysLeftBranch, keysRightBranch, context);
+        matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());
         matchJoinOp.setSchema(joinOp.getSchema());
         context.computeAndSetTypeEnvironmentForOperator(matchJoinOp);
@@ -566,11 +562,11 @@ public class ApplyFlexibleJoinUtils {
         LogicalVariable bucketIdVar = context.newVar();
         VariableReferenceExpression unnestVarRef = new VariableReferenceExpression(unnestVar);
         unnestVarRef.setSourceLocation(srcLoc);
-        UnnestingFunctionCallExpression spatialTileFuncExpr = new UnnestingFunctionCallExpression(
+        UnnestingFunctionCallExpression assignFuncExpr = new UnnestingFunctionCallExpression(
                 BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.FJ_ASSIGN_ONE),
                 new MutableObject<>(unnestVarRef), configureExpr);
-        spatialTileFuncExpr.setSourceLocation(srcLoc);
-        UnnestOperator unnestOp = new UnnestOperator(bucketIdVar, new MutableObject<>(spatialTileFuncExpr));
+        assignFuncExpr.setSourceLocation(srcLoc);
+        UnnestOperator unnestOp = new UnnestOperator(bucketIdVar, new MutableObject<>(assignFuncExpr));
         unnestOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.LOCAL);
         unnestOp.setPhysicalOperator(new UnnestPOperator());
         unnestOp.setSourceLocation(srcLoc);
@@ -578,7 +574,7 @@ public class ApplyFlexibleJoinUtils {
         context.computeAndSetTypeEnvironmentForOperator(unnestOp);
         unnestOp.recomputeSchema();
         op.setValue(unnestOp);
-        return new Triple<>(bucketIdVar, unnestOp, spatialTileFuncExpr);
+        return new Triple<>(bucketIdVar, unnestOp, assignFuncExpr);
     }
 
     private static Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> injectAssignTwoUnnestOperator(
@@ -611,7 +607,7 @@ public class ApplyFlexibleJoinUtils {
         exchangeOperator.setPhysicalOperator(new BroadcastExchangePOperator(context.getComputationNodeDomain()));
         replicateOperator.getOutputs().add(new MutableObject<>(exchangeOperator));
         exchangeOperator.getInputs().add(new MutableObject<>(replicateOperator));
-        exchangeOperator.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
+        //exchangeOperator.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
         exchangeOperator.setSchema(replicateOperator.getSchema());
         context.computeAndSetTypeEnvironmentForOperator(exchangeOperator);
         return exchangeOperator;
@@ -624,7 +620,7 @@ public class ApplyFlexibleJoinUtils {
         exchangeOperator.setPhysicalOperator(new BroadcastExchangePOperator(context.getComputationNodeDomain()));
         replicateOperator.getOutputs().add(new MutableObject<>(exchangeOperator));
         exchangeOperator.getInputs().add(new MutableObject<>(replicateOperator));
-        exchangeOperator.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
+        //exchangeOperator.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
         exchangeOperator.setSchema(replicateOperator.getSchema());
         context.computeAndSetTypeEnvironmentForOperator(exchangeOperator);
         return exchangeOperator;
