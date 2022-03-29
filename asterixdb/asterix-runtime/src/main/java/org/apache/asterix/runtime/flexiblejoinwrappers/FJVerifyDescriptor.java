@@ -38,6 +38,8 @@ import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
 import org.apache.asterix.runtime.flexiblejoin.cartilage.Configuration;
 import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
+import org.apache.asterix.runtime.flexiblejoin.oipjoin.FJInterval;
+import org.apache.asterix.runtime.flexiblejoin.oipjoin.IntervalJoin;
 import org.apache.asterix.runtime.flexiblejoin.spatialjoin.Rectangle;
 import org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin;
 import org.apache.commons.lang3.SerializationUtils;
@@ -172,7 +174,10 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 configuration = SerializationUtils.deserialize(dataIn4);
 
                                 AlgebricksConfig.ALGEBRICKS_LOGGER
-                                        .info("MATCH COUNTER:" + SetSimilarityJoin.matchCounter);
+                                        .info("MATCH COUNTER 1:" + IntervalJoin.matchCounter);
+
+                                AlgebricksConfig.ALGEBRICKS_LOGGER
+                                        .info("MATCH COUNTER 2:" + IntervalJoin.verifyCounter);
 
                             }
 
@@ -214,6 +219,19 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 Rectangle key1 = new Rectangle(minX2, maxX2, minY2, maxY2);
 
                                 res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)? ABoolean.TRUE:ABoolean.FALSE;
+
+                            } else if (tag == ATypeTag.INTERVAL) {
+                                long start0 = AIntervalSerializerDeserializer.getIntervalStart(bytes1, offset1+1);
+                                long end0 = AIntervalSerializerDeserializer.getIntervalEnd(bytes1, offset1+1);
+
+                                FJInterval key0 = new FJInterval(start0, end0);
+
+                                long start1 = AIntervalSerializerDeserializer.getIntervalStart(bytes3, offset3+1);
+                                long end1 = AIntervalSerializerDeserializer.getIntervalEnd(bytes3, offset3+1);
+
+                                FJInterval key1 = new FJInterval(start1, end1);
+                                res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)? ABoolean.TRUE:ABoolean.FALSE;
+
 
                             }
 

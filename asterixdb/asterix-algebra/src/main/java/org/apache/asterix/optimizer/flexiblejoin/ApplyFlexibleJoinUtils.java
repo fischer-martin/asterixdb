@@ -340,7 +340,7 @@ public class ApplyFlexibleJoinUtils {
         keysRightBranch.add(rightInputVar);
 
         BuiltinFunctions.FJ_MATCH.setLibraryName(libraryName);
-        IFunctionInfo MatchFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.EQ);
+        IFunctionInfo MatchFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_MATCH);
 
         ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(MatchFunctionInfo,
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),

@@ -27,6 +27,7 @@ import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
 import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
@@ -40,6 +41,7 @@ import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.runtime.flexiblejoin.cartilage.Configuration;
 import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
+import org.apache.asterix.runtime.flexiblejoin.oipjoin.FJInterval;
 import org.apache.asterix.runtime.flexiblejoin.spatialjoin.Rectangle;
 import org.apache.asterix.runtime.unnestingfunctions.base.AbstractUnnestingFunctionDynamicDescriptor;
 import org.apache.commons.lang3.SerializationUtils;
@@ -188,6 +190,12 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
 
                             Rectangle key = new Rectangle(minX, maxX, minY, maxY);
                             buckets = flexibleJoin.assign2(key, configuration);
+                        } else if (tag0 == ATypeTag.INTERVAL) {
+                            long start = AIntervalSerializerDeserializer.getIntervalStart(bytes0, offset0+1);
+                            long end = AIntervalSerializerDeserializer.getIntervalEnd(bytes0, offset0+1);
+
+                            FJInterval fjInterval = new FJInterval(start, end);
+                            buckets = flexibleJoin.assign1(fjInterval, configuration);
                         }
                         pos = 0;
                     }
