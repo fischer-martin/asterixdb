@@ -1474,6 +1474,8 @@ public class BuiltinFunctions {
             new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-spatial-function", 2);
     public static final FlexibleJoinWrapperFunctionIdentifier CUSTOM_TEXT_FUNCTION =
             new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-text-function", 3);
+    public static final FlexibleJoinWrapperFunctionIdentifier CUSTOM_INTERVAL_OIP_FUNCTION =
+            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-oip-function", 3);
 
     //Flexible Join Wrapper Functions
     //Summary One - Aggregate
@@ -2438,6 +2440,7 @@ public class BuiltinFunctions {
         //Flexible Join Test Function
         addFunction(CUSTOM_SPATIAL_FUNCTION, ABooleanTypeComputer.INSTANCE, true);
         addFunction(CUSTOM_TEXT_FUNCTION, ABooleanTypeComputer.INSTANCE, true);
+        addFunction(CUSTOM_INTERVAL_OIP_FUNCTION, ABooleanTypeComputer.INSTANCE, true);
 
         //Flexible Join Wrapper Functions
         //Summary One
@@ -3592,6 +3595,7 @@ public class BuiltinFunctions {
     static {
         flexibleJoinTestFunctions.add(CUSTOM_SPATIAL_FUNCTION);
         flexibleJoinTestFunctions.add(CUSTOM_TEXT_FUNCTION);
+        flexibleJoinTestFunctions.add(CUSTOM_INTERVAL_OIP_FUNCTION);
     }
 
     public static boolean isGlobalAggregateFunction(FunctionIdentifier fi) {

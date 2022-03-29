@@ -33,8 +33,8 @@ import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
-import org.apache.asterix.runtime.flexiblejoin.Configuration;
-import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Configuration;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
@@ -76,7 +76,7 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor {
                         try {
                             if (BuiltinFunctions.FJ_MATCH.getLibraryName().isEmpty()) {
                                 BuiltinFunctions.FJ_MATCH
-                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
                                 List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
                                 parameters.add(new MutableObject<>(
                                         new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));

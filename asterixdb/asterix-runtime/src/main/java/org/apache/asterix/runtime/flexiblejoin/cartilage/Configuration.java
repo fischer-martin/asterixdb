@@ -16,12 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.runtime.flexiblejoin;
+package org.apache.asterix.runtime.flexiblejoin.cartilage;
 
 import java.io.Serializable;
 
-public interface Summary<T> extends Serializable {
-    void add(T k);
-
-    void add(Summary<T> s);
+public interface Configuration extends Serializable {
 }

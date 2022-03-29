@@ -16,9 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.runtime.flexiblejoin;
+package org.apache.asterix.runtime.flexiblejoin.spatialjoin;
 
 import java.io.Serializable;
 
-public interface Configuration extends Serializable {
+public class Rectangle implements Serializable {
+    double x1, x2, y1, y2 = 0.0;
+
+    public Rectangle(double x1, double x2, double y1, double y2) {
+        this.x1 = x1;
+        this.x2 = x2;
+        this.y1 = y1;
+        this.y2 = y2;
+    }
+
+    public Rectangle() {
+    };
 }

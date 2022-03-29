@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.runtime.flexiblejoin;
+package org.apache.asterix.runtime.flexiblejoin.setsimilarity;
+
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Summary;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -30,6 +30,7 @@ import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
 import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
@@ -42,9 +43,10 @@ import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.runtime.aggregates.std.AbstractAggregateFunction;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
-import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
-import org.apache.asterix.runtime.flexiblejoin.Rectangle;
-import org.apache.asterix.runtime.flexiblejoin.Summary;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
+import org.apache.asterix.runtime.flexiblejoin.oipjoin.FJInterval;
+import org.apache.asterix.runtime.flexiblejoin.spatialjoin.Rectangle;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Summary;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
@@ -77,7 +79,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         try {
             if (BuiltinFunctions.FJ_SUMMARY_ONE.getLibraryName().isEmpty()) {
                 BuiltinFunctions.FJ_SUMMARY_ONE
-                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
                 List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
                 parameters.add(new MutableObject<>(
                         new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
@@ -189,6 +191,14 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
 
                 Rectangle key = new Rectangle(minX, maxX, minY, maxY);
                 summary.add(key);
+            }  else if (typeTag == ATypeTag.INTERVAL) {
+
+                long start = AIntervalSerializerDeserializer.getIntervalStart(data, offset+1);
+                long end = AIntervalSerializerDeserializer.getIntervalEnd(data, offset+1);
+
+                FJInterval fjInterval = new FJInterval(start, end);
+                summary.add(fjInterval);
+
             }
         }
     }

@@ -159,14 +159,17 @@ public class ApplyFlexibleJoinUtils {
         String libraryName = "";
 
         if (flexibleFuncExpr.getFunctionIdentifier().equals(BuiltinFunctions.CUSTOM_TEXT_FUNCTION)) {
-            libraryName = "org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin";
+            libraryName = "org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin";
             BuiltinFunctions.CUSTOM_TEXT_FUNCTION.setParameters(parameters);
             BuiltinFunctions.CUSTOM_TEXT_FUNCTION.setLibraryName(libraryName);
 
-        } else {
-            libraryName = "org.apache.asterix.runtime.flexiblejoin.SpatialJoin";
+        } else if(flexibleFuncExpr.getFunctionIdentifier().equals(BuiltinFunctions.CUSTOM_SPATIAL_FUNCTION)) {
+            libraryName = "org.apache.asterix.runtime.flexiblejoin.spatialjoin.SpatialJoin";
             BuiltinFunctions.CUSTOM_SPATIAL_FUNCTION.setLibraryName(libraryName);
-
+        } else {
+            libraryName = "org.apache.asterix.runtime.flexiblejoin.oipjoin.IntervalJoin";
+            BuiltinFunctions.CUSTOM_INTERVAL_OIP_FUNCTION.setParameters(parameters);
+            BuiltinFunctions.CUSTOM_INTERVAL_OIP_FUNCTION.setLibraryName(libraryName);
         }
 
         BuiltinFunctions.FJ_SUMMARY_ONE.setParameters(parameters);

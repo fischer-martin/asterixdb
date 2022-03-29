@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.runtime.flexiblejoin;
+package org.apache.asterix.runtime.flexiblejoin.setsimilarity;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Summary;
 import org.apache.commons.text.similarity.JaccardSimilarity;
 
 public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConfig> {

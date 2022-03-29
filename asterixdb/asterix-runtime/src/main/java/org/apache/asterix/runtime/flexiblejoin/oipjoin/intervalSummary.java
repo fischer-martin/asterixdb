@@ -16,20 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.runtime.flexiblejoin;
+package org.apache.asterix.runtime.flexiblejoin.oipjoin;
 
-import java.io.Serializable;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Summary;
 
-public class Rectangle implements Serializable {
-    double x1, x2, y1, y2 = 0.0;
+public class intervalSummary implements Summary<FJInterval> {
+    public long oStart = Long.MAX_VALUE;
+    public long oEnd = Long.MIN_VALUE;
 
-    public Rectangle(double x1, double x2, double y1, double y2) {
-        this.x1 = x1;
-        this.x2 = x2;
-        this.y1 = y1;
-        this.y2 = y2;
+    @Override
+    public void add(FJInterval k) {
+        if(k.start < this.oStart) this.oStart = k.start;
+        if(k.end > this.oEnd) this.oEnd = k.end;
     }
 
-    public Rectangle() {
-    };
+    @Override
+    public void add(Summary<FJInterval> s) {
+        intervalSummary iS = (intervalSummary) s;
+
+        if(iS.oStart < this.oStart) this.oStart = iS.oStart;
+        if(iS.oEnd > this.oEnd) this.oEnd = iS.oEnd;
+    }
 }

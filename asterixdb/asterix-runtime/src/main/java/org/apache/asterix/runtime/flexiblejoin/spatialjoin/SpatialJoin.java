@@ -16,7 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.runtime.flexiblejoin;
+package org.apache.asterix.runtime.flexiblejoin.spatialjoin;
+
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Configuration;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Summary;
 
 import java.util.ArrayList;
 

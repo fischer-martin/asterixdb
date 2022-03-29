@@ -16,9 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.runtime.flexiblejoin;
-
-import java.util.Arrays;
+package org.apache.asterix.runtime.flexiblejoin.cartilage;
 
 public interface FlexibleJoin<T, C> {
     Summary<T> createSummarizer1();
@@ -56,11 +54,8 @@ public interface FlexibleJoin<T, C> {
                     } else i++;
                 }
             }
-            return false;
-        } else {
-            return false;
         }
-
+        return false;
     };
 
     boolean verify(T k1, T k2);

@@ -38,9 +38,9 @@ import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
-import org.apache.asterix.runtime.flexiblejoin.Configuration;
-import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
-import org.apache.asterix.runtime.flexiblejoin.Rectangle;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Configuration;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
+import org.apache.asterix.runtime.flexiblejoin.spatialjoin.Rectangle;
 import org.apache.asterix.runtime.unnestingfunctions.base.AbstractUnnestingFunctionDynamicDescriptor;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
@@ -102,7 +102,7 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
                         try {
                             if (BuiltinFunctions.FJ_ASSIGN_ONE.getLibraryName().isEmpty()) {
                                 BuiltinFunctions.FJ_ASSIGN_ONE
-                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
                                 List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
                                 parameters.add(new MutableObject<>(
                                         new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));

@@ -16,16 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.runtime.flexiblejoin;
+package org.apache.asterix.runtime.flexiblejoin.oipjoin;
 
-import java.util.HashMap;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Configuration;
 
-public class SetSimilarityConfig implements Configuration {
-    HashMap<String, Integer> S = new HashMap<>();
+public class IntervalJoinConfig implements Configuration {
+    public intervalSummary iS1;
+    public intervalSummary iS2;
 
-    SetSimilarityConfig(String[] OrderedTokens) {
-        for (int i = 0; i < OrderedTokens.length; i++) {
-            this.S.put(OrderedTokens[i], i);
-        }
+    double k;
+
+    double d1;
+    double d2;
+
+
+    IntervalJoinConfig(double d1, double d2, intervalSummary iS1, intervalSummary iS2, double k) {
+        this.iS1 = iS1;
+        this.iS2 = iS2;
+
+        this.d1 = d1;
+        this.d2 = d2;
+
+        this.k = k;
     }
 }

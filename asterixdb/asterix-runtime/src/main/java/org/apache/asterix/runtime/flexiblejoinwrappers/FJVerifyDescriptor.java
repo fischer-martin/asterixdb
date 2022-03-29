@@ -20,7 +20,6 @@ package org.apache.asterix.runtime.flexiblejoinwrappers;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,10 +36,10 @@ import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
-import org.apache.asterix.runtime.flexiblejoin.Configuration;
-import org.apache.asterix.runtime.flexiblejoin.FlexibleJoin;
-import org.apache.asterix.runtime.flexiblejoin.Rectangle;
-import org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Configuration;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
+import org.apache.asterix.runtime.flexiblejoin.spatialjoin.Rectangle;
+import org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
@@ -58,7 +57,6 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
-import org.apache.hyracks.dataflow.common.data.marshalling.BooleanSerializerDeserializer;
 
 public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor {
     private static final long serialVersionUID = 1L;
@@ -86,7 +84,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                         try {
                             if (BuiltinFunctions.FJ_VERIFY.getLibraryName().isEmpty()) {
                                 BuiltinFunctions.FJ_VERIFY
-                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin");
+                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
                                 List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
                                 parameters.add(new MutableObject<>(
                                         new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));

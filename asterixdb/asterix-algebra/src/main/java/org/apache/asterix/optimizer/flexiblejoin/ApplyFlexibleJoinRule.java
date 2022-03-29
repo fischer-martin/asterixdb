@@ -122,9 +122,9 @@ public class ApplyFlexibleJoinRule implements IAlgebraicRewriteRule {
         String libraryName = "";
 
         if (fjFuncExpr.getFunctionIdentifier().equals(BuiltinFunctions.CUSTOM_TEXT_FUNCTION)) {
-            libraryName = "org.apache.asterix.runtime.flexiblejoin.SetSimilarityJoin";
+            libraryName = "org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin";
         } else {
-            libraryName = "org.apache.asterix.runtime.flexiblejoin.SpatialJoin";
+            libraryName = "org.apache.asterix.runtime.flexiblejoin.spatialjoin.SpatialJoin";
         }
 
         BuiltinFunctions.FJ_SUMMARY_ONE.setLibraryName(libraryName);
