@@ -88,7 +88,7 @@ public class NCCartilageApiServlet extends AbstractNCUdfServlet {
     private static final Logger LOGGER = LogManager.getLogger();
 
     public NCCartilageApiServlet(ConcurrentMap<String, Object> ctx, String[] paths, IApplicationContext appCtx,
-                                 HttpScheme httpServerProtocol, int httpServerPort) {
+            HttpScheme httpServerProtocol, int httpServerPort) {
         super(ctx, paths, appCtx, httpServerProtocol, httpServerPort);
         this.receptionist = appCtx.getReceptionist();
         this.timeout = appCtx.getExternalProperties().getLibraryDeployTimeout();

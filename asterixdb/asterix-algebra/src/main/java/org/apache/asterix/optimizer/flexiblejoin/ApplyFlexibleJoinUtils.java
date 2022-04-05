@@ -18,7 +18,10 @@
  */
 package org.apache.asterix.optimizer.flexiblejoin;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 
 import org.apache.asterix.algebra.operators.physical.FlexibleJoinPOperator;
 import org.apache.asterix.om.base.ABoolean;
@@ -163,7 +166,7 @@ public class ApplyFlexibleJoinUtils {
             BuiltinFunctions.CUSTOM_TEXT_FUNCTION.setParameters(parameters);
             BuiltinFunctions.CUSTOM_TEXT_FUNCTION.setLibraryName(libraryName);
 
-        } else if(flexibleFuncExpr.getFunctionIdentifier().equals(BuiltinFunctions.CUSTOM_SPATIAL_FUNCTION)) {
+        } else if (flexibleFuncExpr.getFunctionIdentifier().equals(BuiltinFunctions.CUSTOM_SPATIAL_FUNCTION)) {
             libraryName = "org.apache.asterix.runtime.flexiblejoin.spatialjoin.SpatialJoin";
             BuiltinFunctions.CUSTOM_SPATIAL_FUNCTION.setLibraryName(libraryName);
         } else {
@@ -349,11 +352,11 @@ public class ApplyFlexibleJoinUtils {
         /*ScalarFunctionCallExpression wt1 = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
                 BuiltinFunctions.WORD_TOKENS),
                 new MutableObject<>(new VariableReferenceExpression(leftInputVar)));
-
+        
         ScalarFunctionCallExpression wt2 = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
                 BuiltinFunctions.WORD_TOKENS),
                 new MutableObject<>(new VariableReferenceExpression(rightInputVar)));
-
+        
         ScalarFunctionCallExpression simjac = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
                 BuiltinFunctions.SIMILARITY_JACCARD_CHECK),
                 new MutableObject<>(wt1),
