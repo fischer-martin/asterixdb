@@ -20,7 +20,6 @@ package org.apache.asterix.runtime.flexiblejoin.oipjoin;
 
 import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
 import org.apache.asterix.runtime.flexiblejoin.cartilage.Summary;
-import org.apache.asterix.runtime.flexiblejoin.setsimilarity.WordCount;
 
 public class IntervalJoin implements FlexibleJoin<FJInterval, IntervalJoinConfig> {
     private double k = 2;
@@ -47,7 +46,6 @@ public class IntervalJoin implements FlexibleJoin<FJInterval, IntervalJoinConfig
         double d1 = (iS1.oEnd - iS1.oStart) / k;
         double d2 = (iS1.oEnd - iS1.oStart) / k;
 
-
         this.matchCounter = 0;
         this.verifyCounter = 0;
 
@@ -60,15 +58,15 @@ public class IntervalJoin implements FlexibleJoin<FJInterval, IntervalJoinConfig
         int i = (int) ((k1.start - intervalJoinConfig.iS1.oStart) / intervalJoinConfig.d1);
         int j = (int) ((k1.end - intervalJoinConfig.iS1.oStart) / intervalJoinConfig.d1);
         int bucketId = 0;
-        for(int s = i; s <= j; s++) {
+        for (int s = i; s <= j; s++) {
             bucketId |= 1 << s;
         }
-        return new int[] {bucketId};
+        return new int[] { bucketId };
     }
 
     /*@Override
     public int[] assign2(FJInterval k1, IntervalJoinConfig intervalJoinConfig) {
-
+    
         int i = (int) ((k1.start - intervalJoinConfig.iS2.oStart) / intervalJoinConfig.d2);
         int j = (int) ((k1.end - intervalJoinConfig.iS2.oStart) / intervalJoinConfig.d2);
         int bucketId = 0;
@@ -83,7 +81,8 @@ public class IntervalJoin implements FlexibleJoin<FJInterval, IntervalJoinConfig
         matchCounter++;
         int max = Math.max(b1, b2);
         boolean b = max == (b1 | b2);
-        if(b) verifyCounter++;
+        if (b)
+            verifyCounter++;
         return b;
         //return FlexibleJoin.super.match(b1, b2);
     }

@@ -45,13 +45,14 @@ public interface FlexibleJoin<T, C> {
             int[] buckets2DA = assign2(k2, c);
             int i = 0;
             int j = 0;
-            while(i < buckets1DA.length && j < buckets2DA.length) {
-                if(buckets1DA[i] == buckets2DA[j])
+            while (i < buckets1DA.length && j < buckets2DA.length) {
+                if (buckets1DA[i] == buckets2DA[j])
                     return buckets1DA[i] == b1 && buckets2DA[j] == b2;
                 else {
-                    if(buckets1DA[i] > buckets2DA[j]) {
+                    if (buckets1DA[i] > buckets2DA[j]) {
                         j++;
-                    } else i++;
+                    } else
+                        i++;
                 }
             }
         }

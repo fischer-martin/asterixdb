@@ -18,7 +18,14 @@
  */
 package org.apache.asterix.runtime.flexiblejoin.setsimilarity;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
@@ -60,7 +67,7 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
         /*int startIx = 0;
         int l = k1.length();
         k1 = k1.toLowerCase();
-
+        
         ArrayList<Integer> ranks = new ArrayList<>();
         int length = 0;
         while (startIx < l) {
@@ -68,31 +75,31 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
                 startIx++;
             }
             int tokenStart = startIx;
-
+        
             while (startIx < l && !isSeparator(k1.charAt(startIx))) {
                 startIx++;
             }
             int tokenEnd = startIx;
-
+        
             // Emit token.
-
+        
             String token = k1.substring(tokenStart, tokenEnd);
             if(!token.isEmpty()) {
                 ranks.add(setSimilarityConfig.S.get(token));
                 length++;
             }
-
+        
         }
-
+        
         int PrefixLength = (int) (length - Math.ceil(SimilarityThreshold * length) + 1);
-
+        
         int[] ranksToReturn = new int[PrefixLength];
         Collections.sort(ranks);
         for (int i = 0; i < PrefixLength; i++) {
             ranksToReturn[i] = ranks.get(i);
         }
         return ranksToReturn;
-
+        
         String[] tokens = Utilities.tokenizer(k1);
         int length = tokens.length;
         int[] ranksToReturn = new int[length];
@@ -103,7 +110,7 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
         }
         Arrays.sort(ranksToReturn);
         return Arrays.copyOf(ranksToReturn, PrefixLength);
-*/
+        */
         String[] tokens = Utilities.tokenizer(k1);
         int length = tokens.length;
         int PrefixLength = (int) (length - Math.ceil(SimilarityThreshold * length) + 1);
@@ -163,11 +170,11 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
         int leftIndex = 0;
         int rightIndex = 0;
         while (leftIndex < leftLength && rightIndex < rightLength) {
-            if(left[leftIndex].equals(right[rightIndex])) {
+            if (left[leftIndex].equals(right[rightIndex])) {
                 leftIndex++;
                 rightIndex++;
                 intersectionSize++;
-            } else if(left[leftIndex].compareTo(right[rightIndex]) > 0) {
+            } else if (left[leftIndex].compareTo(right[rightIndex]) > 0) {
                 rightIndex++;
             } else {
                 leftIndex++;
@@ -193,7 +200,7 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
         String probe;
         String build;
 
-        if(leftLength<rightLength) {
+        if (leftLength < rightLength) {
             build = left.toLowerCase();
             probe = right.toLowerCase();
         } else {
@@ -219,7 +226,7 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
 
             // Emit token.
             String token = build.substring(tokenStart, tokenEnd);
-            if(!token.isEmpty()) {
+            if (!token.isEmpty()) {
                 map.merge(token, 1, Integer::sum);
                 leftTokenC++;
             }
@@ -243,10 +250,11 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
 
             // Emit token.
             String token = probe.substring(tokenStart, tokenEnd);
-            if(!token.isEmpty()) {
+            if (!token.isEmpty()) {
                 if (map.containsKey(token)) {
                     map.merge(token, -1, Integer::sum);
-                    if (map.get(token) == 0) map.remove(token);
+                    if (map.get(token) == 0)
+                        map.remove(token);
                     intersectionSize++;
                 }
                 rightTokenC++;
@@ -269,7 +277,7 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
 
         String[] probe = null;
         String[] build = null;
-        if(leftLength<rightLength) {
+        if (leftLength < rightLength) {
             build = left;
             probe = right;
         } else {
@@ -277,13 +285,14 @@ public class SetSimilarityJoin implements FlexibleJoin<String, SetSimilarityConf
             probe = left;
         }
 
-        for(String s: build) {
+        for (String s : build) {
             map.merge(s, 1, Integer::sum);
         }
-        for(String s: probe) {
-            if(map.containsKey(s)) {
+        for (String s : probe) {
+            if (map.containsKey(s)) {
                 map.merge(s, -1, Integer::sum);
-                if(map.get(s) == 0) map.remove(s);
+                if (map.get(s) == 0)
+                    map.remove(s);
                 intersectionSize++;
             }
         }

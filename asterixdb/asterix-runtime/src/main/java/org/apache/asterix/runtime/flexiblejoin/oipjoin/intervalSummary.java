@@ -26,15 +26,19 @@ public class intervalSummary implements Summary<FJInterval> {
 
     @Override
     public void add(FJInterval k) {
-        if(k.start < this.oStart) this.oStart = k.start;
-        if(k.end > this.oEnd) this.oEnd = k.end;
+        if (k.start < this.oStart)
+            this.oStart = k.start;
+        if (k.end > this.oEnd)
+            this.oEnd = k.end;
     }
 
     @Override
     public void add(Summary<FJInterval> s) {
         intervalSummary iS = (intervalSummary) s;
 
-        if(iS.oStart < this.oStart) this.oStart = iS.oStart;
-        if(iS.oEnd > this.oEnd) this.oEnd = iS.oEnd;
+        if (iS.oStart < this.oStart)
+            this.oStart = iS.oStart;
+        if (iS.oEnd > this.oEnd)
+            this.oEnd = iS.oEnd;
     }
 }

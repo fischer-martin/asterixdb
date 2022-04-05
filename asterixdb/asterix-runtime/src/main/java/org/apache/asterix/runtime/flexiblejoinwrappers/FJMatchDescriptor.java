@@ -75,8 +75,8 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor {
                     {
                         try {
                             if (BuiltinFunctions.FJ_MATCH.getLibraryName().isEmpty()) {
-                                BuiltinFunctions.FJ_MATCH
-                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
+                                BuiltinFunctions.FJ_MATCH.setLibraryName(
+                                        "org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
                                 List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
                                 parameters.add(new MutableObject<>(
                                         new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));

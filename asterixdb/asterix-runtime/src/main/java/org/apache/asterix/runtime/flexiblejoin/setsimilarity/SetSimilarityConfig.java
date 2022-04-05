@@ -18,9 +18,9 @@
  */
 package org.apache.asterix.runtime.flexiblejoin.setsimilarity;
 
-import org.apache.asterix.runtime.flexiblejoin.cartilage.Configuration;
-
 import java.util.HashMap;
+
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Configuration;
 
 public class SetSimilarityConfig implements Configuration {
     HashMap<String, Integer> S = new HashMap<>();

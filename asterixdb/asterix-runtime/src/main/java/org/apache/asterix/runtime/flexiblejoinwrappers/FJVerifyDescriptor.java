@@ -25,7 +25,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
-import org.apache.asterix.dataflow.data.nontagged.serde.*;
+import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.base.ADouble;
@@ -41,7 +45,6 @@ import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
 import org.apache.asterix.runtime.flexiblejoin.oipjoin.FJInterval;
 import org.apache.asterix.runtime.flexiblejoin.oipjoin.IntervalJoin;
 import org.apache.asterix.runtime.flexiblejoin.spatialjoin.Rectangle;
-import org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
@@ -85,8 +88,8 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     {
                         try {
                             if (BuiltinFunctions.FJ_VERIFY.getLibraryName().isEmpty()) {
-                                BuiltinFunctions.FJ_VERIFY
-                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
+                                BuiltinFunctions.FJ_VERIFY.setLibraryName(
+                                        "org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
                                 List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
                                 parameters.add(new MutableObject<>(
                                         new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
@@ -117,7 +120,8 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private final IScalarEvaluator eval4 = args[4].createScalarEvaluator(ctx);
 
                     private final AStringSerializerDeserializer serde = AStringSerializerDeserializer.INSTANCE;
-                    private final ISerializerDeserializer bserde = SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ABOOLEAN);
+                    private final ISerializerDeserializer bserde =
+                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ABOOLEAN);
                     private final EnumDeserializer<ATypeTag> eser = EnumDeserializer.ATYPETAGDESERIALIZER;
 
                     private ATypeTag tag;
@@ -173,8 +177,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                                 configuration = SerializationUtils.deserialize(dataIn4);
 
-                                AlgebricksConfig.ALGEBRICKS_LOGGER
-                                        .info("MATCH COUNTER 1:" + IntervalJoin.matchCounter);
+                                AlgebricksConfig.ALGEBRICKS_LOGGER.info("MATCH COUNTER 1:" + IntervalJoin.matchCounter);
 
                                 AlgebricksConfig.ALGEBRICKS_LOGGER
                                         .info("MATCH COUNTER 2:" + IntervalJoin.verifyCounter);
@@ -194,7 +197,8 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 DataInputStream dataIn3 = new DataInputStream(inStream3);
                                 String key1 = serde.deserialize(dataIn3).getStringValue();
 
-                                res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)? ABoolean.TRUE:ABoolean.FALSE;
+                                res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)
+                                        ? ABoolean.TRUE : ABoolean.FALSE;
                             } else if (tag == ATypeTag.RECTANGLE) {
                                 double minX1 = ADoubleSerializerDeserializer.getDouble(bytes1, offset1 + 1
                                         + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
@@ -218,20 +222,21 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                                 Rectangle key1 = new Rectangle(minX2, maxX2, minY2, maxY2);
 
-                                res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)? ABoolean.TRUE:ABoolean.FALSE;
+                                res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)
+                                        ? ABoolean.TRUE : ABoolean.FALSE;
 
                             } else if (tag == ATypeTag.INTERVAL) {
-                                long start0 = AIntervalSerializerDeserializer.getIntervalStart(bytes1, offset1+1);
-                                long end0 = AIntervalSerializerDeserializer.getIntervalEnd(bytes1, offset1+1);
+                                long start0 = AIntervalSerializerDeserializer.getIntervalStart(bytes1, offset1 + 1);
+                                long end0 = AIntervalSerializerDeserializer.getIntervalEnd(bytes1, offset1 + 1);
 
                                 FJInterval key0 = new FJInterval(start0, end0);
 
-                                long start1 = AIntervalSerializerDeserializer.getIntervalStart(bytes3, offset3+1);
-                                long end1 = AIntervalSerializerDeserializer.getIntervalEnd(bytes3, offset3+1);
+                                long start1 = AIntervalSerializerDeserializer.getIntervalStart(bytes3, offset3 + 1);
+                                long end1 = AIntervalSerializerDeserializer.getIntervalEnd(bytes3, offset3 + 1);
 
                                 FJInterval key1 = new FJInterval(start1, end1);
-                                res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)? ABoolean.TRUE:ABoolean.FALSE;
-
+                                res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)
+                                        ? ABoolean.TRUE : ABoolean.FALSE;
 
                             }
 

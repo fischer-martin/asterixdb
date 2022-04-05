@@ -18,10 +18,10 @@
  */
 package org.apache.asterix.runtime.flexiblejoin.setsimilarity;
 
-import org.apache.asterix.runtime.flexiblejoin.cartilage.Summary;
-
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Summary;
 
 public class WordCount implements Summary<String> {
 

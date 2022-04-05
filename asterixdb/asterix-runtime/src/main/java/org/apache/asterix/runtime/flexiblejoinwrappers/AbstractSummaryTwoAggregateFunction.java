@@ -44,9 +44,9 @@ import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.runtime.aggregates.std.AbstractAggregateFunction;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
 import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
+import org.apache.asterix.runtime.flexiblejoin.cartilage.Summary;
 import org.apache.asterix.runtime.flexiblejoin.oipjoin.FJInterval;
 import org.apache.asterix.runtime.flexiblejoin.spatialjoin.Rectangle;
-import org.apache.asterix.runtime.flexiblejoin.cartilage.Summary;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
@@ -193,10 +193,10 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
 
                 Rectangle key = new Rectangle(minX, maxX, minY, maxY);
                 summary.add(key);
-            }  else if (typeTag == ATypeTag.INTERVAL) {
+            } else if (typeTag == ATypeTag.INTERVAL) {
 
-                long start = AIntervalSerializerDeserializer.getIntervalStart(data, offset+1);
-                long end = AIntervalSerializerDeserializer.getIntervalEnd(data, offset+1);
+                long start = AIntervalSerializerDeserializer.getIntervalStart(data, offset + 1);
+                long end = AIntervalSerializerDeserializer.getIntervalEnd(data, offset + 1);
 
                 FJInterval fjInterval = new FJInterval(start, end);
                 summary.add(fjInterval);

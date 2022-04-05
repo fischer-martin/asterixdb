@@ -109,51 +109,7 @@ import org.apache.asterix.lang.common.expression.IndexedTypeExpression;
 import org.apache.asterix.lang.common.expression.TypeExpression;
 import org.apache.asterix.lang.common.expression.TypeReferenceExpression;
 import org.apache.asterix.lang.common.expression.VariableExpr;
-import org.apache.asterix.lang.common.statement.AdapterDropStatement;
-import org.apache.asterix.lang.common.statement.CompactStatement;
-import org.apache.asterix.lang.common.statement.ConnectFeedStatement;
-import org.apache.asterix.lang.common.statement.CreateAdapterStatement;
-import org.apache.asterix.lang.common.statement.CreateDataverseStatement;
-import org.apache.asterix.lang.common.statement.CreateFeedPolicyStatement;
-import org.apache.asterix.lang.common.statement.CreateFeedStatement;
-import org.apache.asterix.lang.common.statement.CreateFullTextConfigStatement;
-import org.apache.asterix.lang.common.statement.CreateFullTextFilterStatement;
-import org.apache.asterix.lang.common.statement.CreateFunctionStatement;
-import org.apache.asterix.lang.common.statement.CreateIndexStatement;
-import org.apache.asterix.lang.common.statement.CreateLibraryStatement;
-import org.apache.asterix.lang.common.statement.CreateSynonymStatement;
-import org.apache.asterix.lang.common.statement.CreateViewStatement;
-import org.apache.asterix.lang.common.statement.DatasetDecl;
-import org.apache.asterix.lang.common.statement.DataverseDecl;
-import org.apache.asterix.lang.common.statement.DataverseDropStatement;
-import org.apache.asterix.lang.common.statement.DeleteStatement;
-import org.apache.asterix.lang.common.statement.DisconnectFeedStatement;
-import org.apache.asterix.lang.common.statement.DropDatasetStatement;
-import org.apache.asterix.lang.common.statement.ExternalDetailsDecl;
-import org.apache.asterix.lang.common.statement.FeedDropStatement;
-import org.apache.asterix.lang.common.statement.FeedPolicyDropStatement;
-import org.apache.asterix.lang.common.statement.FullTextConfigDropStatement;
-import org.apache.asterix.lang.common.statement.FullTextFilterDropStatement;
-import org.apache.asterix.lang.common.statement.FunctionDecl;
-import org.apache.asterix.lang.common.statement.FunctionDropStatement;
-import org.apache.asterix.lang.common.statement.IndexDropStatement;
-import org.apache.asterix.lang.common.statement.InsertStatement;
-import org.apache.asterix.lang.common.statement.InternalDetailsDecl;
-import org.apache.asterix.lang.common.statement.LibraryDropStatement;
-import org.apache.asterix.lang.common.statement.LoadStatement;
-import org.apache.asterix.lang.common.statement.NodeGroupDropStatement;
-import org.apache.asterix.lang.common.statement.NodegroupDecl;
-import org.apache.asterix.lang.common.statement.Query;
-import org.apache.asterix.lang.common.statement.RefreshExternalDatasetStatement;
-import org.apache.asterix.lang.common.statement.SetStatement;
-import org.apache.asterix.lang.common.statement.StartFeedStatement;
-import org.apache.asterix.lang.common.statement.StopFeedStatement;
-import org.apache.asterix.lang.common.statement.SynonymDropStatement;
-import org.apache.asterix.lang.common.statement.TypeDecl;
-import org.apache.asterix.lang.common.statement.TypeDropStatement;
-import org.apache.asterix.lang.common.statement.ViewDecl;
-import org.apache.asterix.lang.common.statement.ViewDropStatement;
-import org.apache.asterix.lang.common.statement.WriteStatement;
+import org.apache.asterix.lang.common.statement.*;
 import org.apache.asterix.lang.common.struct.Identifier;
 import org.apache.asterix.lang.common.struct.VarIdentifier;
 import org.apache.asterix.lang.common.util.FunctionUtil;
@@ -410,6 +366,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         break;
                     case ADAPTER_DROP:
                         handleAdapterDropStatement(metadataProvider, stmt);
+                        break;
+                    case CREATE_FLEXIBLE_JOIN:
+                        handleCreateFlexibleJoinStatement(metadataProvider, stmt, stmtRewriter, requestParameters);
                         break;
                     case CREATE_FUNCTION:
                         handleCreateFunctionStatement(metadataProvider, stmt, stmtRewriter, requestParameters);
@@ -2783,6 +2742,219 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 stmt.getSourceLocation());
         signature.setDataverseName(getActiveDataverseName(signature.getDataverseName()));
         declaredFunctions.add(fds);
+    }
+
+    public void handleCreateFlexibleJoinStatement(MetadataProvider metadataProvider, Statement stmt,
+                                              IStatementRewriter stmtRewriter, IRequestParameters requestParameters) throws Exception {
+        CreateFlexibleJoinStatement cfjs = (CreateFlexibleJoinStatement) stmt;
+        FunctionSignature signature = cfjs.getFunctionSignature();
+        metadataProvider.validateDatabaseObjectName(signature.getDataverseName(), signature.getName(),
+                stmt.getSourceLocation());
+        DataverseName dataverseName = getActiveDataverseName(signature.getDataverseName());
+        signature.setDataverseName(dataverseName);
+        DataverseName libraryDataverseName = null;
+        String libraryName = cfjs.getLibraryName();
+        if (libraryName != null) {
+            libraryDataverseName = cfjs.getLibraryDataverseName();
+            if (libraryDataverseName == null) {
+                libraryDataverseName = dataverseName;
+            }
+        }
+
+        lockUtil.createFunctionBegin(lockManager, metadataProvider.getLocks(), dataverseName, signature.getName(),
+                libraryDataverseName, libraryName);
+        try {
+            doCreateFlexibleJoin(metadataProvider, cfjs, signature, stmtRewriter, requestParameters);
+        } finally {
+            metadataProvider.getLocks().unlock();
+            metadataProvider.setDefaultDataverse(activeDataverse);
+        }
+    }
+
+    protected CreateResult doCreateFlexibleJoin(MetadataProvider metadataProvider, CreateFlexibleJoinStatement cfs,
+                                            FunctionSignature functionSignature, IStatementRewriter stmtRewriter, IRequestParameters requestParameters)
+            throws Exception {
+        DataverseName dataverseName = functionSignature.getDataverseName();
+        SourceLocation sourceLoc = cfs.getSourceLocation();
+        MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
+        metadataProvider.setMetadataTxnContext(mdTxnCtx);
+        try {
+            Dataverse dv = MetadataManager.INSTANCE.getDataverse(mdTxnCtx, dataverseName);
+            if (dv == null) {
+                throw new CompilationException(ErrorCode.UNKNOWN_DATAVERSE, sourceLoc, dataverseName);
+            }
+            List<TypeSignature> existingInlineTypes;
+            Function existingFunction = MetadataManager.INSTANCE.getFunction(mdTxnCtx, functionSignature);
+            if (existingFunction != null) {
+                if (cfs.getIfNotExists()) {
+                    MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
+                    return CreateResult.NOOP;
+                } else if (!cfs.getReplaceIfExists()) {
+                    throw new CompilationException(ErrorCode.FUNCTION_EXISTS, cfs.getSourceLocation(),
+                            functionSignature.toString(false));
+                }
+                existingInlineTypes = TypeUtil.getFunctionInlineTypes(existingFunction);
+            } else {
+                existingInlineTypes = Collections.emptyList();
+            }
+
+            IQueryRewriter queryRewriter = rewriterFactory.createQueryRewriter();
+            Map<TypeSignature, Datatype> newInlineTypes;
+            Function function;
+            if (cfs.isExternal()) {
+                if (functionSignature.getArity() == FunctionIdentifier.VARARGS) {
+                    throw new CompilationException(ErrorCode.COMPILATION_ERROR, cfs.getSourceLocation(),
+                            "Variable number of parameters is not supported for external functions");
+                }
+                List<Pair<VarIdentifier, TypeExpression>> paramList = cfs.getParameters();
+                int paramCount = paramList.size();
+                List<String> paramNames = new ArrayList<>(paramCount);
+                List<TypeSignature> paramTypes = new ArrayList<>(paramCount);
+                LinkedHashSet<TypeSignature> depTypes = new LinkedHashSet<>();
+                newInlineTypes = new HashMap<>();
+
+                for (int i = 0; i < paramCount; i++) {
+                    Pair<VarIdentifier, TypeExpression> paramPair = paramList.get(i);
+                    TypeSignature paramTypeSignature;
+                    TypeSignature paramDepTypeSignature;
+                    Datatype paramInlineTypeEntity;
+                    TypeExpression paramTypeExpr = paramPair.getSecond();
+                    if (paramTypeExpr != null) {
+                        Triple<TypeSignature, TypeSignature, Datatype> paramTypeInfo = translateFunctionParameterType(
+                                functionSignature, i, paramTypeExpr, sourceLoc, metadataProvider, mdTxnCtx);
+                        paramTypeSignature = paramTypeInfo.first;
+                        paramDepTypeSignature = paramTypeInfo.second;
+                        paramInlineTypeEntity = paramTypeInfo.third;
+                    } else {
+                        paramTypeSignature = null; // == any
+                        paramDepTypeSignature = null;
+                        paramInlineTypeEntity = null;
+                    }
+                    paramTypes.add(paramTypeSignature); // null == any
+                    if (paramDepTypeSignature != null) {
+                        depTypes.add(paramDepTypeSignature);
+                    }
+                    if (paramInlineTypeEntity != null) {
+                        newInlineTypes.put(paramTypeSignature, paramInlineTypeEntity);
+                    }
+                    VarIdentifier paramName = paramPair.getFirst();
+                    paramNames.add(queryRewriter.toFunctionParameterName(paramName));
+                }
+
+                TypeSignature returnTypeSignature;
+                TypeSignature returnDepTypeSignature;
+                Datatype returnInlineTypeEntity;
+                TypeExpression returnTypeExpr = cfs.getReturnType();
+                if (returnTypeExpr != null) {
+                    Triple<TypeSignature, TypeSignature, Datatype> returnTypeInfo = translateFunctionParameterType(
+                            functionSignature, -1, returnTypeExpr, sourceLoc, metadataProvider, mdTxnCtx);
+                    returnTypeSignature = returnTypeInfo.first;
+                    returnDepTypeSignature = returnTypeInfo.second;
+                    returnInlineTypeEntity = returnTypeInfo.third;
+                } else {
+                    returnTypeSignature = null; // == any
+                    returnDepTypeSignature = null;
+                    returnInlineTypeEntity = null;
+                }
+                if (returnDepTypeSignature != null) {
+                    depTypes.add(returnDepTypeSignature);
+                }
+                if (returnInlineTypeEntity != null) {
+                    newInlineTypes.put(returnTypeSignature, returnInlineTypeEntity);
+                }
+
+                DataverseName libraryDataverseName = cfs.getLibraryDataverseName();
+                if (libraryDataverseName == null) {
+                    libraryDataverseName = dataverseName;
+                }
+                String libraryName = cfs.getLibraryName();
+                Library library = MetadataManager.INSTANCE.getLibrary(mdTxnCtx, libraryDataverseName, libraryName);
+                if (library == null) {
+                    throw new CompilationException(ErrorCode.UNKNOWN_LIBRARY, sourceLoc, libraryName);
+                }
+
+                ExternalFunctionLanguage language =
+                        ExternalFunctionCompilerUtil.getExternalFunctionLanguage(library.getLanguage());
+                List<String> externalIdentifier = cfs.getExternalIdentifier();
+                ExternalFunctionCompilerUtil.validateExternalIdentifier(externalIdentifier, language,
+                        cfs.getSourceLocation());
+                List<List<Triple<DataverseName, String, String>>> dependencies =
+                        FunctionUtil.getExternalFunctionDependencies(depTypes);
+
+                function = new Function(functionSignature, paramNames, paramTypes, returnTypeSignature, null,
+                        FunctionKind.SCALAR.toString(), library.getLanguage(), libraryDataverseName, libraryName,
+                        externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(),
+                        dependencies);
+            } else {
+                List<Pair<VarIdentifier, TypeExpression>> paramList = cfs.getParameters();
+                int paramCount = paramList.size();
+                List<VarIdentifier> paramVars = new ArrayList<>(paramCount);
+                List<String> paramNames = new ArrayList<>(paramCount);
+                for (Pair<VarIdentifier, TypeExpression> paramPair : paramList) {
+                    VarIdentifier paramName = paramPair.getFirst();
+                    paramVars.add(paramName);
+                    paramNames.add(queryRewriter.toFunctionParameterName(paramName));
+                    if (paramPair.getSecond() != null) {
+                        throw new CompilationException(ErrorCode.COMPILATION_ILLEGAL_STATE, sourceLoc,
+                                paramName.toString());
+                    }
+                }
+
+                // Check whether the function is usable:
+                // create a function declaration for this function,
+                // and a query body calls this function with each argument set to 'missing'
+                FunctionDecl fd = new FunctionDecl(functionSignature, paramVars, cfs.getFunctionBodyExpression(), true);
+                fd.setSourceLocation(sourceLoc);
+
+                Query wrappedQuery = queryRewriter.createFunctionAccessorQuery(fd);
+                List<FunctionDecl> fdList = new ArrayList<>(declaredFunctions.size() + 1);
+                fdList.addAll(declaredFunctions);
+                fdList.add(fd);
+                metadataProvider.setDefaultDataverse(dv);
+                apiFramework.reWriteQuery(fdList, null, metadataProvider, wrappedQuery, sessionOutput, false, false,
+                        Collections.emptyList(), warningCollector);
+
+                List<List<Triple<DataverseName, String, String>>> dependencies =
+                        FunctionUtil.getFunctionDependencies(fd, queryRewriter);
+
+                newInlineTypes = Collections.emptyMap();
+                function = new Function(functionSignature, paramNames, null, null, cfs.getFunctionBody(),
+                        FunctionKind.SCALAR.toString(), compilationProvider.getParserFactory().getLanguage(), null,
+                        null, null, null, null, null, dependencies);
+            }
+
+            if (existingFunction == null) {
+                // add new function and its inline types
+                for (Datatype newInlineType : newInlineTypes.values()) {
+                    MetadataManager.INSTANCE.addDatatype(mdTxnCtx, newInlineType);
+                }
+                MetadataManager.INSTANCE.addFunction(mdTxnCtx, function);
+            } else {
+                // replace existing function and its inline types
+                for (TypeSignature existingInlineType : existingInlineTypes) {
+                    Datatype newInlineType =
+                            newInlineTypes.isEmpty() ? null : newInlineTypes.remove(existingInlineType);
+                    if (newInlineType == null) {
+                        MetadataManager.INSTANCE.dropDatatype(mdTxnCtx, existingInlineType.getDataverseName(),
+                                existingInlineType.getName());
+                    } else {
+                        MetadataManager.INSTANCE.updateDatatype(mdTxnCtx, newInlineType);
+                    }
+                }
+                for (Datatype inlineType : newInlineTypes.values()) {
+                    MetadataManager.INSTANCE.addDatatype(mdTxnCtx, inlineType);
+                }
+                MetadataManager.INSTANCE.updateFunction(mdTxnCtx, function);
+            }
+            MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info("Installed function: " + functionSignature);
+            }
+            return existingFunction != null ? CreateResult.REPLACED : CreateResult.CREATED;
+        } catch (Exception e) {
+            abort(e, e, mdTxnCtx);
+            throw e;
+        }
     }
 
     public void handleCreateFunctionStatement(MetadataProvider metadataProvider, Statement stmt,

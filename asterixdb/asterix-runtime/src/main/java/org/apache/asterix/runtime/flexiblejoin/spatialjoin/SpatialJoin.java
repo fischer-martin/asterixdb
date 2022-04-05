@@ -18,11 +18,11 @@
  */
 package org.apache.asterix.runtime.flexiblejoin.spatialjoin;
 
+import java.util.ArrayList;
+
 import org.apache.asterix.runtime.flexiblejoin.cartilage.Configuration;
 import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
 import org.apache.asterix.runtime.flexiblejoin.cartilage.Summary;
-
-import java.util.ArrayList;
 
 class SpatialJoinConfiguration implements Configuration {
     public Rectangle Grid;

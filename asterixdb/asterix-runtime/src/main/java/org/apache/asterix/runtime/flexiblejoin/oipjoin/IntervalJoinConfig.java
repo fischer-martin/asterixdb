@@ -29,7 +29,6 @@ public class IntervalJoinConfig implements Configuration {
     double d1;
     double d2;
 
-
     IntervalJoinConfig(double d1, double d2, intervalSummary iS1, intervalSummary iS2, double k) {
         this.iS1 = iS1;
         this.iS2 = iS2;

@@ -103,8 +103,8 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                     {
                         try {
                             if (BuiltinFunctions.FJ_ASSIGN_TWO.getLibraryName().isEmpty()) {
-                                BuiltinFunctions.FJ_ASSIGN_TWO
-                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
+                                BuiltinFunctions.FJ_ASSIGN_TWO.setLibraryName(
+                                        "org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
                                 List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
                                 parameters.add(new MutableObject<>(
                                         new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
@@ -191,8 +191,8 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                             Rectangle key = new Rectangle(minX, maxX, minY, maxY);
                             buckets = flexibleJoin.assign2(key, configuration);
                         } else if (tag0 == ATypeTag.INTERVAL) {
-                            long start = AIntervalSerializerDeserializer.getIntervalStart(bytes0, offset0+1);
-                            long end = AIntervalSerializerDeserializer.getIntervalEnd(bytes0, offset0+1);
+                            long start = AIntervalSerializerDeserializer.getIntervalStart(bytes0, offset0 + 1);
+                            long end = AIntervalSerializerDeserializer.getIntervalEnd(bytes0, offset0 + 1);
 
                             FJInterval fjInterval = new FJInterval(start, end);
                             buckets = flexibleJoin.assign1(fjInterval, configuration);

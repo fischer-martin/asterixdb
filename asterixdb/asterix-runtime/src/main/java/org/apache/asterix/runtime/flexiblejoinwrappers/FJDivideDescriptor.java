@@ -81,8 +81,8 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     {
                         try {
                             if (BuiltinFunctions.FJ_DIVIDE.getLibraryName().isEmpty()) {
-                                BuiltinFunctions.FJ_DIVIDE
-                                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
+                                BuiltinFunctions.FJ_DIVIDE.setLibraryName(
+                                        "org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
                                 List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
                                 parameters.add(new MutableObject<>(
                                         new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));

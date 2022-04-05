@@ -48,6 +48,7 @@ import org.apache.asterix.lang.common.statement.CreateAdapterStatement;
 import org.apache.asterix.lang.common.statement.CreateDataverseStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedPolicyStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedStatement;
+import org.apache.asterix.lang.common.statement.CreateFlexibleJoinStatement;
 import org.apache.asterix.lang.common.statement.CreateFullTextConfigStatement;
 import org.apache.asterix.lang.common.statement.CreateFullTextFilterStatement;
 import org.apache.asterix.lang.common.statement.CreateFunctionStatement;
@@ -192,6 +193,8 @@ public interface ILangVisitor<R, T> {
     R visit(DataverseDecl dv, T arg) throws CompilationException;
 
     R visit(CreateFunctionStatement cfs, T arg) throws CompilationException;
+
+    R visit(CreateFlexibleJoinStatement cfs, T arg) throws CompilationException;
 
     R visit(FunctionDropStatement del, T arg) throws CompilationException;
 

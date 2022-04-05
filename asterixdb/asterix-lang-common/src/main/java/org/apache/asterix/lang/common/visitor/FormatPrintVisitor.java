@@ -71,6 +71,7 @@ import org.apache.asterix.lang.common.statement.CreateAdapterStatement;
 import org.apache.asterix.lang.common.statement.CreateDataverseStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedPolicyStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedStatement;
+import org.apache.asterix.lang.common.statement.CreateFlexibleJoinStatement;
 import org.apache.asterix.lang.common.statement.CreateFullTextConfigStatement;
 import org.apache.asterix.lang.common.statement.CreateFullTextFilterStatement;
 import org.apache.asterix.lang.common.statement.CreateFunctionStatement;
@@ -881,6 +882,22 @@ public abstract class FormatPrintVisitor implements ILangVisitor<Void, Integer> 
                 cfs.getParameters().stream().map(v -> v.getFirst().getValue()).collect(Collectors.toList()), COMMA);
         out.println(") {");
         out.println(cfs.getFunctionBody());
+        out.println("}" + SEMICOLON);
+        out.println();
+        return null;
+    }
+
+    @Override
+    public Void visit(CreateFlexibleJoinStatement cfjs, Integer step) throws CompilationException {
+        out.print(skip(step) + CREATE + generateOrReplace(cfjs.getReplaceIfExists()) + " flexible join ");
+        out.print(generateIfNotExists(cfjs.getIfNotExists()));
+        out.print(this.generateFullName(cfjs.getFunctionSignature().getDataverseName(),
+                cfjs.getFunctionSignature().getName()));
+        out.print("(");
+        printDelimitedStrings(
+                cfjs.getParameters().stream().map(v -> v.getFirst().getValue()).collect(Collectors.toList()), COMMA);
+        out.println(") {");
+        out.println(cfjs.getFunctionBody());
         out.println("}" + SEMICOLON);
         out.println();
         return null;

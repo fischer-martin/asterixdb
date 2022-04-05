@@ -40,24 +40,7 @@ import org.apache.asterix.common.functions.FunctionConstants;
 import org.apache.asterix.common.functions.FunctionSignature;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.lang.common.base.Statement;
-import org.apache.asterix.lang.common.statement.CreateAdapterStatement;
-import org.apache.asterix.lang.common.statement.CreateDataverseStatement;
-import org.apache.asterix.lang.common.statement.CreateFeedStatement;
-import org.apache.asterix.lang.common.statement.CreateFunctionStatement;
-import org.apache.asterix.lang.common.statement.CreateLibraryStatement;
-import org.apache.asterix.lang.common.statement.CreateSynonymStatement;
-import org.apache.asterix.lang.common.statement.CreateViewStatement;
-import org.apache.asterix.lang.common.statement.DatasetDecl;
-import org.apache.asterix.lang.common.statement.DataverseDropStatement;
-import org.apache.asterix.lang.common.statement.DeleteStatement;
-import org.apache.asterix.lang.common.statement.DropDatasetStatement;
-import org.apache.asterix.lang.common.statement.FunctionDecl;
-import org.apache.asterix.lang.common.statement.IndexDropStatement;
-import org.apache.asterix.lang.common.statement.InsertStatement;
-import org.apache.asterix.lang.common.statement.LoadStatement;
-import org.apache.asterix.lang.common.statement.TypeDecl;
-import org.apache.asterix.lang.common.statement.TypeDropStatement;
-import org.apache.asterix.lang.common.statement.UpsertStatement;
+import org.apache.asterix.lang.common.statement.*;
 import org.apache.asterix.metadata.dataset.hints.DatasetHints;
 import org.apache.asterix.metadata.entities.Dataverse;
 import org.apache.asterix.metadata.utils.MetadataConstants;
@@ -317,6 +300,18 @@ public abstract class AbstractLangTranslator {
                 invalidOperation = isMetadataDataverse(dataverseName);
                 if (invalidOperation) {
                     message = String.format(BAD_DATAVERSE_OBJECT_DDL_MESSAGE, "create", "function", dataverseName);
+                }
+                break;
+
+            case CREATE_FLEXIBLE_JOIN:
+                CreateFlexibleJoinStatement fjCreateStmt = (CreateFlexibleJoinStatement) stmt;
+                FunctionSignature fjCreateSignature = fjCreateStmt.getFunctionSignature();
+                if (fjCreateSignature.getDataverseName() != null) {
+                    dataverseName = fjCreateSignature.getDataverseName();
+                }
+                invalidOperation = isMetadataDataverse(dataverseName);
+                if (invalidOperation) {
+                    message = String.format(BAD_DATAVERSE_OBJECT_DDL_MESSAGE, "create", "flexible join", dataverseName);
                 }
                 break;
 
