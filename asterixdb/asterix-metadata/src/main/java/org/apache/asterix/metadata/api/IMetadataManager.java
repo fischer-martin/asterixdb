@@ -386,6 +386,16 @@ public interface IMetadataManager extends IMetadataBootstrap {
      *            added
      * @throws AlgebricksException
      */
+    void addFlexibleJoin(MetadataTransactionContext mdTxnCtx, Function function) throws AlgebricksException;
+
+    /**
+     * @param mdTxnCtx
+     *            MetadataTransactionContext of an active metadata transaction.
+     * @param function
+     *            An instance of type Function that represents the function being
+     *            added
+     * @throws AlgebricksException
+     */
     void addFunction(MetadataTransactionContext mdTxnCtx, Function function) throws AlgebricksException;
 
     /**

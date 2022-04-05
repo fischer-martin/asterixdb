@@ -613,7 +613,7 @@ public class EnforceStructuralPropertiesRule implements IAlgebraicRewriteRule {
                 }
                 case PARTIAL_BROADCAST_ORDERED_INTERSECT: {
                     PartialBroadcastOrderedIntersectProperty pbp = (PartialBroadcastOrderedIntersectProperty) pp;
-                    pop = new PartialBroadcastRangeIntersectExchangePOperator(pbp.getIntervalColumns(),
+                    pop = new   PartialBroadcastRangeIntersectExchangePOperator(pbp.getIntervalColumns(),
                             pbp.getNodeDomain(), pbp.getRangeMap());
                     break;
                 }

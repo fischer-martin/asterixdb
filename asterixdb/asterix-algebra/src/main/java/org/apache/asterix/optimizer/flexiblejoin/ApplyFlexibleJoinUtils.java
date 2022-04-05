@@ -27,6 +27,7 @@ import org.apache.asterix.algebra.operators.physical.FlexibleJoinPOperator;
 import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
+import org.apache.asterix.om.functions.ExternalFunctionInfo;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.FlexibleJoinUtilFactory;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
 import org.apache.commons.lang3.mutable.Mutable;
@@ -195,6 +196,8 @@ public class ApplyFlexibleJoinUtils {
 
         BuiltinFunctions.FJ_VERIFY.setParameters(parameters);
         BuiltinFunctions.FJ_VERIFY.setLibraryName(libraryName);
+
+
 
         //BuiltinFunctions.addFunction();
 

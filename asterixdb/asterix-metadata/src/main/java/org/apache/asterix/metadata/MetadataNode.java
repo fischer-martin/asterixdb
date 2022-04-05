@@ -462,6 +462,24 @@ public class MetadataNode implements IMetadataNode {
     }
 
     @Override
+    public void addFlexibleJoin(TxnId txnId, Function function) throws AlgebricksException {
+        try {
+            // Insert into the 'function' dataset.
+            FunctionTupleTranslator tupleReaderWriter =
+                    tupleTranslatorProvider.getFunctionTupleTranslator(txnId, this, true);
+            ITupleReference functionTuple = tupleReaderWriter.getTupleFromMetadataEntity(function);
+            insertTupleIntoIndex(txnId, MetadataPrimaryIndexes.FUNCTION_DATASET, functionTuple);
+        } catch (HyracksDataException e) {
+            if (e.matches(ErrorCode.DUPLICATE_KEY)) {
+                throw new AsterixException(org.apache.asterix.common.exceptions.ErrorCode.FUNCTION_EXISTS, e,
+                        function.getName());
+            } else {
+                throw new AlgebricksException(e);
+            }
+        }
+    }
+
+    @Override
     public void addFullTextFilter(TxnId txnId, FullTextFilterMetadataEntity filterMetadataEntity)
             throws RemoteException, AlgebricksException {
         insertFullTextFilterMetadataEntityToCatalog(txnId, filterMetadataEntity);

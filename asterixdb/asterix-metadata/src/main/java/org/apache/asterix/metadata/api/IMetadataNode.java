@@ -451,6 +451,18 @@ public interface IMetadataNode extends Remote, Serializable {
 
     /**
      * @param txnId
+     *            A globally unique id for an active metadata transaction.
+     * @param function
+     *            Function to be inserted
+     * @throws AlgebricksException
+     *             for example, if the function already exists or refers to an
+     *             unknown function
+     * @throws RemoteException
+     */
+    void addFlexibleJoin(TxnId txnId, Function function) throws AlgebricksException, RemoteException;
+
+    /**
+     * @param txnId
      *            Metadata transaction id of an active metadata transaction.
      * @param filterMetadataEntity
      *            the full-text filter metadata entity to be added

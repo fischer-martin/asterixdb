@@ -561,6 +561,16 @@ public abstract class MetadataManager implements IMetadataManager {
     }
 
     @Override
+    public void addFlexibleJoin(MetadataTransactionContext mdTxnCtx, Function function) throws AlgebricksException {
+        try {
+            metadataNode.addFlexibleJoin(mdTxnCtx.getTxnId(), function);
+        } catch (RemoteException e) {
+            throw new MetadataException(ErrorCode.REMOTE_EXCEPTION_WHEN_CALLING_METADATA_NODE, e);
+        }
+        mdTxnCtx.addFunction(function);
+    }
+
+    @Override
     public void addFunction(MetadataTransactionContext mdTxnCtx, Function function) throws AlgebricksException {
         try {
             metadataNode.addFunction(mdTxnCtx.getTxnId(), function);
