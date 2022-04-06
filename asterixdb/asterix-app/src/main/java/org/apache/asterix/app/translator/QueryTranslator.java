@@ -116,11 +116,11 @@ import org.apache.asterix.lang.common.statement.CreateAdapterStatement;
 import org.apache.asterix.lang.common.statement.CreateDataverseStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedPolicyStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedStatement;
-import org.apache.asterix.lang.common.statement.CreateFlexibleJoinStatement;
 import org.apache.asterix.lang.common.statement.CreateFullTextConfigStatement;
 import org.apache.asterix.lang.common.statement.CreateFullTextFilterStatement;
 import org.apache.asterix.lang.common.statement.CreateFunctionStatement;
 import org.apache.asterix.lang.common.statement.CreateIndexStatement;
+import org.apache.asterix.lang.common.statement.CreateJoinStatement;
 import org.apache.asterix.lang.common.statement.CreateLibraryStatement;
 import org.apache.asterix.lang.common.statement.CreateSynonymStatement;
 import org.apache.asterix.lang.common.statement.CreateViewStatement;
@@ -412,8 +412,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     case ADAPTER_DROP:
                         handleAdapterDropStatement(metadataProvider, stmt);
                         break;
-                    case CREATE_FLEXIBLE_JOIN:
-                        handleCreateFlexibleJoinStatement(metadataProvider, stmt, stmtRewriter, requestParameters);
+                    case CREATE_JOIN:
+                        handleCreateJoinStatement(metadataProvider, stmt, stmtRewriter, requestParameters);
                         break;
                     case CREATE_FUNCTION:
                         handleCreateFunctionStatement(metadataProvider, stmt, stmtRewriter, requestParameters);
@@ -2789,9 +2789,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         declaredFunctions.add(fds);
     }
 
-    public void handleCreateFlexibleJoinStatement(MetadataProvider metadataProvider, Statement stmt,
+    public void handleCreateJoinStatement(MetadataProvider metadataProvider, Statement stmt,
             IStatementRewriter stmtRewriter, IRequestParameters requestParameters) throws Exception {
-        CreateFlexibleJoinStatement cfjs = (CreateFlexibleJoinStatement) stmt;
+        CreateJoinStatement cfjs = (CreateJoinStatement) stmt;
         FunctionSignature signature = cfjs.getFunctionSignature();
         metadataProvider.validateDatabaseObjectName(signature.getDataverseName(), signature.getName(),
                 stmt.getSourceLocation());
@@ -2809,14 +2809,14 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         lockUtil.createFunctionBegin(lockManager, metadataProvider.getLocks(), dataverseName, signature.getName(),
                 libraryDataverseName, libraryName);
         try {
-            doCreateFlexibleJoin(metadataProvider, cfjs, signature, stmtRewriter, requestParameters);
+            doCreateJoin(metadataProvider, cfjs, signature, stmtRewriter, requestParameters);
         } finally {
             metadataProvider.getLocks().unlock();
             metadataProvider.setDefaultDataverse(activeDataverse);
         }
     }
 
-    protected CreateResult doCreateFlexibleJoin(MetadataProvider metadataProvider, CreateFlexibleJoinStatement cfs,
+    protected CreateResult doCreateJoin(MetadataProvider metadataProvider, CreateJoinStatement cfs,
             FunctionSignature functionSignature, IStatementRewriter stmtRewriter, IRequestParameters requestParameters)
             throws Exception {
         DataverseName dataverseName = functionSignature.getDataverseName();

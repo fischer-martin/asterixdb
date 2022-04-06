@@ -71,11 +71,11 @@ import org.apache.asterix.lang.common.statement.CreateAdapterStatement;
 import org.apache.asterix.lang.common.statement.CreateDataverseStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedPolicyStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedStatement;
-import org.apache.asterix.lang.common.statement.CreateFlexibleJoinStatement;
 import org.apache.asterix.lang.common.statement.CreateFullTextConfigStatement;
 import org.apache.asterix.lang.common.statement.CreateFullTextFilterStatement;
 import org.apache.asterix.lang.common.statement.CreateFunctionStatement;
 import org.apache.asterix.lang.common.statement.CreateIndexStatement;
+import org.apache.asterix.lang.common.statement.CreateJoinStatement;
 import org.apache.asterix.lang.common.statement.CreateLibraryStatement;
 import org.apache.asterix.lang.common.statement.CreateSynonymStatement;
 import org.apache.asterix.lang.common.statement.CreateViewStatement;
@@ -888,7 +888,7 @@ public abstract class FormatPrintVisitor implements ILangVisitor<Void, Integer> 
     }
 
     @Override
-    public Void visit(CreateFlexibleJoinStatement cfjs, Integer step) throws CompilationException {
+    public Void visit(CreateJoinStatement cfjs, Integer step) throws CompilationException {
         out.print(skip(step) + CREATE + generateOrReplace(cfjs.getReplaceIfExists()) + " flexible join ");
         out.print(generateIfNotExists(cfjs.getIfNotExists()));
         out.print(this.generateFullName(cfjs.getFunctionSignature().getDataverseName(),

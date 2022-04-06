@@ -40,7 +40,7 @@ import org.apache.asterix.object.base.IAdmNode;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.hyracks.algebricks.common.utils.Pair;
 
-public class CreateFlexibleJoinStatement extends AbstractStatement {
+public class CreateJoinStatement extends AbstractStatement {
 
     private static final String NULLCALL_FIELD_NAME = "null-call";
     private static final boolean NULLCALL_DEFAULT = false;
@@ -62,7 +62,7 @@ public class CreateFlexibleJoinStatement extends AbstractStatement {
     private final boolean replaceIfExists;
     private final boolean ifNotExists;
 
-    public CreateFlexibleJoinStatement(FunctionSignature signature, List<Pair<VarIdentifier, TypeExpression>> paramList,
+    public CreateJoinStatement(FunctionSignature signature, List<Pair<VarIdentifier, TypeExpression>> paramList,
             String functionBody, Expression functionBodyExpression, boolean replaceIfExists, boolean ifNotExists) {
         this.signature = signature;
         this.functionBody = functionBody;
@@ -77,13 +77,12 @@ public class CreateFlexibleJoinStatement extends AbstractStatement {
         this.ifNotExists = ifNotExists;
     }
 
-    public CreateFlexibleJoinStatement(FunctionSignature signature, List<Pair<VarIdentifier, TypeExpression>> paramList,
-            TypeExpression returnType, DataverseName libraryDataverseName, String libraryName,
-            List<String> externalIdentifier, RecordConstructor options, boolean replaceIfExists, boolean ifNotExists)
-            throws CompilationException {
+    public CreateJoinStatement(FunctionSignature signature, List<Pair<VarIdentifier, TypeExpression>> paramList,
+            DataverseName libraryDataverseName, String libraryName, List<String> externalIdentifier,
+            RecordConstructor options, boolean replaceIfExists, boolean ifNotExists) throws CompilationException {
         this.signature = signature;
         this.paramList = paramList;
-        this.returnType = returnType;
+        this.returnType = null;
         this.libraryDataverseName = libraryDataverseName;
         this.libraryName = libraryName;
         this.externalIdentifier = externalIdentifier;
@@ -104,7 +103,7 @@ public class CreateFlexibleJoinStatement extends AbstractStatement {
 
     @Override
     public Kind getKind() {
-        return Kind.CREATE_FLEXIBLE_JOIN;
+        return Kind.CREATE_JOIN;
     }
 
     public FunctionSignature getFunctionSignature() {

@@ -133,7 +133,7 @@ import org.apache.asterix.lang.common.statement.CreateDataverseStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedPolicyStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedStatement;
 import org.apache.asterix.lang.common.statement.CreateFunctionStatement;
-import org.apache.asterix.lang.common.statement.CreateFlexibleJoinStatement;
+import org.apache.asterix.lang.common.statement.CreateJoinStatement;
 import org.apache.asterix.lang.common.statement.CreateIndexStatement;
 import org.apache.asterix.lang.common.statement.CreateSynonymStatement;
 import org.apache.asterix.lang.common.statement.CreateFullTextFilterStatement;
@@ -874,7 +874,7 @@ Statement CreateStatement() throws ParseException:
     | stmt = CreateIndexStatement(startToken)
     | stmt = CreateDataverseStatement(startToken)
     | stmt = CreateFunctionStatement(startToken, false)
-    | stmt = CreateFlexibleJoinStatement(startToken, false)
+    | stmt = CreateJoinStatement(startToken, false)
     | stmt = CreateAdapterStatement(startToken)
     | stmt = CreateSynonymStatement(startToken)
     | stmt = CreateFeedStatement(startToken)
@@ -1622,32 +1622,31 @@ Pair<Map<String, String>, Boolean> CastDefaultNull() throws ParseException:
   }
 }
 
-CreateFlexibleJoinStatement CreateFlexibleJoinStatement(Token startStmtToken, boolean orReplace) throws ParseException:
+CreateJoinStatement CreateJoinStatement(Token startStmtToken, boolean orReplace) throws ParseException:
 {
-  CreateFlexibleJoinStatement stmt = null;
+  CreateJoinStatement stmt = null;
 }
 {
-  <FLEXIBLE_JOIN> stmt = FlexibleJoinSpecification(startStmtToken, orReplace)
+  <JOIN> stmt = JoinSpecification(startStmtToken, orReplace)
   {
     return stmt;
   }
 }
 
-CreateFlexibleJoinStatement FlexibleJoinSpecification(Token startStmtToken, boolean orReplace) throws ParseException:
+CreateJoinStatement JoinSpecification(Token startStmtToken, boolean orReplace) throws ParseException:
 {
   FunctionSignature signature = null;
   FunctionName fctName = null;
   Pair<Integer, List<Pair<VarIdentifier,TypeExpression>>> paramsWithArity = null;
   List<Pair<VarIdentifier,TypeExpression>> params = null;
   int arity = 0;
-  TypeExpression returnType = null;
   Token beginPos = null, endPos = null;
   Expression functionBodyExpr = null;
   Pair<DataverseName,Identifier> libraryName = null;
   List<String> externalIdentifier = null;
   RecordConstructor withOptions = null;
   boolean ifNotExists = false;
-  CreateFlexibleJoinStatement stmt = null;
+  CreateJoinStatement stmt = null;
   DataverseName currentDataverse = defaultDataverse;
 }
 {
@@ -1667,7 +1666,6 @@ CreateFlexibleJoinStatement FlexibleJoinSpecification(Token startStmtToken, bool
       throw new SqlppParseException(getSourceLocation(token), "Unexpected IF NOT EXISTS");
     }
   }
-  returnType = FunctionReturnType()
   (
     (
       <LEFTBRACE>
@@ -1683,8 +1681,8 @@ CreateFlexibleJoinStatement FlexibleJoinSpecification(Token startStmtToken, bool
           endPos.beginColumn);
         getCurrentScope().addFunctionDescriptor(signature, false);
         removeCurrentScope();
-        ensureNoTypeDeclsInFunction(fctName.function, params, returnType, startStmtToken);
-        stmt = new CreateFlexibleJoinStatement(signature, params, functionBody, functionBodyExpr, orReplace, ifNotExists);
+        ensureNoTypeDeclsInFunction(fctName.function, params, startStmtToken);
+        stmt = new CreateJoinStatement(signature, params, functionBody, functionBodyExpr, orReplace, ifNotExists);
       }
     )
   |
@@ -1694,7 +1692,7 @@ CreateFlexibleJoinStatement FlexibleJoinSpecification(Token startStmtToken, bool
       (<WITH> withOptions = RecordConstructor())?
       {
         try {
-          stmt = new CreateFlexibleJoinStatement(signature, params, returnType, libraryName.first,
+          stmt = new CreateJoinStatement(signature, params, libraryName.first,
             libraryName.second.getValue(), externalIdentifier, withOptions, orReplace, ifNotExists);
         } catch (AlgebricksException e) {
             throw new SqlppParseException(getSourceLocation(startStmtToken), e.getMessage());
