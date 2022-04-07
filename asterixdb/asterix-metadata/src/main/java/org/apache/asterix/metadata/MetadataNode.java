@@ -462,13 +462,13 @@ public class MetadataNode implements IMetadataNode {
     }
 
     @Override
-    public void addFlexibleJoin(TxnId txnId, Function function) throws AlgebricksException {
+    public void addJoin(TxnId txnId, Function function) throws AlgebricksException {
         try {
             // Insert into the 'function' dataset.
             FunctionTupleTranslator tupleReaderWriter =
                     tupleTranslatorProvider.getFunctionTupleTranslator(txnId, this, true);
             ITupleReference functionTuple = tupleReaderWriter.getTupleFromMetadataEntity(function);
-            insertTupleIntoIndex(txnId, MetadataPrimaryIndexes.FUNCTION_DATASET, functionTuple);
+            insertTupleIntoIndex(txnId, MetadataPrimaryIndexes.JOIN_DATASET, functionTuple);
         } catch (HyracksDataException e) {
             if (e.matches(ErrorCode.DUPLICATE_KEY)) {
                 throw new AsterixException(org.apache.asterix.common.exceptions.ErrorCode.FUNCTION_EXISTS, e,
@@ -476,6 +476,26 @@ public class MetadataNode implements IMetadataNode {
             } else {
                 throw new AlgebricksException(e);
             }
+        }
+    }
+
+    @Override
+    public Function getJoin(TxnId txnId, FunctionSignature functionSignature) throws AlgebricksException, RemoteException {
+        List<Function> functions = getJoinsImpl(txnId, createTuple(functionSignature.getDataverseName(),
+                functionSignature.getName(), Integer.toString(functionSignature.getArity())));
+        return functions.isEmpty() ? null : functions.get(0);
+    }
+
+    private List<Function> getJoinsImpl(TxnId txnId, ITupleReference searchKey) throws AlgebricksException {
+        try {
+            FunctionTupleTranslator tupleReaderWriter =
+                    tupleTranslatorProvider.getFunctionTupleTranslator(txnId, this, false);
+            List<Function> results = new ArrayList<>();
+            IValueExtractor<Function> valueExtractor = new MetadataEntityValueExtractor<>(tupleReaderWriter);
+            searchIndex(txnId, MetadataPrimaryIndexes.JOIN_DATASET, searchKey, valueExtractor, results);
+            return results;
+        } catch (HyracksDataException e) {
+            throw new AlgebricksException(e);
         }
     }
 

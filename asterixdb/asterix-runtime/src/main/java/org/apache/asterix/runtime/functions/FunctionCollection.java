@@ -1223,9 +1223,6 @@ public final class FunctionCollection implements IFunctionCollection {
         fc.add(FJAssignOneDescriptor.FACTORY);
         fc.add(FJAssignTwoDescriptor.FACTORY);
 
-        fc.add(FJMatchDescriptor.FACTORY);
-        fc.add(FJVerifyDescriptor.FACTORY);
-
         // full-text function
         fc.add(FullTextContainsFunctionDescriptor.FACTORY);
         fc.add(FullTextContainsWithoutOptionFunctionDescriptor.FACTORY);

@@ -97,7 +97,7 @@ public class ApplyFlexibleJoinUtils {
             boolean firstFlexible = true;
             for (Mutable<ILogicalExpression> exp : inputExprs) {
                 AbstractFunctionCallExpression funcCallExp = (AbstractFunctionCallExpression) exp.getValue();
-                if (BuiltinFunctions.isFlexibleJoinCallerFunction(funcCallExp.getFunctionIdentifier())
+                if (BuiltinFunctions.isFlexibleJoinCallerFunction(funcCallExp.getFunctionInfo().getFunctionIdentifier())
                         && firstFlexible) {
                     flexibleFuncExpr = funcCallExp;
                     flexibleJoinExists = true;
@@ -345,7 +345,7 @@ public class ApplyFlexibleJoinUtils {
         BuiltinFunctions.FJ_MATCH.setLibraryName(libraryName);
         IFunctionInfo MatchFunctionInfo = context.getMetadataProvider().lookupFunction(BuiltinFunctions.FJ_MATCH);
 
-        ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(MatchFunctionInfo,
+        ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(,
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
                 new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar)));
 

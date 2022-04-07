@@ -45,7 +45,10 @@ public abstract class AbstractFunctionCallExpression extends AbstractLogicalExpr
         SCALAR,
         STATEFUL,
         AGGREGATE,
-        UNNEST
+        UNNEST,
+        FJ_AGGREGATE,
+        FJ_MATCH,
+        FJ_VERIFY
     }
 
     protected IFunctionInfo finfo;

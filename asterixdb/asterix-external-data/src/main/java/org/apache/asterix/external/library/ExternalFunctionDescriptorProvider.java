@@ -24,6 +24,8 @@ import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
+import org.apache.asterix.runtime.flexiblejoinwrappers.FJMatchDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.FJVerifyDescriptor;
 import org.apache.asterix.runtime.functions.FunctionTypeInferers;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression;
@@ -46,6 +48,10 @@ public class ExternalFunctionDescriptorProvider {
         switch (finfo.getKind()) {
             case SCALAR:
                 return new ExternalScalarFunctionDescriptor(finfo);
+            case FJ_MATCH:
+                return new FJMatchDescriptor(finfo);
+            case FJ_VERIFY:
+                return new FJVerifyDescriptor(finfo);
             case AGGREGATE:
             case UNNEST:
                 throw new AsterixException(ErrorCode.LIBRARY_EXTERNAL_FUNCTION_UNSUPPORTED_KIND, finfo.getKind());

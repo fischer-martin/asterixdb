@@ -78,11 +78,12 @@ public class CreateJoinStatement extends AbstractStatement {
     }
 
     public CreateJoinStatement(FunctionSignature signature, List<Pair<VarIdentifier, TypeExpression>> paramList,
-            DataverseName libraryDataverseName, String libraryName, List<String> externalIdentifier,
-            RecordConstructor options, boolean replaceIfExists, boolean ifNotExists) throws CompilationException {
+            TypeExpression returnType, DataverseName libraryDataverseName, String libraryName,
+            List<String> externalIdentifier, RecordConstructor options, boolean replaceIfExists, boolean ifNotExists)
+            throws CompilationException {
         this.signature = signature;
         this.paramList = paramList;
-        this.returnType = null;
+        this.returnType = returnType;
         this.libraryDataverseName = libraryDataverseName;
         this.libraryName = libraryName;
         this.externalIdentifier = externalIdentifier;

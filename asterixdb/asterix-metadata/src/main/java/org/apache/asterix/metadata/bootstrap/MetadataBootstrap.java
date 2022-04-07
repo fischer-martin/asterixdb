@@ -127,7 +127,7 @@ public class MetadataBootstrap {
                     MetadataPrimaryIndexes.LIBRARY_DATASET, MetadataPrimaryIndexes.COMPACTION_POLICY_DATASET,
                     MetadataPrimaryIndexes.EXTERNAL_FILE_DATASET, MetadataPrimaryIndexes.FEED_CONNECTION_DATASET,
                     MetadataPrimaryIndexes.SYNONYM_DATASET, MetadataPrimaryIndexes.FULL_TEXT_CONFIG_DATASET,
-                    MetadataPrimaryIndexes.FULL_TEXT_FILTER_DATASET };
+                    MetadataPrimaryIndexes.FULL_TEXT_FILTER_DATASET, MetadataPrimaryIndexes.JOIN_DATASET };
 
     private MetadataBootstrap() {
     }

@@ -67,6 +67,8 @@ public class MetadataCache {
     protected final Map<String, NodeGroup> nodeGroups = new HashMap<>();
     // Key is function Identifier . Key of value map is function name.
     protected final Map<FunctionSignature, Function> functions = new HashMap<>();
+    // Key is function Identifier . Key of value map is function name.
+    protected final Map<FunctionSignature, Function> joins = new HashMap<>();
     // Key is adapter dataverse name. Key of value map is the adapter name
     protected final Map<DataverseName, Map<String, DatasourceAdapter>> adapters = new HashMap<>();
 
@@ -132,6 +134,7 @@ public class MetadataCache {
                                                         indexes.clear();
                                                         datatypes.clear();
                                                         functions.clear();
+                                                        joins.clear();
                                                         fullTextConfigs.clear();
                                                         fullTextFilters.clear();
                                                         adapters.clear();
@@ -390,6 +393,12 @@ public class MetadataCache {
         }
     }
 
+    public Function getJoin(FunctionSignature functionSignature) {
+        synchronized (joins) {
+            return joins.get(functionSignature);
+        }
+    }
+
     public Function getFunction(FunctionSignature functionSignature) {
         synchronized (functions) {
             return functions.get(functionSignature);
@@ -473,6 +482,18 @@ public class MetadataCache {
                 return null;
             }
             return functions.remove(signature);
+        }
+    }
+
+    public Function dropJoin(Function function) {
+        synchronized (joins) {
+            FunctionSignature signature =
+                    new FunctionSignature(function.getDataverseName(), function.getName(), function.getArity());
+            Function fun = joins.get(signature);
+            if (fun == null) {
+                return null;
+            }
+            return joins.remove(signature);
         }
     }
 

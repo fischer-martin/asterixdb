@@ -35,10 +35,13 @@ import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.base.ADouble;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
+import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
+import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
+import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
 import org.apache.asterix.runtime.flexiblejoin.cartilage.Configuration;
 import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
@@ -63,10 +66,17 @@ import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
-public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor {
-    private static final long serialVersionUID = 1L;
+public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor
+        implements IExternalFunctionDescriptor {
+    private static final long serialVersionUID = 2L;
+    private final IExternalFunctionInfo finfo;
+    private IAType[] argTypes;
+    private List<Mutable<ILogicalExpression>> parameters;
 
-    public static final IFunctionDescriptorFactory FACTORY = () -> new FJVerifyDescriptor();
+    public FJVerifyDescriptor(IExternalFunctionInfo finfo) {
+        this.finfo = finfo;
+        this.parameters =
+    }
 
     @Override
     public FunctionIdentifier getIdentifier() {
@@ -87,16 +97,18 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
-                            if (BuiltinFunctions.FJ_VERIFY.getLibraryName().isEmpty()) {
-                                BuiltinFunctions.FJ_VERIFY.setLibraryName(
-                                        "org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
-                                List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
-                                parameters.add(new MutableObject<>(
-                                        new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
-                                BuiltinFunctions.FJ_VERIFY.setParameters(parameters);
-
+                            flexibleJoinClass = Class.forName(finfo.getLibraryName());
+                            Constructor<?> flexibleJoinConstructor = flexibleJoinClass.getConstructors()[0];
+                            flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
+                            if (finfo.getParametersForLibarparameters != null) {
+                                ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
+                                IAlgebricksConstantValue d = c.getValue();
+                                Double dx = Double.valueOf(d.toString());
+                                flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance(dx);
+                            } else {
+                                flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
                             }
-                            flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_VERIFY.getLibraryName());
+
                         } catch (ClassNotFoundException e) {
                             e.printStackTrace();
                         }
@@ -161,16 +173,6 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 AlgebricksConfig.ALGEBRICKS_LOGGER.info(
                                         "FJ VERIFY: ID: " + ctx.getServiceContext().getControllerService().getId());
 
-                                //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
-                                Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
-                                if (parameters != null) {
-                                    ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
-                                    IAlgebricksConstantValue d = c.getValue();
-                                    Double dx = Double.valueOf(d.toString());
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(dx);
-                                } else {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
-                                }
 
                                 ByteArrayInputStream inStream4 = new ByteArrayInputStream(bytes4, offset4, len4 + 1);
                                 DataInputStream dataIn4 = new DataInputStream(inStream4);
@@ -252,5 +254,15 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                 };
             }
         };
+    }
+
+    @Override
+    public IExternalFunctionInfo getFunctionInfo() {
+        return null;
+    }
+
+    @Override
+    public IAType[] getArgumentTypes() {
+        return new IAType[0];
     }
 }

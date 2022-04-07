@@ -116,6 +116,11 @@ public class MetadataTransactionContext extends MetadataCache {
         logAndApply(new MetadataLogicalOperation(function, true));
     }
 
+    public void addJoin(Function function) {
+        droppedCache.dropJoin(function);
+        logAndApply(new MetadataLogicalOperation(function, true));
+    }
+
     public void addFullTextFilter(FullTextFilterMetadataEntity filterMetadataEntity) {
         droppedCache.dropFullTextFilter(filterMetadataEntity);
         logAndApply(new MetadataLogicalOperation(filterMetadataEntity, true));

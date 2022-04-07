@@ -2846,134 +2846,98 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             IQueryRewriter queryRewriter = rewriterFactory.createQueryRewriter();
             Map<TypeSignature, Datatype> newInlineTypes;
             Function function;
-            if (cfs.isExternal()) {
-                if (functionSignature.getArity() == FunctionIdentifier.VARARGS) {
-                    throw new CompilationException(ErrorCode.COMPILATION_ERROR, cfs.getSourceLocation(),
-                            "Variable number of parameters is not supported for external functions");
-                }
-                List<Pair<VarIdentifier, TypeExpression>> paramList = cfs.getParameters();
-                int paramCount = paramList.size();
-                List<String> paramNames = new ArrayList<>(paramCount);
-                List<TypeSignature> paramTypes = new ArrayList<>(paramCount);
-                LinkedHashSet<TypeSignature> depTypes = new LinkedHashSet<>();
-                newInlineTypes = new HashMap<>();
 
-                for (int i = 0; i < paramCount; i++) {
-                    Pair<VarIdentifier, TypeExpression> paramPair = paramList.get(i);
-                    TypeSignature paramTypeSignature;
-                    TypeSignature paramDepTypeSignature;
-                    Datatype paramInlineTypeEntity;
-                    TypeExpression paramTypeExpr = paramPair.getSecond();
-                    if (paramTypeExpr != null) {
-                        Triple<TypeSignature, TypeSignature, Datatype> paramTypeInfo = translateFunctionParameterType(
-                                functionSignature, i, paramTypeExpr, sourceLoc, metadataProvider, mdTxnCtx);
-                        paramTypeSignature = paramTypeInfo.first;
-                        paramDepTypeSignature = paramTypeInfo.second;
-                        paramInlineTypeEntity = paramTypeInfo.third;
-                    } else {
-                        paramTypeSignature = null; // == any
-                        paramDepTypeSignature = null;
-                        paramInlineTypeEntity = null;
-                    }
-                    paramTypes.add(paramTypeSignature); // null == any
-                    if (paramDepTypeSignature != null) {
-                        depTypes.add(paramDepTypeSignature);
-                    }
-                    if (paramInlineTypeEntity != null) {
-                        newInlineTypes.put(paramTypeSignature, paramInlineTypeEntity);
-                    }
-                    VarIdentifier paramName = paramPair.getFirst();
-                    paramNames.add(queryRewriter.toFunctionParameterName(paramName));
-                }
-
-                TypeSignature returnTypeSignature;
-                TypeSignature returnDepTypeSignature;
-                Datatype returnInlineTypeEntity;
-                TypeExpression returnTypeExpr = cfs.getReturnType();
-                if (returnTypeExpr != null) {
-                    Triple<TypeSignature, TypeSignature, Datatype> returnTypeInfo = translateFunctionParameterType(
-                            functionSignature, -1, returnTypeExpr, sourceLoc, metadataProvider, mdTxnCtx);
-                    returnTypeSignature = returnTypeInfo.first;
-                    returnDepTypeSignature = returnTypeInfo.second;
-                    returnInlineTypeEntity = returnTypeInfo.third;
-                } else {
-                    returnTypeSignature = null; // == any
-                    returnDepTypeSignature = null;
-                    returnInlineTypeEntity = null;
-                }
-                if (returnDepTypeSignature != null) {
-                    depTypes.add(returnDepTypeSignature);
-                }
-                if (returnInlineTypeEntity != null) {
-                    newInlineTypes.put(returnTypeSignature, returnInlineTypeEntity);
-                }
-
-                DataverseName libraryDataverseName = cfs.getLibraryDataverseName();
-                if (libraryDataverseName == null) {
-                    libraryDataverseName = dataverseName;
-                }
-                String libraryName = cfs.getLibraryName();
-                Library library = MetadataManager.INSTANCE.getLibrary(mdTxnCtx, libraryDataverseName, libraryName);
-                if (library == null) {
-                    throw new CompilationException(ErrorCode.UNKNOWN_LIBRARY, sourceLoc, libraryName);
-                }
-
-                ExternalFunctionLanguage language =
-                        ExternalFunctionCompilerUtil.getExternalFunctionLanguage(library.getLanguage());
-                List<String> externalIdentifier = cfs.getExternalIdentifier();
-                ExternalFunctionCompilerUtil.validateExternalIdentifier(externalIdentifier, language,
-                        cfs.getSourceLocation());
-                List<List<Triple<DataverseName, String, String>>> dependencies =
-                        FunctionUtil.getExternalFunctionDependencies(depTypes);
-
-                function = new Function(functionSignature, paramNames, paramTypes, returnTypeSignature, null,
-                        FunctionKind.SCALAR.toString(), library.getLanguage(), libraryDataverseName, libraryName,
-                        externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(),
-                        dependencies);
-            } else {
-                List<Pair<VarIdentifier, TypeExpression>> paramList = cfs.getParameters();
-                int paramCount = paramList.size();
-                List<VarIdentifier> paramVars = new ArrayList<>(paramCount);
-                List<String> paramNames = new ArrayList<>(paramCount);
-                for (Pair<VarIdentifier, TypeExpression> paramPair : paramList) {
-                    VarIdentifier paramName = paramPair.getFirst();
-                    paramVars.add(paramName);
-                    paramNames.add(queryRewriter.toFunctionParameterName(paramName));
-                    if (paramPair.getSecond() != null) {
-                        throw new CompilationException(ErrorCode.COMPILATION_ILLEGAL_STATE, sourceLoc,
-                                paramName.toString());
-                    }
-                }
-
-                // Check whether the function is usable:
-                // create a function declaration for this function,
-                // and a query body calls this function with each argument set to 'missing'
-                FunctionDecl fd = new FunctionDecl(functionSignature, paramVars, cfs.getFunctionBodyExpression(), true);
-                fd.setSourceLocation(sourceLoc);
-
-                Query wrappedQuery = queryRewriter.createFunctionAccessorQuery(fd);
-                List<FunctionDecl> fdList = new ArrayList<>(declaredFunctions.size() + 1);
-                fdList.addAll(declaredFunctions);
-                fdList.add(fd);
-                metadataProvider.setDefaultDataverse(dv);
-                apiFramework.reWriteQuery(fdList, null, metadataProvider, wrappedQuery, sessionOutput, false, false,
-                        Collections.emptyList(), warningCollector);
-
-                List<List<Triple<DataverseName, String, String>>> dependencies =
-                        FunctionUtil.getFunctionDependencies(fd, queryRewriter);
-
-                newInlineTypes = Collections.emptyMap();
-                function = new Function(functionSignature, paramNames, null, null, cfs.getFunctionBody(),
-                        FunctionKind.SCALAR.toString(), compilationProvider.getParserFactory().getLanguage(), null,
-                        null, null, null, null, null, dependencies);
+            if (functionSignature.getArity() == FunctionIdentifier.VARARGS) {
+                throw new CompilationException(ErrorCode.COMPILATION_ERROR, cfs.getSourceLocation(),
+                        "Variable number of parameters is not supported for external functions");
             }
+            List<Pair<VarIdentifier, TypeExpression>> paramList = cfs.getParameters();
+            int paramCount = paramList.size();
+            List<String> paramNames = new ArrayList<>(paramCount);
+            List<TypeSignature> paramTypes = new ArrayList<>(paramCount);
+            LinkedHashSet<TypeSignature> depTypes = new LinkedHashSet<>();
+            newInlineTypes = new HashMap<>();
+
+            for (int i = 0; i < paramCount; i++) {
+                Pair<VarIdentifier, TypeExpression> paramPair = paramList.get(i);
+                TypeSignature paramTypeSignature;
+                TypeSignature paramDepTypeSignature;
+                Datatype paramInlineTypeEntity;
+                TypeExpression paramTypeExpr = paramPair.getSecond();
+                if (paramTypeExpr != null) {
+                    Triple<TypeSignature, TypeSignature, Datatype> paramTypeInfo = translateFunctionParameterType(
+                            functionSignature, i, paramTypeExpr, sourceLoc, metadataProvider, mdTxnCtx);
+                    paramTypeSignature = paramTypeInfo.first;
+                    paramDepTypeSignature = paramTypeInfo.second;
+                    paramInlineTypeEntity = paramTypeInfo.third;
+                } else {
+                    paramTypeSignature = null; // == any
+                    paramDepTypeSignature = null;
+                    paramInlineTypeEntity = null;
+                }
+                paramTypes.add(paramTypeSignature); // null == any
+                if (paramDepTypeSignature != null) {
+                    depTypes.add(paramDepTypeSignature);
+                }
+                if (paramInlineTypeEntity != null) {
+                    newInlineTypes.put(paramTypeSignature, paramInlineTypeEntity);
+                }
+                VarIdentifier paramName = paramPair.getFirst();
+                paramNames.add(queryRewriter.toFunctionParameterName(paramName));
+            }
+
+            TypeSignature returnTypeSignature;
+            TypeSignature returnDepTypeSignature;
+            Datatype returnInlineTypeEntity;
+            TypeExpression returnTypeExpr = cfs.getReturnType();
+            if (returnTypeExpr != null) {
+                Triple<TypeSignature, TypeSignature, Datatype> returnTypeInfo = translateFunctionParameterType(
+                        functionSignature, -1, returnTypeExpr, sourceLoc, metadataProvider, mdTxnCtx);
+                returnTypeSignature = returnTypeInfo.first;
+                returnDepTypeSignature = returnTypeInfo.second;
+                returnInlineTypeEntity = returnTypeInfo.third;
+            } else {
+                returnTypeSignature = null; // == any
+                returnDepTypeSignature = null;
+                returnInlineTypeEntity = null;
+            }
+            if (returnDepTypeSignature != null) {
+                depTypes.add(returnDepTypeSignature);
+            }
+            if (returnInlineTypeEntity != null) {
+                newInlineTypes.put(returnTypeSignature, returnInlineTypeEntity);
+            }
+
+            DataverseName libraryDataverseName = cfs.getLibraryDataverseName();
+            if (libraryDataverseName == null) {
+                libraryDataverseName = dataverseName;
+            }
+            String libraryName = cfs.getLibraryName();
+            Library library = MetadataManager.INSTANCE.getLibrary(mdTxnCtx, libraryDataverseName, libraryName);
+            if (library == null) {
+                throw new CompilationException(ErrorCode.UNKNOWN_LIBRARY, sourceLoc, libraryName);
+            }
+
+            ExternalFunctionLanguage language =
+                    ExternalFunctionCompilerUtil.getExternalFunctionLanguage(library.getLanguage());
+            List<String> externalIdentifier = cfs.getExternalIdentifier();
+            ExternalFunctionCompilerUtil.validateExternalIdentifier(externalIdentifier, language,
+                    cfs.getSourceLocation());
+            List<List<Triple<DataverseName, String, String>>> dependencies =
+                    FunctionUtil.getExternalFunctionDependencies(depTypes);
+
+            function = new Function(functionSignature, paramNames, paramTypes, returnTypeSignature, null,
+                    FunctionKind.SCALAR.toString(), library.getLanguage(), libraryDataverseName, libraryName,
+                    externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(),
+                    dependencies);
+
 
             if (existingFunction == null) {
                 // add new function and its inline types
                 for (Datatype newInlineType : newInlineTypes.values()) {
                     MetadataManager.INSTANCE.addDatatype(mdTxnCtx, newInlineType);
                 }
-                MetadataManager.INSTANCE.addFunction(mdTxnCtx, function);
+                MetadataManager.INSTANCE.addJoin(mdTxnCtx, function);
             } else {
                 // replace existing function and its inline types
                 for (TypeSignature existingInlineType : existingInlineTypes) {
@@ -3140,7 +3104,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         FunctionUtil.getExternalFunctionDependencies(depTypes);
 
                 function = new Function(functionSignature, paramNames, paramTypes, returnTypeSignature, null,
-                        FunctionKind.SCALAR.toString(), library.getLanguage(), libraryDataverseName, libraryName,
+                        FunctionKind.AGGREGATE.toString(), library.getLanguage(), libraryDataverseName, libraryName,
                         externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(),
                         dependencies);
             } else {

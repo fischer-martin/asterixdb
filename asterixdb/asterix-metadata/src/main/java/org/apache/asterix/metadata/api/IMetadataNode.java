@@ -459,7 +459,18 @@ public interface IMetadataNode extends Remote, Serializable {
      *             unknown function
      * @throws RemoteException
      */
-    void addFlexibleJoin(TxnId txnId, Function function) throws AlgebricksException, RemoteException;
+    void addJoin(TxnId txnId, Function function) throws AlgebricksException, RemoteException;
+
+    /**
+     * @param txnId
+     *            A globally unique id for an active metadata transaction.
+     * @param functionSignature
+     *            An instance of functionSignature representing the function
+     * @return
+     * @throws AlgebricksException
+     * @throws RemoteException
+     */
+    Function getJoin(TxnId txnId, FunctionSignature functionSignature) throws AlgebricksException, RemoteException;
 
     /**
      * @param txnId
