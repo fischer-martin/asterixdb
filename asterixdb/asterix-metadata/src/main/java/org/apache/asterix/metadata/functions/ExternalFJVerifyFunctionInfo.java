@@ -18,9 +18,6 @@
  */
 package org.apache.asterix.metadata.functions;
 
-import java.util.List;
-import java.util.Map;
-
 import org.apache.asterix.common.functions.ExternalFunctionLanguage;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.om.functions.ExternalFunctionInfo;
@@ -29,15 +26,18 @@ import org.apache.asterix.om.types.IAType;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression.FunctionKind;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 
-public class ExternalFJCallerFunctionInfo extends ExternalFunctionInfo {
+import java.util.List;
+import java.util.Map;
+
+public class ExternalFJVerifyFunctionInfo extends ExternalFunctionInfo {
 
     private static final long serialVersionUID = 3L;
 
-    public ExternalFJCallerFunctionInfo(FunctionIdentifier fid, List<IAType> parameterTypes, IAType returnType,
-            IResultTypeComputer rtc, ExternalFunctionLanguage language, DataverseName libraryDataverseName,
-            String libraryName, List<String> externalIdentifier, Map<String, String> resources, boolean deterministic,
-            boolean nullCall) {
-        super(fid, FunctionKind.FJ_CALLER, parameterTypes, returnType, rtc, language, libraryDataverseName, libraryName,
+    public ExternalFJVerifyFunctionInfo(FunctionIdentifier fid, List<IAType> parameterTypes, IAType returnType,
+                                        IResultTypeComputer rtc, ExternalFunctionLanguage language, DataverseName libraryDataverseName,
+                                        String libraryName, List<String> externalIdentifier, Map<String, String> resources, boolean deterministic,
+                                        boolean nullCall) {
+        super(fid, FunctionKind.FJ_VERIFY, parameterTypes, returnType, rtc, language, libraryDataverseName, libraryName,
                 externalIdentifier, resources, deterministic, nullCall);
     }
 }

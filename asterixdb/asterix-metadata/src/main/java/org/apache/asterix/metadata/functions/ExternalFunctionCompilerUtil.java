@@ -60,6 +60,8 @@ public class ExternalFunctionCompilerUtil {
             finfo = getUnnestFunctionInfo(metadataProvider, function);
         } else if (FunctionKind.FJ_CALLER.toString().equalsIgnoreCase(functionKind)) {
             finfo = getFJCallerFunctionInfo(metadataProvider, function);
+        } else if (FunctionKind.FJ_VERIFY.toString().equalsIgnoreCase(functionKind)) {
+            finfo = getFJVerifyFunctionInfo(metadataProvider, function);
         } else if (FunctionKind.FJ_AGGREGATE.toString().equalsIgnoreCase(functionKind)) {
             finfo = getFJAggregateFunctionInfo(metadataProvider, function);
         }
@@ -119,6 +121,28 @@ public class ExternalFunctionCompilerUtil {
         }
 
         return new ExternalFJCallerFunctionInfo(function.getSignature().createFunctionIdentifier(), paramTypes,
+                returnType, typeComputer, lang, function.getLibraryDataverseName(), function.getLibraryName(),
+                function.getExternalIdentifier(), function.getResources(), deterministic, function.getNullCall());
+    }
+
+    private static IFunctionInfo getFJVerifyFunctionInfo(MetadataProvider metadataProvider, Function function)
+            throws AlgebricksException {
+
+        List<IAType> paramTypes = getParameterTypes(function, metadataProvider);
+
+        IAType returnType = getType(function.getReturnType(), metadataProvider);
+
+        IResultTypeComputer typeComputer = new ExternalTypeComputer(returnType, paramTypes, function.getNullCall());
+
+        ExternalFunctionLanguage lang = getExternalFunctionLanguage(function.getLanguage());
+
+        Boolean deterministic = function.getDeterministic();
+        if (deterministic == null) {
+            // all external functions should store 'deterministic' property
+            throw new AsterixException(ErrorCode.METADATA_ERROR, function.getSignature().toString());
+        }
+
+        return new ExternalFJVerifyFunctionInfo(function.getSignature().createFunctionIdentifier(), paramTypes,
                 returnType, typeComputer, lang, function.getLibraryDataverseName(), function.getLibraryName(),
                 function.getExternalIdentifier(), function.getResources(), deterministic, function.getNullCall());
     }
