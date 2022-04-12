@@ -619,8 +619,6 @@ import org.apache.asterix.runtime.evaluators.functions.temporal.YearMonthDuratio
 import org.apache.asterix.runtime.flexiblejoinwrappers.FJAssignOneDescriptor;
 import org.apache.asterix.runtime.flexiblejoinwrappers.FJAssignTwoDescriptor;
 import org.apache.asterix.runtime.flexiblejoinwrappers.FJDivideDescriptor;
-import org.apache.asterix.runtime.flexiblejoinwrappers.FJMatchDescriptor;
-import org.apache.asterix.runtime.flexiblejoinwrappers.FJVerifyDescriptor;
 import org.apache.asterix.runtime.flexiblejoinwrappers.GlobalSqlSummaryOneAggregateDescriptor;
 import org.apache.asterix.runtime.flexiblejoinwrappers.GlobalSqlSummaryTwoAggregateDescriptor;
 import org.apache.asterix.runtime.flexiblejoinwrappers.GlobalSummaryOneAggregateDescriptor;

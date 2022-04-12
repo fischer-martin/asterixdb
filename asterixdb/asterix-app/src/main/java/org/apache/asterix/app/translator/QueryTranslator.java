@@ -2927,10 +2927,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     FunctionUtil.getExternalFunctionDependencies(depTypes);
 
             function = new Function(functionSignature, paramNames, paramTypes, returnTypeSignature, null,
-                    FunctionKind.SCALAR.toString(), library.getLanguage(), libraryDataverseName, libraryName,
-                    externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(),
-                    dependencies);
-
+                    FunctionKind.FJ_CALLER.toString(), library.getLanguage(), libraryDataverseName, libraryName,
+                    externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
 
             if (existingFunction == null) {
                 // add new function and its inline types

@@ -480,7 +480,8 @@ public class MetadataNode implements IMetadataNode {
     }
 
     @Override
-    public Function getJoin(TxnId txnId, FunctionSignature functionSignature) throws AlgebricksException, RemoteException {
+    public Function getJoin(TxnId txnId, FunctionSignature functionSignature)
+            throws AlgebricksException, RemoteException {
         List<Function> functions = getJoinsImpl(txnId, createTuple(functionSignature.getDataverseName(),
                 functionSignature.getName(), Integer.toString(functionSignature.getArity())));
         return functions.isEmpty() ? null : functions.get(0);

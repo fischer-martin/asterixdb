@@ -46,6 +46,7 @@ public abstract class AbstractFunctionCallExpression extends AbstractLogicalExpr
         STATEFUL,
         AGGREGATE,
         UNNEST,
+        FJ_CALLER,
         FJ_AGGREGATE,
         FJ_MATCH,
         FJ_VERIFY

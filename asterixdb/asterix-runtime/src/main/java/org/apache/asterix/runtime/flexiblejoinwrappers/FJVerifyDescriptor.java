@@ -20,8 +20,6 @@ package org.apache.asterix.runtime.flexiblejoinwrappers;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
-import java.lang.reflect.Constructor;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
@@ -32,12 +30,9 @@ import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDese
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ABoolean;
-import org.apache.asterix.om.base.ADouble;
-import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
-import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
@@ -50,10 +45,7 @@ import org.apache.asterix.runtime.flexiblejoin.oipjoin.IntervalJoin;
 import org.apache.asterix.runtime.flexiblejoin.spatialjoin.Rectangle;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
-import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
@@ -66,16 +58,15 @@ import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
-public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor
-        implements IExternalFunctionDescriptor {
+public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 2L;
-    private final IExternalFunctionInfo finfo;
+    //private final IExternalFunctionInfo finfo;
     private IAType[] argTypes;
     private List<Mutable<ILogicalExpression>> parameters;
 
     public FJVerifyDescriptor(IExternalFunctionInfo finfo) {
-        this.finfo = finfo;
-        this.parameters =
+        //this.finfo = finfo;
+        //this.parameters =
     }
 
     @Override
@@ -97,7 +88,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
-                            flexibleJoinClass = Class.forName(finfo.getLibraryName());
+                            /*flexibleJoinClass = Class.forName(finfo.getLibraryName());
                             Constructor<?> flexibleJoinConstructor = flexibleJoinClass.getConstructors()[0];
                             flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
                             if (finfo.getParametersForLibarparameters != null) {
@@ -107,9 +98,9 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor
                                 flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance(dx);
                             } else {
                                 flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
-                            }
+                            }*/
 
-                        } catch (ClassNotFoundException e) {
+                        } catch (Exception e) {
                             e.printStackTrace();
                         }
                     }
@@ -172,7 +163,6 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor
                             if (flexibleJoin == null) {
                                 AlgebricksConfig.ALGEBRICKS_LOGGER.info(
                                         "FJ VERIFY: ID: " + ctx.getServiceContext().getControllerService().getId());
-
 
                                 ByteArrayInputStream inStream4 = new ByteArrayInputStream(bytes4, offset4, len4 + 1);
                                 DataInputStream dataIn4 = new DataInputStream(inStream4);

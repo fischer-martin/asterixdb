@@ -395,8 +395,7 @@ public interface IMetadataManager extends IMetadataBootstrap {
      *            the functions signature (unique to the function)
      * @throws AlgebricksException
      */
-    Function getJoin(MetadataTransactionContext ctx, FunctionSignature functionSignature)
-            throws AlgebricksException;
+    Function getJoin(MetadataTransactionContext ctx, FunctionSignature functionSignature) throws AlgebricksException;
 
     /**
      * @param mdTxnCtx
