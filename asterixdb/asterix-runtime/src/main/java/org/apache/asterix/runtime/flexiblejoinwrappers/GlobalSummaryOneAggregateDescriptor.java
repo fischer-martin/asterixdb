@@ -19,7 +19,10 @@
 package org.apache.asterix.runtime.flexiblejoinwrappers;
 
 import org.apache.asterix.om.functions.BuiltinFunctions;
+import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
+import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
+import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.runtime.aggregates.base.AbstractAggregateFunctionDynamicDescriptor;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.runtime.base.IAggregateEvaluator;
@@ -28,10 +31,13 @@ import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
-public class GlobalSummaryOneAggregateDescriptor extends AbstractSummaryOneAggregateDescriptor {
+public class GlobalSummaryOneAggregateDescriptor extends AbstractSummaryOneAggregateDescriptor implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 1L;
-    public static final IFunctionDescriptorFactory FACTORY =
-            AbstractAggregateFunctionDynamicDescriptor.createFactory(GlobalSummaryOneAggregateDescriptor::new);
+    private final IExternalFunctionInfo finfo;
+
+    public GlobalSummaryOneAggregateDescriptor(IExternalFunctionInfo finfo) {
+        this.finfo = finfo;
+    }
 
     @Override
     public FunctionIdentifier getIdentifier() {
@@ -49,5 +55,15 @@ public class GlobalSummaryOneAggregateDescriptor extends AbstractSummaryOneAggre
                 return new GlobalSummaryOneAggregateFunction(args, ctx, sourceLoc);
             }
         };
+    }
+
+    @Override
+    public IExternalFunctionInfo getFunctionInfo() {
+        return null;
+    }
+
+    @Override
+    public IAType[] getArgumentTypes() {
+        return new IAType[0];
     }
 }

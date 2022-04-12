@@ -66,7 +66,14 @@ public class QueryLogicalExpressionJobGen implements ILogicalExpressionJobGen {
             IVariableTypeEnvironment env, IOperatorSchema[] inputSchemas, JobGenContext context)
             throws AlgebricksException {
         IScalarEvaluatorFactory[] args = codegenArguments(expr, env, inputSchemas, context);
-        IFunctionDescriptor fd = resolveFunction(expr, env, context);
+        IFunctionDescriptor fd = null;
+        if (expr.getFunctionInfo() instanceof IExternalFunctionInfo) {
+            // Expr is an external function
+            fd = ExternalFunctionDescriptorProvider.resolveExternalFunction(expr, env, context);
+        } else {
+            // Expr is an internal (built-in) function
+            fd = resolveFunction(expr, env, context);
+        }
         switch (fd.getFunctionDescriptorTag()) {
             case SERIALAGGREGATE:
                 return null;
@@ -92,7 +99,15 @@ public class QueryLogicalExpressionJobGen implements ILogicalExpressionJobGen {
             IVariableTypeEnvironment env, IOperatorSchema[] inputSchemas, JobGenContext context)
             throws AlgebricksException {
         IScalarEvaluatorFactory[] args = codegenArguments(expr, env, inputSchemas, context);
-        return resolveFunction(expr, env, context).createUnnestingEvaluatorFactory(args);
+        IFunctionDescriptor fd = null;
+        if (expr.getFunctionInfo() instanceof IExternalFunctionInfo) {
+            // Expr is an external function
+            fd = ExternalFunctionDescriptorProvider.resolveExternalFunction(expr, env, context);
+        } else {
+            // Expr is an internal (built-in) function
+            fd = resolveFunction(expr, env, context);
+        }
+        return fd.createUnnestingEvaluatorFactory(args);
     }
 
     @Override

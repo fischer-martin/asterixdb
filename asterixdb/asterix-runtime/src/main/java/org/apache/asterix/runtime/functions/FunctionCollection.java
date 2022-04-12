@@ -1194,12 +1194,9 @@ public final class FunctionCollection implements IFunctionCollection {
         fc.add(GetIntersectionDescriptor.FACTORY);
 
         // Flexible Join Wrappers
-        fc.add(FJDivideDescriptor.FACTORY);
 
         fc.add(SummaryOneAggregateDescriptor.FACTORY);
-        fc.add(LocalSummaryOneAggregateDescriptor.FACTORY);
         fc.add(IntermediateSummaryOneAggregateDescriptor.FACTORY);
-        fc.add(GlobalSummaryOneAggregateDescriptor.FACTORY);
         fc.add(ScalarSummaryOneAggregateDescriptor.FACTORY);
         fc.add(SqlSummaryOneAggregateDescriptor.FACTORY);
         fc.add(LocalSqlSummaryOneAggregateDescriptor.FACTORY);
@@ -1208,9 +1205,7 @@ public final class FunctionCollection implements IFunctionCollection {
         fc.add(ScalarSqlSummaryOneAggregateDescriptor.FACTORY);
 
         fc.add(SummaryTwoAggregateDescriptor.FACTORY);
-        fc.add(LocalSummaryTwoAggregateDescriptor.FACTORY);
         fc.add(IntermediateSummaryTwoAggregateDescriptor.FACTORY);
-        fc.add(GlobalSummaryTwoAggregateDescriptor.FACTORY);
         fc.add(ScalarSummaryTwoAggregateDescriptor.FACTORY);
         fc.add(SqlSummaryTwoAggregateDescriptor.FACTORY);
         fc.add(LocalSqlSummaryTwoAggregateDescriptor.FACTORY);
@@ -1218,8 +1213,6 @@ public final class FunctionCollection implements IFunctionCollection {
         fc.add(GlobalSqlSummaryTwoAggregateDescriptor.FACTORY);
         fc.add(ScalarSqlSummaryTwoAggregateDescriptor.FACTORY);
 
-        fc.add(FJAssignOneDescriptor.FACTORY);
-        fc.add(FJAssignTwoDescriptor.FACTORY);
 
         // full-text function
         fc.add(FullTextContainsFunctionDescriptor.FACTORY);

@@ -24,8 +24,7 @@ import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
-import org.apache.asterix.runtime.flexiblejoinwrappers.FJMatchDescriptor;
-import org.apache.asterix.runtime.flexiblejoinwrappers.FJVerifyDescriptor;
+import org.apache.asterix.runtime.flexiblejoinwrappers.*;
 import org.apache.asterix.runtime.functions.FunctionTypeInferers;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression;
@@ -52,6 +51,20 @@ public class ExternalFunctionDescriptorProvider {
                 return new FJMatchDescriptor(finfo);
             case FJ_VERIFY:
                 return new FJVerifyDescriptor(finfo);
+            case FJ_DIVIDE:
+                return new FJDivideDescriptor(finfo);
+            case FJ_LOCAL_SUMMARY_ONE:
+                return new LocalSummaryOneAggregateDescriptor(finfo);
+            case FJ_LOCAL_SUMMARY_TWO:
+                return new LocalSummaryTwoAggregateDescriptor(finfo);
+            case FJ_GLOBAL_SUMMARY_ONE:
+                return new GlobalSummaryOneAggregateDescriptor(finfo);
+            case FJ_GLOBAL_SUMMARY_TWO:
+                return new GlobalSummaryTwoAggregateDescriptor(finfo);
+            case FJ_ASSIGN_ONE:
+                return new FJAssignOneDescriptor(finfo);
+            case FJ_ASSIGN_TWO:
+                return new FJAssignTwoDescriptor(finfo);
             case AGGREGATE:
             case UNNEST:
                 throw new AsterixException(ErrorCode.LIBRARY_EXTERNAL_FUNCTION_UNSUPPORTED_KIND, finfo.getKind());

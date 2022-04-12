@@ -29,7 +29,10 @@ import java.util.List;
 import org.apache.asterix.om.base.ADouble;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
+import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
+import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
+import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
 import org.apache.asterix.runtime.flexiblejoin.cartilage.Configuration;
 import org.apache.asterix.runtime.flexiblejoin.cartilage.FlexibleJoin;
@@ -51,10 +54,14 @@ import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
-public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor {
+public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 1L;
 
-    public static final IFunctionDescriptorFactory FACTORY = () -> new FJDivideDescriptor();
+    private final IExternalFunctionInfo finfo;
+
+    public FJDivideDescriptor(IExternalFunctionInfo finfo) {
+        this.finfo = finfo;
+    }
 
     @Override
     public FunctionIdentifier getIdentifier() {
@@ -174,5 +181,15 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                 };
             }
         };
+    }
+
+    @Override
+    public IExternalFunctionInfo getFunctionInfo() {
+        return null;
+    }
+
+    @Override
+    public IAType[] getArgumentTypes() {
+        return new IAType[0];
     }
 }
