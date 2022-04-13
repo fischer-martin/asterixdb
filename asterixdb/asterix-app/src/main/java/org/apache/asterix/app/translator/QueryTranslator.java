@@ -2945,13 +2945,15 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             verifyParamTypes.add(paramTypes.get(1));
             verifyParamTypes.add(new TypeSignature(BuiltinType.ABINARY));
 
-            FunctionSignature verifyFunctionSignature = new FunctionSignature(functionSignature.createFunctionIdentifier());
+            FunctionSignature verifyFunctionSignature =
+                    new FunctionSignature(functionSignature.createFunctionIdentifier());
             verifyFunctionSignature.setArity(5);
-            verifyFunctionSignature.setName(functionSignature.getName()+"_fj_verify");
+            verifyFunctionSignature.setName(functionSignature.getName() + "_fj_verify");
 
-            Function verifyFunction = new Function(verifyFunctionSignature, verifyParamNames, verifyParamTypes, returnTypeSignature, null,
-                    FunctionKind.FJ_VERIFY.toString(), library.getLanguage(), libraryDataverseName, libraryName,
-                    externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
+            Function verifyFunction = new Function(verifyFunctionSignature, verifyParamNames, verifyParamTypes,
+                    returnTypeSignature, null, FunctionKind.FJ_VERIFY.toString(), library.getLanguage(),
+                    libraryDataverseName, libraryName, externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(),
+                    cfs.getResources(), dependencies);
 
             //Create match function
             List<String> matchParamNames = new ArrayList<>(2);
@@ -2960,12 +2962,14 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             matchParamNames.add("bucketId2");
             matchParamTypes.add(new TypeSignature(BuiltinType.AINT64));
             matchParamTypes.add(new TypeSignature(BuiltinType.AINT64));
-            FunctionSignature matchFunctionSignature = new FunctionSignature(functionSignature.createFunctionIdentifier());
+            FunctionSignature matchFunctionSignature =
+                    new FunctionSignature(functionSignature.createFunctionIdentifier());
             matchFunctionSignature.setArity(2);
-            matchFunctionSignature.setName(functionSignature.getName()+"_fj_match");
-            Function matchFunction = new Function(matchFunctionSignature, matchParamNames, matchParamTypes, returnTypeSignature, null,
-                    FunctionKind.FJ_MATCH.toString(), library.getLanguage(), libraryDataverseName, libraryName,
-                    externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
+            matchFunctionSignature.setName(functionSignature.getName() + "_fj_match");
+            Function matchFunction = new Function(matchFunctionSignature, matchParamNames, matchParamTypes,
+                    returnTypeSignature, null, FunctionKind.FJ_MATCH.toString(), library.getLanguage(),
+                    libraryDataverseName, libraryName, externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(),
+                    cfs.getResources(), dependencies);
 
             //Create local summary one function
             List<String> localSummaryOneParamNames = new ArrayList<>(1);
@@ -2973,12 +2977,15 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             localSummaryOneParamNames.add(paramNames.get(0));
             localSummaryOneParamTypes.add(paramTypes.get(0));
             TypeSignature localSummaryOneReturnTypeSignature = new TypeSignature(BuiltinType.ABINARY);
-            FunctionSignature localSummaryOneFunctionSignature = new FunctionSignature(functionSignature.createFunctionIdentifier());
+            FunctionSignature localSummaryOneFunctionSignature =
+                    new FunctionSignature(functionSignature.createFunctionIdentifier());
             localSummaryOneFunctionSignature.setArity(1);
-            localSummaryOneFunctionSignature.setName(functionSignature.getName()+"_fj_local_summary_one");
-            Function localSummaryOneFunction = new Function(localSummaryOneFunctionSignature, localSummaryOneParamNames, localSummaryOneParamTypes, localSummaryOneReturnTypeSignature, null,
-                    FunctionKind.FJ_LOCAL_SUMMARY_ONE.toString(), library.getLanguage(), libraryDataverseName, libraryName,
-                    externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
+            localSummaryOneFunctionSignature.setName(functionSignature.getName() + "_fj_local_summary_one");
+            Function localSummaryOneFunction =
+                    new Function(localSummaryOneFunctionSignature, localSummaryOneParamNames, localSummaryOneParamTypes,
+                            localSummaryOneReturnTypeSignature, null, FunctionKind.FJ_LOCAL_SUMMARY_ONE.toString(),
+                            library.getLanguage(), libraryDataverseName, libraryName, externalIdentifier,
+                            cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
 
             //Create global summary one function
             List<String> globalSummaryOneParamNames = new ArrayList<>(1);
@@ -2986,12 +2993,15 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             globalSummaryOneParamNames.add(paramNames.get(0));
             globalSummaryOneParamTypes.add(paramTypes.get(0));
             TypeSignature globalSummaryOneReturnTypeSignature = new TypeSignature(BuiltinType.ABINARY);
-            FunctionSignature globalSummaryOneFunctionSignature = new FunctionSignature(functionSignature.createFunctionIdentifier());
+            FunctionSignature globalSummaryOneFunctionSignature =
+                    new FunctionSignature(functionSignature.createFunctionIdentifier());
             globalSummaryOneFunctionSignature.setArity(1);
-            globalSummaryOneFunctionSignature.setName(functionSignature.getName()+"_fj_global_summary_one");
-            Function globalSummaryOneFunction = new Function(globalSummaryOneFunctionSignature, globalSummaryOneParamNames, globalSummaryOneParamTypes, globalSummaryOneReturnTypeSignature, null,
-                    FunctionKind.FJ_GLOBAL_SUMMARY_ONE.toString(), library.getLanguage(), libraryDataverseName, libraryName,
-                    externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
+            globalSummaryOneFunctionSignature.setName(functionSignature.getName() + "_fj_global_summary_one");
+            Function globalSummaryOneFunction = new Function(globalSummaryOneFunctionSignature,
+                    globalSummaryOneParamNames, globalSummaryOneParamTypes, globalSummaryOneReturnTypeSignature, null,
+                    FunctionKind.FJ_GLOBAL_SUMMARY_ONE.toString(), library.getLanguage(), libraryDataverseName,
+                    libraryName, externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(),
+                    dependencies);
 
             //Create local summary two function
             List<String> localSummaryTwoParamNames = new ArrayList<>(1);
@@ -2999,12 +3009,15 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             localSummaryTwoParamNames.add(paramNames.get(1));
             localSummaryTwoParamTypes.add(paramTypes.get(1));
             TypeSignature localSummaryTwoReturnTypeSignature = new TypeSignature(BuiltinType.ABINARY);
-            FunctionSignature localSummaryTwoFunctionSignature = new FunctionSignature(functionSignature.createFunctionIdentifier());
+            FunctionSignature localSummaryTwoFunctionSignature =
+                    new FunctionSignature(functionSignature.createFunctionIdentifier());
             localSummaryTwoFunctionSignature.setArity(1);
-            localSummaryTwoFunctionSignature.setName(functionSignature.getName()+"_fj_local_summary_two");
-            Function localSummaryTwoFunction = new Function(localSummaryTwoFunctionSignature, localSummaryTwoParamNames, localSummaryTwoParamTypes, localSummaryTwoReturnTypeSignature, null,
-                    FunctionKind.FJ_LOCAL_SUMMARY_TWO.toString(), library.getLanguage(), libraryDataverseName, libraryName,
-                    externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
+            localSummaryTwoFunctionSignature.setName(functionSignature.getName() + "_fj_local_summary_two");
+            Function localSummaryTwoFunction =
+                    new Function(localSummaryTwoFunctionSignature, localSummaryTwoParamNames, localSummaryTwoParamTypes,
+                            localSummaryTwoReturnTypeSignature, null, FunctionKind.FJ_LOCAL_SUMMARY_TWO.toString(),
+                            library.getLanguage(), libraryDataverseName, libraryName, externalIdentifier,
+                            cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
 
             //Create global summary two function
             List<String> globalSummaryTwoParamNames = new ArrayList<>(1);
@@ -3012,12 +3025,15 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             globalSummaryTwoParamNames.add(paramNames.get(1));
             globalSummaryTwoParamTypes.add(paramTypes.get(1));
             TypeSignature globalSummaryTwoReturnTypeSignature = new TypeSignature(BuiltinType.ABINARY);
-            FunctionSignature globalSummaryTwoFunctionSignature = new FunctionSignature(functionSignature.createFunctionIdentifier());
+            FunctionSignature globalSummaryTwoFunctionSignature =
+                    new FunctionSignature(functionSignature.createFunctionIdentifier());
             globalSummaryTwoFunctionSignature.setArity(1);
-            globalSummaryTwoFunctionSignature.setName(functionSignature.getName()+"_fj_global_summary_two");
-            Function globalSummaryTwoFunction = new Function(globalSummaryTwoFunctionSignature, globalSummaryTwoParamNames, globalSummaryTwoParamTypes, globalSummaryTwoReturnTypeSignature, null,
-                    FunctionKind.FJ_GLOBAL_SUMMARY_TWO.toString(), library.getLanguage(), libraryDataverseName, libraryName,
-                    externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
+            globalSummaryTwoFunctionSignature.setName(functionSignature.getName() + "_fj_global_summary_two");
+            Function globalSummaryTwoFunction = new Function(globalSummaryTwoFunctionSignature,
+                    globalSummaryTwoParamNames, globalSummaryTwoParamTypes, globalSummaryTwoReturnTypeSignature, null,
+                    FunctionKind.FJ_GLOBAL_SUMMARY_TWO.toString(), library.getLanguage(), libraryDataverseName,
+                    libraryName, externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(),
+                    dependencies);
 
             //Create assign one function
             List<String> assignOneParamNames = new ArrayList<>(2);
@@ -3027,12 +3043,14 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             assignOneParamTypes.add(paramTypes.get(0));
             assignOneParamTypes.add(new TypeSignature(BuiltinType.ABINARY));
             TypeSignature assignOneReturnTypeSignature = new TypeSignature(BuiltinType.AINT64);
-            FunctionSignature assignOneFunctionSignature = new FunctionSignature(functionSignature.createFunctionIdentifier());
+            FunctionSignature assignOneFunctionSignature =
+                    new FunctionSignature(functionSignature.createFunctionIdentifier());
             assignOneFunctionSignature.setArity(2);
-            assignOneFunctionSignature.setName(functionSignature.getName()+"_fj_assign_one");
-            Function assignOneFunction = new Function(assignOneFunctionSignature, assignOneParamNames, assignOneParamTypes, assignOneReturnTypeSignature, null,
-                    FunctionKind.FJ_ASSIGN_ONE.toString(), library.getLanguage(), libraryDataverseName, libraryName,
-                    externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
+            assignOneFunctionSignature.setName(functionSignature.getName() + "_fj_assign_one");
+            Function assignOneFunction = new Function(assignOneFunctionSignature, assignOneParamNames,
+                    assignOneParamTypes, assignOneReturnTypeSignature, null, FunctionKind.FJ_ASSIGN_ONE.toString(),
+                    library.getLanguage(), libraryDataverseName, libraryName, externalIdentifier, cfs.getNullCall(),
+                    cfs.getDeterministic(), cfs.getResources(), dependencies);
 
             //Create verify function
             List<String> assignTwoParamNames = new ArrayList<>(2);
@@ -3042,12 +3060,14 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             assignTwoParamTypes.add(paramTypes.get(1));
             assignTwoParamTypes.add(new TypeSignature(BuiltinType.ABINARY));
             TypeSignature assignTwoReturnTypeSignature = new TypeSignature(BuiltinType.AINT64);
-            FunctionSignature assignTwoFunctionSignature = new FunctionSignature(functionSignature.createFunctionIdentifier());
+            FunctionSignature assignTwoFunctionSignature =
+                    new FunctionSignature(functionSignature.createFunctionIdentifier());
             assignTwoFunctionSignature.setArity(2);
-            assignTwoFunctionSignature.setName(functionSignature.getName()+"_fj_assign_two");
-            Function assignTwoFunction = new Function(assignTwoFunctionSignature, assignTwoParamNames, assignTwoParamTypes, assignTwoReturnTypeSignature, null,
-                    FunctionKind.FJ_ASSIGN_TWO.toString(), library.getLanguage(), libraryDataverseName, libraryName,
-                    externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
+            assignTwoFunctionSignature.setName(functionSignature.getName() + "_fj_assign_two");
+            Function assignTwoFunction = new Function(assignTwoFunctionSignature, assignTwoParamNames,
+                    assignTwoParamTypes, assignTwoReturnTypeSignature, null, FunctionKind.FJ_ASSIGN_TWO.toString(),
+                    library.getLanguage(), libraryDataverseName, libraryName, externalIdentifier, cfs.getNullCall(),
+                    cfs.getDeterministic(), cfs.getResources(), dependencies);
 
             //Create verify function
             List<String> divideParamNames = new ArrayList<>(2);
@@ -3057,13 +3077,14 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             divideParamTypes.add(new TypeSignature(BuiltinType.ABINARY));
             divideParamTypes.add(new TypeSignature(BuiltinType.ABINARY));
             TypeSignature divideReturnTypeSignature = new TypeSignature(BuiltinType.ABINARY);
-            FunctionSignature divideFunctionSignature = new FunctionSignature(functionSignature.createFunctionIdentifier());
+            FunctionSignature divideFunctionSignature =
+                    new FunctionSignature(functionSignature.createFunctionIdentifier());
             divideFunctionSignature.setArity(2);
-            divideFunctionSignature.setName(functionSignature.getName()+"_fj_divide");
-            Function divideFunction = new Function(divideFunctionSignature, divideParamNames, divideParamTypes, divideReturnTypeSignature, null,
-                    FunctionKind.FJ_DIVIDE.toString(), library.getLanguage(), libraryDataverseName, libraryName,
-                    externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
-
+            divideFunctionSignature.setName(functionSignature.getName() + "_fj_divide");
+            Function divideFunction = new Function(divideFunctionSignature, divideParamNames, divideParamTypes,
+                    divideReturnTypeSignature, null, FunctionKind.FJ_DIVIDE.toString(), library.getLanguage(),
+                    libraryDataverseName, libraryName, externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(),
+                    cfs.getResources(), dependencies);
 
             if (existingFunction == null) {
                 // add new function and its inline types
@@ -3113,8 +3134,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             }
 
             return existingFunction != null ? CreateResult.REPLACED : CreateResult.CREATED;
-
-
 
         } catch (Exception e) {
             abort(e, e, mdTxnCtx);

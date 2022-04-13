@@ -1170,7 +1170,6 @@ public final class FunctionCollection implements IFunctionCollection {
         fc.add(ReferenceTileDescriptor.FACTORY);
         fc.add(GetIntersectionDescriptor.FACTORY);
 
-
         // full-text function
         fc.add(FullTextContainsFunctionDescriptor.FACTORY);
         fc.add(FullTextContainsWithoutOptionFunctionDescriptor.FACTORY);

@@ -18,6 +18,9 @@
  */
 package org.apache.asterix.metadata.functions;
 
+import java.util.List;
+import java.util.Map;
+
 import org.apache.asterix.common.functions.ExternalFunctionLanguage;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.om.functions.ExternalFunctionInfo;
@@ -26,17 +29,14 @@ import org.apache.asterix.om.types.IAType;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression.FunctionKind;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 
-import java.util.List;
-import java.util.Map;
-
 public class ExternalFJScalarFunctionInfo extends ExternalFunctionInfo {
 
     private static final long serialVersionUID = 3L;
 
     public ExternalFJScalarFunctionInfo(FunctionIdentifier fid, List<IAType> parameterTypes, IAType returnType,
-                                        IResultTypeComputer rtc, ExternalFunctionLanguage language, DataverseName libraryDataverseName,
-                                        String libraryName, List<String> externalIdentifier, Map<String, String> resources, boolean deterministic,
-                                        boolean nullCall) {
+            IResultTypeComputer rtc, ExternalFunctionLanguage language, DataverseName libraryDataverseName,
+            String libraryName, List<String> externalIdentifier, Map<String, String> resources, boolean deterministic,
+            boolean nullCall) {
         super(fid, FunctionKind.FJ_SCALAR, parameterTypes, returnType, rtc, language, libraryDataverseName, libraryName,
                 externalIdentifier, resources, deterministic, nullCall);
     }

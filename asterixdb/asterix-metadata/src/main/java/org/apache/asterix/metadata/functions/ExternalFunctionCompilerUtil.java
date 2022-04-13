@@ -58,7 +58,7 @@ public class ExternalFunctionCompilerUtil {
             finfo = getStatefulFunctionInfo(metadataProvider, function);
         } else if (FunctionKind.UNNEST.toString().equalsIgnoreCase(functionKind)) {
             finfo = getUnnestFunctionInfo(metadataProvider, function);
-        } else  {
+        } else {
             finfo = getFJFunctionInfo(metadataProvider, function, FunctionKind.valueOf(function.getKind()));
         }
 
@@ -121,8 +121,8 @@ public class ExternalFunctionCompilerUtil {
                 function.getExternalIdentifier(), function.getResources(), deterministic, function.getNullCall());
     }
 
-    private static IFunctionInfo getFJFunctionInfo(MetadataProvider metadataProvider, Function function, FunctionKind functionKind)
-            throws AlgebricksException {
+    private static IFunctionInfo getFJFunctionInfo(MetadataProvider metadataProvider, Function function,
+            FunctionKind functionKind) throws AlgebricksException {
 
         List<IAType> paramTypes = getParameterTypes(function, metadataProvider);
 
@@ -138,9 +138,10 @@ public class ExternalFunctionCompilerUtil {
             throw new AsterixException(ErrorCode.METADATA_ERROR, function.getSignature().toString());
         }
 
-        return new ExternalFJFunctionInfo(function.getSignature().createFunctionIdentifier(), paramTypes,
-                returnType, typeComputer, lang, function.getLibraryDataverseName(), function.getLibraryName(),
-                function.getExternalIdentifier(), function.getResources(), deterministic, function.getNullCall(), functionKind);
+        return new ExternalFJFunctionInfo(function.getSignature().createFunctionIdentifier(), paramTypes, returnType,
+                typeComputer, lang, function.getLibraryDataverseName(), function.getLibraryName(),
+                function.getExternalIdentifier(), function.getResources(), deterministic, function.getNullCall(),
+                functionKind);
     }
 
     private static IFunctionInfo getFJVerifyFunctionInfo(MetadataProvider metadataProvider, Function function)
