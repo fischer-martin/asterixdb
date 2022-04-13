@@ -102,13 +102,13 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
             String classname = finfo.getExternalIdentifier().get(0);
             flexibleJoinClass = Class.forName(classname, false, library.getClassLoader());
 
-            Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
+            Constructor<?> flexibleJoinConstructor = flexibleJoinClass.getConstructors()[0];
             if (parameters != null) {
                 ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
                 IAlgebricksConstantValue d = c.getValue();
                 Double dx = Double.valueOf(d.toString());
                 try {
-                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(dx);
+                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance(dx);
                 } catch (InstantiationException e) {
                     e.printStackTrace();
                 } catch (IllegalAccessException e) {
@@ -118,7 +118,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
                 }
             } else {
                 try {
-                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
+                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
                 } catch (InstantiationException e) {
                     e.printStackTrace();
                 } catch (IllegalAccessException e) {
@@ -127,7 +127,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
                     e.printStackTrace();
                 }
             }
-            this.summary = flexibleJoin.createSummarizer1();
+
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -138,7 +138,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
 
     @Override
     public void init() throws HyracksDataException {
-
+        this.summary = flexibleJoin.createSummarizer1();
     }
 
     @Override
@@ -207,7 +207,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         try {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset, len + 1);
             DataInputStream dataIn = new DataInputStream(inStream);
-            Summary<String> s = SerializationUtils.deserialize(dataIn);
+            Summary<Rectangle> s = SerializationUtils.deserialize(dataIn);
             summary.add(s);
             if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
                 AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Partial Summary One ID: "

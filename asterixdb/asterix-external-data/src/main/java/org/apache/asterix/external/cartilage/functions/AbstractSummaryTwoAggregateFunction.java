@@ -139,6 +139,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
 
     @Override
     public void init() throws HyracksDataException {
+        this.summary = flexibleJoin.createSummarizer1();
     }
 
     @Override
@@ -219,8 +220,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
         try {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset, len + 1);
             DataInputStream dataIn = new DataInputStream(inStream);
-
-            Summary<String> s = SerializationUtils.deserialize(dataIn);
+            Summary<?> s = SerializationUtils.deserialize(dataIn);
             summary.add(s);
             if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
                 AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Partial Summary Two ID: "
