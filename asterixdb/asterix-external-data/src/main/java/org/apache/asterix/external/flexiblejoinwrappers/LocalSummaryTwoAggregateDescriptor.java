@@ -39,7 +39,7 @@ public class LocalSummaryTwoAggregateDescriptor extends AbstractSummaryTwoAggreg
 
     @Override
     public FunctionIdentifier getIdentifier() {
-        return BuiltinFunctions.LOCAL_FJ_SUMMARY_TWO;
+        return finfo.getFunctionIdentifier();
     }
 
     @Override
@@ -50,14 +50,14 @@ public class LocalSummaryTwoAggregateDescriptor extends AbstractSummaryTwoAggreg
             @Override
             public IAggregateEvaluator createAggregateEvaluator(final IEvaluatorContext ctx)
                     throws HyracksDataException {
-                return new LocalSummaryTwoAggregateFunction(args, ctx, sourceLoc);
+                return new LocalSummaryTwoAggregateFunction(args, ctx, sourceLoc, finfo);
             }
         };
     }
 
     @Override
     public IExternalFunctionInfo getFunctionInfo() {
-        return null;
+        return finfo;
     }
 
     @Override

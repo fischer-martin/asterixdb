@@ -40,7 +40,7 @@ public class LocalSummaryOneAggregateDescriptor extends AbstractSummaryOneAggreg
 
     @Override
     public FunctionIdentifier getIdentifier() {
-        return BuiltinFunctions.LOCAL_FJ_SUMMARY_ONE;
+        return getFunctionInfo().getFunctionIdentifier();
     }
 
     @Override
@@ -51,14 +51,14 @@ public class LocalSummaryOneAggregateDescriptor extends AbstractSummaryOneAggreg
             @Override
             public IAggregateEvaluator createAggregateEvaluator(final IEvaluatorContext ctx)
                     throws HyracksDataException {
-                return new LocalSummaryOneAggregateFunction(args, ctx, sourceLoc);
+                return new LocalSummaryOneAggregateFunction(args, ctx, sourceLoc, finfo);
             }
         };
     }
 
     @Override
     public IExternalFunctionInfo getFunctionInfo() {
-        return null;
+        return finfo;
     }
 
     @Override

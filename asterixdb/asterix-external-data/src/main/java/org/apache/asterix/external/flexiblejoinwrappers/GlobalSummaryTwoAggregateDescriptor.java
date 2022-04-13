@@ -39,7 +39,7 @@ public class GlobalSummaryTwoAggregateDescriptor extends AbstractSummaryTwoAggre
 
     @Override
     public FunctionIdentifier getIdentifier() {
-        return BuiltinFunctions.GLOBAL_FJ_SUMMARY_TWO;
+        return finfo.getFunctionIdentifier();
     }
 
     @Override
@@ -50,14 +50,14 @@ public class GlobalSummaryTwoAggregateDescriptor extends AbstractSummaryTwoAggre
             @Override
             public IAggregateEvaluator createAggregateEvaluator(final IEvaluatorContext ctx)
                     throws HyracksDataException {
-                return new GlobalSummaryTwoAggregateFunction(args, ctx, sourceLoc);
+                return new GlobalSummaryTwoAggregateFunction(args, ctx, sourceLoc, finfo);
             }
         };
     }
 
     @Override
     public IExternalFunctionInfo getFunctionInfo() {
-        return null;
+        return finfo;
     }
 
     @Override

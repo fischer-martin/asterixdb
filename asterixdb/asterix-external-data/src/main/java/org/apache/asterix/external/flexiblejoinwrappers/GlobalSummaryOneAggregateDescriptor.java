@@ -39,7 +39,7 @@ public class GlobalSummaryOneAggregateDescriptor extends AbstractSummaryOneAggre
 
     @Override
     public FunctionIdentifier getIdentifier() {
-        return BuiltinFunctions.GLOBAL_FJ_SUMMARY_ONE;
+        return finfo.getFunctionIdentifier();
     }
 
     @Override
@@ -50,7 +50,7 @@ public class GlobalSummaryOneAggregateDescriptor extends AbstractSummaryOneAggre
             @Override
             public IAggregateEvaluator createAggregateEvaluator(final IEvaluatorContext ctx)
                     throws HyracksDataException {
-                return new GlobalSummaryOneAggregateFunction(args, ctx, sourceLoc);
+                return new GlobalSummaryOneAggregateFunction(args, ctx, sourceLoc, finfo);
             }
         };
     }

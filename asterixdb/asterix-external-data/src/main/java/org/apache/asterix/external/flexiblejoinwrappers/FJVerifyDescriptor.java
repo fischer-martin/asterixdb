@@ -22,12 +22,16 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.util.List;
 
+import org.apache.asterix.common.api.INcApplicationContext;
+import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
 import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
+import org.apache.asterix.external.library.ExternalLibraryManager;
+import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.functions.BuiltinFunctions;
@@ -60,18 +64,18 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
 public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 2L;
-    //private final IExternalFunctionInfo finfo;
+    private final IExternalFunctionInfo finfo;
     private IAType[] argTypes;
     private List<Mutable<ILogicalExpression>> parameters;
 
     public FJVerifyDescriptor(IExternalFunctionInfo finfo) {
-        //this.finfo = finfo;
+        this.finfo = finfo;
         //this.parameters =
     }
 
     @Override
     public FunctionIdentifier getIdentifier() {
-        return BuiltinFunctions.FJ_VERIFY;
+        return finfo.getFunctionIdentifier();
     }
 
     @Override
@@ -88,17 +92,14 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
-                            /*flexibleJoinClass = Class.forName(finfo.getLibraryName());
-                            Constructor<?> flexibleJoinConstructor = flexibleJoinClass.getConstructors()[0];
-                            flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
-                            if (finfo.getParametersForLibarparameters != null) {
-                                ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
-                                IAlgebricksConstantValue d = c.getValue();
-                                Double dx = Double.valueOf(d.toString());
-                                flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance(dx);
-                            } else {
-                                flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
-                            }*/
+                            DataverseName libraryDataverseName = finfo.getLibraryDataverseName();
+                            String libraryName = finfo.getLibraryName();
+                            ExternalLibraryManager libraryManager =
+                                    (ExternalLibraryManager) ((INcApplicationContext) ctx.getServiceContext().getApplicationContext()).getLibraryManager();
+                            JavaLibrary library = (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
+
+                            String classname = finfo.getExternalIdentifier().get(0);
+                            flexibleJoinClass = Class.forName(classname, false, library.getClassLoader());
 
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -107,7 +108,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                     private FlexibleJoin flexibleJoin = null;
                     private Configuration configuration = null;
-                    private List<Mutable<ILogicalExpression>> parameters = BuiltinFunctions.FJ_VERIFY.getParameters();
+                    private List<Mutable<ILogicalExpression>> parameters = null;
 
                     private final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
                     private final IPointable inputArg0 = new VoidPointable();
@@ -248,7 +249,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
     @Override
     public IExternalFunctionInfo getFunctionInfo() {
-        return null;
+        return finfo;
     }
 
     @Override

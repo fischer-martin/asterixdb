@@ -24,8 +24,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.functions.FunctionDescriptorTag;
+import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
+import org.apache.asterix.external.library.ExternalLibraryManager;
+import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.base.ADouble;
@@ -77,7 +81,7 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor i
 
     @Override
     public FunctionIdentifier getIdentifier() {
-        return BuiltinFunctions.FJ_MATCH;
+        return finfo.getFunctionIdentifier();
     }
 
     @Override
@@ -98,16 +102,14 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor i
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
-                            if (BuiltinFunctions.FJ_MATCH.getLibraryName().isEmpty()) {
-                                BuiltinFunctions.FJ_MATCH.setLibraryName(
-                                        "org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
-                                List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
-                                parameters.add(new MutableObject<>(
-                                        new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
-                                BuiltinFunctions.FJ_MATCH.setParameters(parameters);
+                            DataverseName libraryDataverseName = finfo.getLibraryDataverseName();
+                            String libraryName = finfo.getLibraryName();
+                            ExternalLibraryManager libraryManager =
+                                    (ExternalLibraryManager) ((INcApplicationContext) ctx.getServiceContext().getApplicationContext()).getLibraryManager();
+                            JavaLibrary library = (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
 
-                            }
-                            flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_MATCH.getLibraryName());
+                            String classname = finfo.getExternalIdentifier().get(0);
+                            flexibleJoinClass = Class.forName(classname, false, library.getClassLoader());
                         } catch (ClassNotFoundException e) {
                             e.printStackTrace();
                         }
@@ -115,7 +117,7 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor i
 
                     private FlexibleJoin flexibleJoin = null;
                     private Configuration configuration = null;
-                    private List<Mutable<ILogicalExpression>> parameters = BuiltinFunctions.FJ_VERIFY.getParameters();
+                    private List<Mutable<ILogicalExpression>> parameters = null;
 
                     private final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
                     private final IPointable inputArg0 = new VoidPointable();
@@ -199,7 +201,7 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor i
 
     @Override
     public IExternalFunctionInfo getFunctionInfo() {
-        return null;
+        return finfo;
     }
 
     @Override

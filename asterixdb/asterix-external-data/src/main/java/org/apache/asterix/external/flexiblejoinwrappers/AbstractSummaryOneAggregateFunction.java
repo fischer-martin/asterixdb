@@ -28,17 +28,23 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
 import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
+import org.apache.asterix.external.api.IExternalFunction;
+import org.apache.asterix.external.library.ExternalLibraryManager;
+import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ADouble;
 import org.apache.asterix.om.base.ANull;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
+import org.apache.asterix.om.functions.ExternalFunctionInfo;
+import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
@@ -76,38 +82,33 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     Type type;
 
     private Class<?> flexibleJoinClass = null;
-    {
-        try {
-            DataverseName libraryDataverseName = finfo.getLibraryDataverseName();
-            String libraryName = finfo.getLibraryName();
-            ExternalLibraryManager libraryManager =
-                    (ExternalLibraryManager) ((INcApplicationContext) ctx.getServiceContext().getApplicationContext()).getLibraryManager();
-            JavaLibrary library = (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
-
-            String classname = finfo.getExternalIdentifier().get(0);
-            flexibleJoinClass = Class.forName(classname, false, library.getClassLoader());
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-    }
-
     private FlexibleJoin flexibleJoin = null;
-    private List<Mutable<ILogicalExpression>> parameters = BuiltinFunctions.FJ_SUMMARY_ONE.getParameters();
+    private List<Mutable<ILogicalExpression>> parameters = null;
 
     protected ATypeTag aggType;
+    private IExternalFunctionInfo finfo;
 
     @SuppressWarnings("unchecked")
     private ISerializerDeserializer<ANull> nullSerde =
             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ANULL);
 
     public AbstractSummaryOneAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
-            SourceLocation sourceLoc) throws HyracksDataException {
+                                               SourceLocation sourceLoc, IExternalFunctionInfo finfo) throws HyracksDataException {
         super(sourceLoc);
         this.eval = args[0].createScalarEvaluator(context);
         this.context = context;
+        this.finfo = finfo;
 
-        if (flexibleJoin == null) {
-            //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
+        try {
+            DataverseName libraryDataverseName = finfo.getLibraryDataverseName();
+            String libraryName = finfo.getLibraryName();
+            ExternalLibraryManager libraryManager =
+                    (ExternalLibraryManager) ((INcApplicationContext) context.getServiceContext().getApplicationContext()).getLibraryManager();
+            JavaLibrary library = (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
+
+            String classname = finfo.getExternalIdentifier().get(0);
+            flexibleJoinClass = Class.forName(classname, false, library.getClassLoader());
+
             Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
             if (parameters != null) {
                 ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
@@ -134,6 +135,8 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
                 }
             }
             this.summary = flexibleJoin.createSummarizer1();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
 
         Type[] genericInterfaces = flexibleJoinClass.getGenericInterfaces();
@@ -208,15 +211,6 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         int offset = inputVal.getStartOffset();
         int len = inputVal.getLength();
 
-        //int nullBitmapSize = 0;
-        //int offset1 = ARecordSerializerDeserializer.getFieldOffsetById(data, offset, 0,
-        //        nullBitmapSize, false);
-        //int len = ARecordSerializerDeserializer.getRecordLength(data, 0);
-
-        //ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len + 1);
-        //DataInputStream dataIn = new DataInputStream(inStream);
-        //System.out.println(dataIn.readAllBytes().toString());
-        //String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
         try {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset, len + 1);
             DataInputStream dataIn = new DataInputStream(inStream);
@@ -258,6 +252,6 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     }
 
     protected void processNull(ATypeTag typeTag) throws UnsupportedItemTypeException {
-        throw new UnsupportedItemTypeException(sourceLoc, BuiltinFunctions.FJ_SUMMARY_TWO, typeTag.serialize());
+        throw new UnsupportedItemTypeException(sourceLoc, finfo.getFunctionIdentifier(), typeTag.serialize());
     }
 }

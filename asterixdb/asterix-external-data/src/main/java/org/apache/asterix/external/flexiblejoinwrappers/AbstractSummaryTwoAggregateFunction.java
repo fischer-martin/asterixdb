@@ -28,16 +28,21 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.asterix.common.api.INcApplicationContext;
+import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
 import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
+import org.apache.asterix.external.library.ExternalLibraryManager;
+import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ADouble;
 import org.apache.asterix.om.base.ANull;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
+import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
@@ -75,40 +80,34 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
     private Summary summary;
     Type type;
     protected ATypeTag aggType;
+    private IExternalFunctionInfo finfo;
 
     private Class<?> flexibleJoinClass = null;
-    {
-        try {
-            if (BuiltinFunctions.FJ_SUMMARY_TWO.getLibraryName().isEmpty()) {
-                BuiltinFunctions.FJ_SUMMARY_TWO
-                        .setLibraryName("org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
-                List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
-                parameters.add(new MutableObject<>(new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
-                BuiltinFunctions.FJ_SUMMARY_TWO.setParameters(parameters);
-
-            }
-            flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_SUMMARY_TWO.getLibraryName());
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private FlexibleJoin flexibleJoin = null;
-    private List<Mutable<ILogicalExpression>> parameters = BuiltinFunctions.FJ_SUMMARY_TWO.getParameters();
+        private FlexibleJoin flexibleJoin = null;
+    private List<Mutable<ILogicalExpression>> parameters = null;
 
     @SuppressWarnings("unchecked")
     private ISerializerDeserializer<ANull> nullSerde =
             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ANULL);
 
     public AbstractSummaryTwoAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
-            SourceLocation sourceLoc) throws HyracksDataException {
+            SourceLocation sourceLoc, IExternalFunctionInfo finfo) throws HyracksDataException {
         super(sourceLoc);
         this.eval = args[0].createScalarEvaluator(context);
         this.context = context;
-        this.libraryName = BuiltinFunctions.SCALAR_FJ_SUMMARY_TWO.getLibraryName();
+        this.finfo = finfo;
 
-        if (flexibleJoin == null) {
-            //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
+        try {
+            DataverseName libraryDataverseName = finfo.getLibraryDataverseName();
+            String libraryName = finfo.getLibraryName();
+            ExternalLibraryManager libraryManager =
+                    (ExternalLibraryManager) ((INcApplicationContext) context.getServiceContext().getApplicationContext()).getLibraryManager();
+            JavaLibrary library = (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
+
+            String classname = finfo.getExternalIdentifier().get(0);
+            ClassLoader cl = library.getClassLoader();
+            flexibleJoinClass = Class.forName(classname, false, cl);
+
             Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
             if (parameters != null) {
                 ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
@@ -135,6 +134,8 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
                 }
             }
             this.summary = flexibleJoin.createSummarizer2();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
 
         Type[] genericInterfaces = flexibleJoinClass.getGenericInterfaces();
@@ -155,7 +156,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
     public abstract void finishPartial(IPointable result) throws HyracksDataException;
 
     protected void processNull(ATypeTag typeTag) throws UnsupportedItemTypeException {
-        throw new UnsupportedItemTypeException(sourceLoc, BuiltinFunctions.FJ_SUMMARY_TWO, typeTag.serialize());
+        throw new UnsupportedItemTypeException(sourceLoc, finfo.getFunctionIdentifier(), typeTag.serialize());
     }
 
     public void processDataValues(IFrameTupleReference tuple) throws HyracksDataException {

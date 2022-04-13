@@ -168,7 +168,6 @@ public class ApplyFlexibleJoinUtils {
         List<Mutable<ILogicalExpression>> parameters = null;
         if (joinArgs.size() > 2) {
             parameters = joinArgs.subList(2, joinArgs.size());
-
         }
         String libraryName = functionInfo.getLibraryName();
         DataverseName dataverseName = functionInfo.getLibraryDataverseName();
@@ -458,7 +457,6 @@ public class ApplyFlexibleJoinUtils {
         String functionName = callerFunction+"_fj_local_summary_one";
         if (one == 1) {
             functionName = callerFunction+"_fj_local_summary_two";
-
         }
         FunctionSignature functionSignature = new FunctionSignature(dataverseName, functionName , 1);
         Function function = metadataProvider.lookupUserDefinedFunction(functionSignature);

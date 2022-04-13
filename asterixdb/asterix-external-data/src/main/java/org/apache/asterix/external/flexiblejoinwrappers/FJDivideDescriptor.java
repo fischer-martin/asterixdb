@@ -26,6 +26,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.asterix.common.api.INcApplicationContext;
+import org.apache.asterix.common.metadata.DataverseName;
+import org.apache.asterix.external.library.ExternalLibraryManager;
+import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.om.base.ADouble;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
@@ -64,7 +68,7 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
     @Override
     public FunctionIdentifier getIdentifier() {
-        return BuiltinFunctions.FJ_DIVIDE;
+        return finfo.getFunctionIdentifier();
     }
 
     @Override
@@ -86,16 +90,14 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
-                            if (BuiltinFunctions.FJ_DIVIDE.getLibraryName().isEmpty()) {
-                                BuiltinFunctions.FJ_DIVIDE.setLibraryName(
-                                        "org.apache.asterix.runtime.flexiblejoin.setsimilarity.SetSimilarityJoin");
-                                List<Mutable<ILogicalExpression>> parameters = new ArrayList<>();
-                                parameters.add(new MutableObject<>(
-                                        new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
-                                BuiltinFunctions.FJ_DIVIDE.setParameters(parameters);
+                            DataverseName libraryDataverseName = finfo.getLibraryDataverseName();
+                            String libraryName = finfo.getLibraryName();
+                            ExternalLibraryManager libraryManager =
+                                    (ExternalLibraryManager) ((INcApplicationContext) ctx.getServiceContext().getApplicationContext()).getLibraryManager();
+                            JavaLibrary library = (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
 
-                            }
-                            flexibleJoinClass = Class.forName(BuiltinFunctions.FJ_DIVIDE.getLibraryName());
+                            String classname = finfo.getExternalIdentifier().get(0);
+                            flexibleJoinClass = Class.forName(classname, false, library.getClassLoader());
                         } catch (ClassNotFoundException e) {
                             e.printStackTrace();
                         }
@@ -103,7 +105,7 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                     private FlexibleJoin flexibleJoin = null;
                     private Configuration configuration = null;
-                    private List<Mutable<ILogicalExpression>> parameters = BuiltinFunctions.FJ_DIVIDE.getParameters();
+                    private List<Mutable<ILogicalExpression>> parameters = null;
 
                     @Override
                     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
@@ -184,7 +186,7 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
     @Override
     public IExternalFunctionInfo getFunctionInfo() {
-        return null;
+        return finfo;
     }
 
     @Override
