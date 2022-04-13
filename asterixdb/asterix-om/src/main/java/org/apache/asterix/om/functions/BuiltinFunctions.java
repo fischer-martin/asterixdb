@@ -126,8 +126,6 @@ import org.apache.asterix.om.typecomputer.impl.ScalarVersionOfAggregateResultTyp
 import org.apache.asterix.om.typecomputer.impl.SleepTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.StringJoinTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.SubsetCollectionTypeComputer;
-import org.apache.asterix.om.typecomputer.impl.SummaryOneTypeComputer;
-import org.apache.asterix.om.typecomputer.impl.SummaryTwoTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.SwitchCaseComputer;
 import org.apache.asterix.om.typecomputer.impl.ToArrayTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.ToBigIntTypeComputer;
@@ -145,7 +143,6 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCa
 import org.apache.hyracks.algebricks.core.algebra.expressions.AggregateFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.StatefulFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.functions.AlgebricksBuiltinFunctions;
-import org.apache.hyracks.algebricks.core.algebra.functions.FlexibleJoinWrapperFunctionIdentifier;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
 import org.apache.hyracks.algebricks.core.algebra.properties.UnpartitionedPropertyComputer;
@@ -173,8 +170,6 @@ public class BuiltinFunctions {
 
     private static final Map<FunctionIdentifier, SpatialFilterKind> spatialFilterFunctions = new HashMap<>();
     private static final Set<FunctionIdentifier> similarityFunctions = new HashSet<>();
-    //Flexible Join Test Functions
-    private static final Set<FunctionIdentifier> flexibleJoinTestFunctions = new HashSet<>();
 
     public static final FunctionIdentifier TYPE_OF = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "type-of", 1);
     public static final FunctionIdentifier GET_HANDLE =
@@ -1469,76 +1464,6 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier ST_MBR_ENLARGE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "st-mbr-enlarge", 2);
 
-    //Flexible Join Test Function
-    public static final FlexibleJoinWrapperFunctionIdentifier CUSTOM_SPATIAL_FUNCTION =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-spatial-function", 2);
-    public static final FlexibleJoinWrapperFunctionIdentifier CUSTOM_TEXT_FUNCTION =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-text-function", 3);
-    public static final FlexibleJoinWrapperFunctionIdentifier CUSTOM_INTERVAL_OIP_FUNCTION =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "custom-oip-function", 3);
-
-    //Flexible Join Wrapper Functions
-    //Summary One - Aggregate
-    public static final FlexibleJoinWrapperFunctionIdentifier FJ_SUMMARY_ONE =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-fj-summary-one", 1);
-    public static final FunctionIdentifier LOCAL_FJ_SUMMARY_ONE =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "local-fj-summary-one", 1);
-    public static final FunctionIdentifier INTERMEDIATE_FJ_SUMMARY_ONE =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "intermediate-fj-summary-one", 1);
-    public static final FunctionIdentifier GLOBAL_FJ_SUMMARY_ONE =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "global-fj-summary-one", 1);
-    public static final FlexibleJoinWrapperFunctionIdentifier SCALAR_FJ_SUMMARY_ONE =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-summary-one", 1);
-    public static final FunctionIdentifier SCALAR_SQL_FJ_SUMMARY_ONE =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "sql-fj-summary-one", 1);
-    public static final FunctionIdentifier SQL_FJ_SUMMARY_ONE =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-sql-fj-summary-one", 1);
-    public static final FunctionIdentifier LOCAL_SQL_FJ_SUMMARY_ONE =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-local-sql-fj-summary-one", 1);
-    public static final FunctionIdentifier INTERMEDIATE_SQL_FJ_SUMMARY_ONE =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-intermediate-sql-fj-summary-one", 1);
-    public static final FunctionIdentifier GLOBAL_SQL_FJ_SUMMARY_ONE =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-global-sql-fj-summary-one", 1);
-
-    //Summary Two - Aggregate
-    public static final FlexibleJoinWrapperFunctionIdentifier FJ_SUMMARY_TWO =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-fj-summary-two", 1);
-    public static final FunctionIdentifier LOCAL_FJ_SUMMARY_TWO =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "local-fj-summary-two", 1);
-    public static final FunctionIdentifier INTERMEDIATE_FJ_SUMMARY_TWO =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "intermediate-fj-summary-two", 1);
-    public static final FunctionIdentifier GLOBAL_FJ_SUMMARY_TWO =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "global-fj-summary-two", 1);
-    public static final FlexibleJoinWrapperFunctionIdentifier SCALAR_FJ_SUMMARY_TWO =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-summary-two", 1);
-    public static final FlexibleJoinWrapperFunctionIdentifier SCALAR_SQL_FJ_SUMMARY_TWO =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "sql-fj-summary-two", 1);
-    public static final FunctionIdentifier SQL_FJ_SUMMARY_TWO =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-sql-fj-summary-two", 1);
-    public static final FunctionIdentifier LOCAL_SQL_FJ_SUMMARY_TWO =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-local-sql-fj-summary-two", 1);
-    public static final FunctionIdentifier INTERMEDIATE_SQL_FJ_SUMMARY_TWO =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-intermediate-sql-fj-summary-two", 1);
-    public static final FunctionIdentifier GLOBAL_SQL_FJ_SUMMARY_TWO =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-global-sql-fj-summary-two", 1);
-
-    //divide
-    public static final FlexibleJoinWrapperFunctionIdentifier FJ_DIVIDE =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-divide", 2);
-    //assign one - unnesting
-    public static final FlexibleJoinWrapperFunctionIdentifier FJ_ASSIGN_ONE =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-assign-one", 2);
-    //assign two - unnesting
-    public static final FlexibleJoinWrapperFunctionIdentifier FJ_ASSIGN_TWO =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-assign-two", 2);
-    //match
-    public static final FlexibleJoinWrapperFunctionIdentifier FJ_MATCH =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-match", 2);
-
-    //match
-    public static final FlexibleJoinWrapperFunctionIdentifier FJ_VERIFY =
-            new FlexibleJoinWrapperFunctionIdentifier(FunctionConstants.ASTERIX_NS, "fj-verify", 5);
-
     // Spatial and temporal type accessors
     public static final FunctionIdentifier ACCESSOR_TEMPORAL_YEAR =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "get-year", 1);
@@ -2437,69 +2362,6 @@ public class BuiltinFunctions {
         addPrivateFunction(ST_MBR, ARectangleTypeComputer.INSTANCE, true);
         addPrivateFunction(ST_MBR_ENLARGE, ARectangleTypeComputer.INSTANCE, true);
 
-        //Flexible Join Test Function
-        addFunction(CUSTOM_SPATIAL_FUNCTION, ABooleanTypeComputer.INSTANCE, true);
-        addFunction(CUSTOM_TEXT_FUNCTION, ABooleanTypeComputer.INSTANCE, true);
-        addFunction(CUSTOM_INTERVAL_OIP_FUNCTION, ABooleanTypeComputer.INSTANCE, true);
-
-        //Flexible Join Wrapper Functions
-        //Summary One
-        ScalarVersionOfAggregateResultType scalarSummaryOneTypeComputer =
-                new ScalarVersionOfAggregateResultType(SummaryOneTypeComputer.INSTANCE);
-
-        addFunction(FJ_SUMMARY_ONE, ABinaryTypeComputer.INSTANCE, true);
-        addPrivateFunction(LOCAL_FJ_SUMMARY_ONE, ABinaryTypeComputer.INSTANCE, true);
-        addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_ONE, ABinaryTypeComputer.INSTANCE, true);
-        addPrivateFunction(GLOBAL_FJ_SUMMARY_ONE, ABinaryTypeComputer.INSTANCE, true);
-        addFunction(SCALAR_FJ_SUMMARY_ONE, ABinaryTypeComputer.INSTANCE, true);
-
-        addAgg(SQL_FJ_SUMMARY_ONE);
-        addAgg(LOCAL_SQL_FJ_SUMMARY_ONE);
-        addAgg(GLOBAL_SQL_FJ_SUMMARY_ONE);
-        addLocalAgg(SQL_FJ_SUMMARY_ONE, LOCAL_SQL_FJ_SUMMARY_ONE);
-        addIntermediateAgg(LOCAL_SQL_FJ_SUMMARY_ONE, INTERMEDIATE_SQL_FJ_SUMMARY_ONE);
-        addIntermediateAgg(GLOBAL_SQL_FJ_SUMMARY_ONE, GLOBAL_SQL_FJ_SUMMARY_ONE);
-        addIntermediateAgg(SQL_FJ_SUMMARY_ONE, GLOBAL_SQL_FJ_SUMMARY_ONE);
-        addGlobalAgg(SQL_FJ_SUMMARY_ONE, GLOBAL_SQL_FJ_SUMMARY_ONE);
-
-        addScalarAgg(SQL_FJ_SUMMARY_ONE, SCALAR_SQL_FJ_SUMMARY_ONE);
-
-        //Summary Two
-        ScalarVersionOfAggregateResultType scalarSummaryTwoTypeComputer =
-                new ScalarVersionOfAggregateResultType(SummaryTwoTypeComputer.INSTANCE);
-
-        addFunction(FJ_SUMMARY_TWO, ABinaryTypeComputer.INSTANCE, true);
-        addPrivateFunction(LOCAL_FJ_SUMMARY_TWO, ABinaryTypeComputer.INSTANCE, true);
-        addPrivateFunction(INTERMEDIATE_FJ_SUMMARY_TWO, ABinaryTypeComputer.INSTANCE, true);
-        addPrivateFunction(GLOBAL_FJ_SUMMARY_TWO, ABinaryTypeComputer.INSTANCE, true);
-        addFunction(SCALAR_FJ_SUMMARY_TWO, ABinaryTypeComputer.INSTANCE, true);
-
-        addAgg(SQL_FJ_SUMMARY_TWO);
-        addAgg(LOCAL_SQL_FJ_SUMMARY_TWO);
-        addAgg(GLOBAL_SQL_FJ_SUMMARY_TWO);
-        addLocalAgg(SQL_FJ_SUMMARY_TWO, LOCAL_SQL_FJ_SUMMARY_TWO);
-        addIntermediateAgg(LOCAL_SQL_FJ_SUMMARY_TWO, INTERMEDIATE_SQL_FJ_SUMMARY_TWO);
-        addIntermediateAgg(GLOBAL_SQL_FJ_SUMMARY_TWO, GLOBAL_SQL_FJ_SUMMARY_TWO);
-        addIntermediateAgg(SQL_FJ_SUMMARY_TWO, GLOBAL_SQL_FJ_SUMMARY_TWO);
-        addGlobalAgg(SQL_FJ_SUMMARY_TWO, GLOBAL_SQL_FJ_SUMMARY_TWO);
-
-        addScalarAgg(SQL_FJ_SUMMARY_TWO, SCALAR_SQL_FJ_SUMMARY_TWO);
-
-        //Divide
-        addFunction(FJ_DIVIDE, ABinaryTypeComputer.INSTANCE, true);
-
-        //Assign
-        addFunction(FJ_ASSIGN_ONE, AInt32TypeComputer.INSTANCE, true);
-
-        //Assign
-        addFunction(FJ_ASSIGN_TWO, AInt32TypeComputer.INSTANCE, true);
-
-        //Match
-        addFunction(FJ_MATCH, ABooleanTypeComputer.INSTANCE, true);
-
-        //Verify
-        addFunction(FJ_VERIFY, ABooleanTypeComputer.INSTANCE, true);
-
         // Binary functions
         addFunction(BINARY_HEX_CONSTRUCTOR, ABinaryTypeComputer.INSTANCE_NULLABLE, true);
         addFunction(BINARY_BASE64_CONSTRUCTOR, ABinaryTypeComputer.INSTANCE_NULLABLE, true);
@@ -3380,8 +3242,6 @@ public class BuiltinFunctions {
         addUnnestFun(SCAN_COLLECTION, false);
         addUnnestFun(SUBSET_COLLECTION, false);
         addUnnestFun(SPATIAL_TILE, false);
-        addUnnestFun(FJ_ASSIGN_ONE, false);
-        addUnnestFun(FJ_ASSIGN_TWO, false);
     }
 
     public enum DataSourceFunctionProperty implements BuiltinFunctionProperty {
@@ -3592,12 +3452,6 @@ public class BuiltinFunctions {
         spatialFilterFunctions.put(BuiltinFunctions.ST_WITHIN, SpatialFilterKind.STFR);
     }
 
-    static {
-        flexibleJoinTestFunctions.add(CUSTOM_SPATIAL_FUNCTION);
-        flexibleJoinTestFunctions.add(CUSTOM_TEXT_FUNCTION);
-        flexibleJoinTestFunctions.add(CUSTOM_INTERVAL_OIP_FUNCTION);
-    }
-
     public static boolean isGlobalAggregateFunction(FunctionIdentifier fi) {
         return globalAggregateFunctions.contains(fi);
     }
@@ -3608,10 +3462,6 @@ public class BuiltinFunctions {
 
     public static boolean isSTFilterRefineFunction(FunctionIdentifier fi) {
         return spatialFilterFunctions.get(fi) == SpatialFilterKind.STFR;
-    }
-
-    public static boolean isFlexibleJoinCallerFunction(FunctionIdentifier fi) {
-        return flexibleJoinTestFunctions.contains(fi);
     }
 
     static {
