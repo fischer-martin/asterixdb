@@ -20,6 +20,10 @@ package org.apache.asterix.external.cartilage.functions;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 import org.apache.asterix.common.api.INcApplicationContext;
@@ -32,6 +36,7 @@ import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDese
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.external.cartilage.base.Configuration;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
+import org.apache.asterix.external.cartilage.base.ObjectInputStreamWithLoader;
 import org.apache.asterix.external.cartilage.oipjoin.FJInterval;
 import org.apache.asterix.external.cartilage.oipjoin.IntervalJoin;
 import org.apache.asterix.external.cartilage.spatialjoin.Rectangle;
@@ -49,6 +54,8 @@ import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicD
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
+import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
@@ -88,6 +95,8 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                 return new IScalarEvaluator() {
 
+                    private ClassLoader classLoader;
+
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
@@ -100,7 +109,8 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                     (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
 
                             String classname = finfo.getExternalIdentifier().get(0);
-                            flexibleJoinClass = Class.forName(classname, false, library.getClassLoader());
+                            classLoader = library.getClassLoader();
+                            flexibleJoinClass = Class.forName(classname, false, classLoader);
 
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -165,11 +175,41 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             if (flexibleJoin == null) {
                                 AlgebricksConfig.ALGEBRICKS_LOGGER.info(
                                         "FJ VERIFY: ID: " + ctx.getServiceContext().getControllerService().getId());
-
+                                Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
+                                if (parameters != null) {
+                                    ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
+                                    IAlgebricksConstantValue d = c.getValue();
+                                    Double dx = Double.valueOf(d.toString());
+                                    try {
+                                        flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(dx);
+                                    } catch (InstantiationException e) {
+                                        e.printStackTrace();
+                                    } catch (IllegalAccessException e) {
+                                        e.printStackTrace();
+                                    } catch (InvocationTargetException e) {
+                                        e.printStackTrace();
+                                    }
+                                } else {
+                                    try {
+                                        flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
+                                    } catch (InstantiationException e) {
+                                        e.printStackTrace();
+                                    } catch (IllegalAccessException e) {
+                                        e.printStackTrace();
+                                    } catch (InvocationTargetException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
                                 ByteArrayInputStream inStream4 = new ByteArrayInputStream(bytes4, offset4, len4 + 1);
                                 DataInputStream dataIn4 = new DataInputStream(inStream4);
+                                ObjectInput in4 = null;
+                                try {
+                                    in4 = new ObjectInputStreamWithLoader(dataIn4, classLoader);
+                                    configuration = (Configuration) in4.readObject();
 
-                                configuration = SerializationUtils.deserialize(dataIn4);
+                                } catch (ClassNotFoundException | IOException e) {
+                                    throw HyracksDataException.create(e);
+                                }
 
                                 AlgebricksConfig.ALGEBRICKS_LOGGER.info("MATCH COUNTER 1:" + IntervalJoin.matchCounter);
 

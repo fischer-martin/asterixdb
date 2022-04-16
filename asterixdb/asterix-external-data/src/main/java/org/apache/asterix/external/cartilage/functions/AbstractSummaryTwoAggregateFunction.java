@@ -18,9 +18,7 @@
  */
 package org.apache.asterix.external.cartilage.functions;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
@@ -30,17 +28,16 @@ import java.util.List;
 import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.*;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
+import org.apache.asterix.external.cartilage.base.ObjectInputStreamWithLoader;
 import org.apache.asterix.external.cartilage.base.Summary;
 import org.apache.asterix.external.cartilage.oipjoin.FJInterval;
 import org.apache.asterix.external.cartilage.spatialjoin.Rectangle;
 import org.apache.asterix.external.library.ExternalLibraryManager;
 import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
+import org.apache.asterix.om.base.ABinary;
 import org.apache.asterix.om.base.ANull;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.ATypeTag;
@@ -81,6 +78,8 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
     private FlexibleJoin flexibleJoin = null;
     private List<Mutable<ILogicalExpression>> parameters = null;
 
+    private ClassLoader classLoader;
+
     @SuppressWarnings("unchecked")
     private ISerializerDeserializer<ANull> nullSerde =
             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ANULL);
@@ -100,16 +99,18 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
             JavaLibrary library = (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
 
             String classname = finfo.getExternalIdentifier().get(0);
-            ClassLoader cl = library.getClassLoader();
-            flexibleJoinClass = Class.forName(classname, false, cl);
+            classLoader = library.getClassLoader();
 
-            Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
+            flexibleJoinClass = Class.forName(classname, true, classLoader);
+
+            Constructor<?>[] constructors = flexibleJoinClass.getConstructors();
+            Constructor<?> flexibleJoinClassConstructor = constructors[0];
             if (parameters != null) {
                 ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
                 IAlgebricksConstantValue d = c.getValue();
                 Double dx = Double.valueOf(d.toString());
                 try {
-                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(dx);
+                    flexibleJoin = (FlexibleJoin) flexibleJoinClassConstructor.newInstance(dx);
                 } catch (InstantiationException e) {
                     e.printStackTrace();
                 } catch (IllegalAccessException e) {
@@ -119,7 +120,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
                 }
             } else {
                 try {
-                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
+                    flexibleJoin = (FlexibleJoin) flexibleJoinClassConstructor.newInstance();
                 } catch (InstantiationException e) {
                     e.printStackTrace();
                 } catch (IllegalAccessException e) {
@@ -128,7 +129,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
                     e.printStackTrace();
                 }
             }
-            this.summary = flexibleJoin.createSummarizer2();
+            this.summary = (Summary) flexibleJoin.createSummarizer2();
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -139,7 +140,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
 
     @Override
     public void init() throws HyracksDataException {
-        this.summary = flexibleJoin.createSummarizer1();
+        //this.summary = flexibleJoin.createSummarizer1();
     }
 
     @Override
@@ -220,8 +221,9 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
         try {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset, len + 1);
             DataInputStream dataIn = new DataInputStream(inStream);
-            Summary<?> s = SerializationUtils.deserialize(dataIn);
-            summary.add(s);
+            ObjectInput in = new ObjectInputStreamWithLoader(dataIn, classLoader);
+            Summary<?> summaryTemp = (Summary<?>) in.readObject();
+            summary.add(summaryTemp);
             if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
                 AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Partial Summary Two ID: "
                         + context.getServiceContext().getControllerService().getId() + ".\n");
@@ -244,8 +246,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
         }
         resultStorage.reset();
         try {
-            resultStorage.getDataOutput().write(SerializationUtils.serialize(this.summary));
-
+            resultStorage.getDataOutput().write(SerializationUtils.serialize(summary));
         } catch (IOException e) {
             throw HyracksDataException.create(e);
         }

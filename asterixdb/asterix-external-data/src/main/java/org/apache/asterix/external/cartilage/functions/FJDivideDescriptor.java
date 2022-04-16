@@ -21,6 +21,7 @@ package org.apache.asterix.external.cartilage.functions;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.ObjectInput;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
@@ -29,6 +30,7 @@ import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.external.cartilage.base.Configuration;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
+import org.apache.asterix.external.cartilage.base.ObjectInputStreamWithLoader;
 import org.apache.asterix.external.cartilage.base.Summary;
 import org.apache.asterix.external.library.ExternalLibraryManager;
 import org.apache.asterix.external.library.JavaLibrary;
@@ -71,6 +73,8 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
         return new IScalarEvaluatorFactory() {
             private static final long serialVersionUID = 1L;
 
+            private ClassLoader classLoader;
+
             @Override
             public IScalarEvaluator createScalarEvaluator(final IEvaluatorContext ctx) throws HyracksDataException {
 
@@ -94,7 +98,8 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                     (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
 
                             String classname = finfo.getExternalIdentifier().get(0);
-                            flexibleJoinClass = Class.forName(classname, false, library.getClassLoader());
+                            classLoader = library.getClassLoader();
+                            flexibleJoinClass = Class.forName(classname, false, classLoader);
                         } catch (ClassNotFoundException e) {
                             e.printStackTrace();
                         }
@@ -113,10 +118,6 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                         eval0.evaluate(tuple, inputArg0);
                         eval1.evaluate(tuple, inputArg1);
 
-                        //if (PointableHelper.checkAndSetMissingOrNull(result, inputArg0, inputArg1)) {
-                        //    return;
-                        //}
-
                         byte[] bytes0 = inputArg0.getByteArray();
                         byte[] bytes1 = inputArg1.getByteArray();
 
@@ -134,13 +135,13 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                         if (flexibleJoin == null) {
                             //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
-                            Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
+                            Constructor<?> flexibleJoinClassConstructor = flexibleJoinClass.getConstructors()[0];
                             if (parameters != null) {
                                 ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
                                 IAlgebricksConstantValue d = c.getValue();
                                 Double dx = Double.valueOf(d.toString());
                                 try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(dx);
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinClassConstructor.newInstance(dx);
                                 } catch (InstantiationException e) {
                                     e.printStackTrace();
                                 } catch (IllegalAccessException e) {
@@ -150,7 +151,7 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 }
                             } else {
                                 try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinClassConstructor.newInstance();
                                 } catch (InstantiationException e) {
                                     e.printStackTrace();
                                 } catch (IllegalAccessException e) {
@@ -161,8 +162,23 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             }
                         }
 
-                        Summary summaryOne = SerializationUtils.deserialize(dataIn0);
-                        Summary summaryTwo = SerializationUtils.deserialize(dataIn1);
+                        ObjectInput in0 = null;
+                        ObjectInput in1 = null;
+
+                        Summary<?> summaryOne;
+                        Summary<?> summaryTwo;
+                        try {
+                            in0 = new ObjectInputStreamWithLoader(dataIn0, classLoader);
+                            in1 = new ObjectInputStreamWithLoader(dataIn1, classLoader);
+                            summaryOne = (Summary<?>) in0.readObject();
+                            summaryTwo = (Summary<?>) in1.readObject();
+
+                        } catch (IOException | ClassNotFoundException e) {
+                            throw HyracksDataException.create(e);
+                        }
+
+
+
 
                         if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
                             AlgebricksConfig.ALGEBRICKS_LOGGER

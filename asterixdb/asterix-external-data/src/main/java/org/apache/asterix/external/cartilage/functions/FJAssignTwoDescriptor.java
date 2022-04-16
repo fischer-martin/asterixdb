@@ -20,6 +20,8 @@ package org.apache.asterix.external.cartilage.functions;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
@@ -33,6 +35,7 @@ import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDese
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.external.cartilage.base.Configuration;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
+import org.apache.asterix.external.cartilage.base.ObjectInputStreamWithLoader;
 import org.apache.asterix.external.cartilage.oipjoin.FJInterval;
 import org.apache.asterix.external.cartilage.spatialjoin.Rectangle;
 import org.apache.asterix.external.library.ExternalLibraryManager;
@@ -105,6 +108,8 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                     private ISerializerDeserializer serde =
                             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT32);
 
+                    private ClassLoader classLoader;
+
                     private Class<?> flexibleJoinClass = null;
                     {
                         try {
@@ -117,7 +122,8 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                                     (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
 
                             String classname = finfo.getExternalIdentifier().get(0);
-                            flexibleJoinClass = Class.forName(classname, false, library.getClassLoader());
+                            classLoader = library.getClassLoader();
+                            flexibleJoinClass = Class.forName(classname, false, classLoader);
                         } catch (ClassNotFoundException e) {
                             e.printStackTrace();
                         }
@@ -174,7 +180,14 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                             }
                             ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1, len1 + 1);
                             DataInputStream dataIn1 = new DataInputStream(inStream1);
-                            configuration = SerializationUtils.deserialize(dataIn1);
+                            ObjectInput in1 = null;
+                            try {
+                                in1 = new ObjectInputStreamWithLoader(dataIn1, classLoader);
+                                configuration = (Configuration) in1.readObject();
+
+                            } catch (ClassNotFoundException | IOException e) {
+                                throw HyracksDataException.create(e);
+                            }
                         }
 
                         if (tag0 == ATypeTag.STRING) {

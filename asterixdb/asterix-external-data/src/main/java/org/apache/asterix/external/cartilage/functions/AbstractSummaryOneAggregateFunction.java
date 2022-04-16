@@ -21,6 +21,7 @@ package org.apache.asterix.external.cartilage.functions;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.ObjectInput;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
@@ -35,6 +36,7 @@ import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeser
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
+import org.apache.asterix.external.cartilage.base.ObjectInputStreamWithLoader;
 import org.apache.asterix.external.cartilage.base.Summary;
 import org.apache.asterix.external.cartilage.oipjoin.FJInterval;
 import org.apache.asterix.external.cartilage.spatialjoin.Rectangle;
@@ -81,6 +83,8 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     protected ATypeTag aggType;
     private IExternalFunctionInfo finfo;
 
+    private ClassLoader classLoader;
+
     @SuppressWarnings("unchecked")
     private ISerializerDeserializer<ANull> nullSerde =
             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ANULL);
@@ -100,7 +104,8 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
             JavaLibrary library = (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
 
             String classname = finfo.getExternalIdentifier().get(0);
-            flexibleJoinClass = Class.forName(classname, false, library.getClassLoader());
+            classLoader = library.getClassLoader();
+            flexibleJoinClass = Class.forName(classname, false, classLoader);
 
             Constructor<?> flexibleJoinConstructor = flexibleJoinClass.getConstructors()[0];
             if (parameters != null) {
@@ -207,8 +212,9 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         try {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset, len + 1);
             DataInputStream dataIn = new DataInputStream(inStream);
-            Summary<Rectangle> s = SerializationUtils.deserialize(dataIn);
-            summary.add(s);
+            ObjectInput in = new ObjectInputStreamWithLoader(dataIn, classLoader);
+            Summary<?> summaryTemp = (Summary<?>) in.readObject();
+            summary.add(summaryTemp);
             if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
                 AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Partial Summary One ID: "
                         + context.getServiceContext().getControllerService().getId() + ".\n");
