@@ -21,7 +21,11 @@ package org.apache.asterix.algebra.operators.physical;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
+import org.apache.asterix.common.api.INcApplicationContext;
+import org.apache.asterix.external.library.ExternalLibraryManager;
+import org.apache.asterix.lang.common.clause.GroupbyClause;
 import org.apache.asterix.runtime.operators.joins.flexible.FlexibleJoinOperatorDescriptor;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -40,6 +44,7 @@ import org.apache.hyracks.algebricks.core.algebra.properties.ILocalStructuralPro
 import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningProperty;
 import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningRequirementsCoordinator;
 import org.apache.hyracks.algebricks.core.algebra.properties.IPhysicalPropertiesVector;
+import org.apache.hyracks.algebricks.core.algebra.properties.LocalGroupingProperty;
 import org.apache.hyracks.algebricks.core.algebra.properties.LocalOrderProperty;
 import org.apache.hyracks.algebricks.core.algebra.properties.OrderColumn;
 import org.apache.hyracks.algebricks.core.algebra.properties.PhysicalRequirements;
@@ -121,22 +126,25 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         keysLeftBranchTileId.add(keysLeftBranch.get(0));
         List<LogicalVariable> keysRightBranchTileId = new ArrayList<>();
         keysRightBranchTileId.add(keysRightBranch.get(0));
+
         IPartitioningProperty pp1 = new UnorderedPartitionedProperty(new ListSet<>(keysLeftBranchTileId),
                 context.getComputationNodeDomain());
         IPartitioningProperty pp2 = new UnorderedPartitionedProperty(new ListSet<>(keysRightBranchTileId),
                 context.getComputationNodeDomain());
 
+
         List<ILocalStructuralProperty> localProperties1 = new ArrayList<>();
-        List<OrderColumn> orderColumns1 = new ArrayList<OrderColumn>();
-        orderColumns1.add(new OrderColumn(keysLeftBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
+        Set<LogicalVariable> orderColumns1 = new ListSet<LogicalVariable>();
+        orderColumns1.add(keysLeftBranch.get(0));
         //orderColumns1.add(new OrderColumn(keysLeftBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
-        localProperties1.add(new LocalOrderProperty(orderColumns1));
+        localProperties1.add(new LocalGroupingProperty(orderColumns1));
+
 
         List<ILocalStructuralProperty> localProperties2 = new ArrayList<>();
-        List<OrderColumn> orderColumns2 = new ArrayList<OrderColumn>();
-        orderColumns2.add(new OrderColumn(keysRightBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
+        Set<LogicalVariable> orderColumns2 = new ListSet<LogicalVariable>();
+        orderColumns2.add(keysRightBranch.get(0));
         //orderColumns2.add(new OrderColumn(keysRightBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
-        localProperties2.add(new LocalOrderProperty(orderColumns2));
+        localProperties2.add(new LocalGroupingProperty(orderColumns2));
 
         StructuralPropertiesVector[] pv = new StructuralPropertiesVector[2];
         pv[0] = new StructuralPropertiesVector(pp1, localProperties1);

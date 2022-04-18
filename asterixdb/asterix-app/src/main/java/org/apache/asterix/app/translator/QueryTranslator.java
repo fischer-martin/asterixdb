@@ -26,6 +26,8 @@ import static org.apache.asterix.lang.common.statement.CreateFullTextFilterState
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -67,6 +69,7 @@ import org.apache.asterix.app.result.fields.ResultsPrinter;
 import org.apache.asterix.app.result.fields.StatusPrinter;
 import org.apache.asterix.common.api.IClientRequest;
 import org.apache.asterix.common.api.IMetadataLockManager;
+import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.api.IRequestTracker;
 import org.apache.asterix.common.api.IResponsePrinter;
 import org.apache.asterix.common.cluster.IClusterStateManager;
@@ -94,9 +97,12 @@ import org.apache.asterix.common.utils.JobUtils;
 import org.apache.asterix.common.utils.JobUtils.ProgressState;
 import org.apache.asterix.common.utils.StorageConstants;
 import org.apache.asterix.compiler.provider.ILangCompilationProvider;
+import org.apache.asterix.external.cartilage.base.FlexibleJoin;
 import org.apache.asterix.external.dataset.adapter.AdapterIdentifier;
 import org.apache.asterix.external.indexing.ExternalFile;
 import org.apache.asterix.external.indexing.IndexingConstants;
+import org.apache.asterix.external.library.ExternalLibraryManager;
+import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.external.operators.FeedIntakeOperatorNodePushable;
 import org.apache.asterix.external.util.ExternalDataConstants;
 import org.apache.asterix.external.util.ExternalDataUtils;
@@ -140,6 +146,7 @@ import org.apache.asterix.lang.common.statement.FunctionDropStatement;
 import org.apache.asterix.lang.common.statement.IndexDropStatement;
 import org.apache.asterix.lang.common.statement.InsertStatement;
 import org.apache.asterix.lang.common.statement.InternalDetailsDecl;
+import org.apache.asterix.lang.common.statement.JoinDropStatement;
 import org.apache.asterix.lang.common.statement.LibraryDropStatement;
 import org.apache.asterix.lang.common.statement.LoadStatement;
 import org.apache.asterix.lang.common.statement.NodeGroupDropStatement;
@@ -414,6 +421,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         break;
                     case CREATE_JOIN:
                         handleCreateJoinStatement(metadataProvider, stmt, stmtRewriter, requestParameters);
+                        break;
+                    case JOIN_DROP:
+                        handleJoinDropStatement(metadataProvider, stmt, requestParameters);
                         break;
                     case CREATE_FUNCTION:
                         handleCreateFunctionStatement(metadataProvider, stmt, stmtRewriter, requestParameters);
@@ -2966,7 +2976,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     new FunctionSignature(functionSignature.createFunctionIdentifier());
             matchFunctionSignature.setArity(2);
             matchFunctionSignature.setName(functionSignature.getName() + "_fj_match");
-            Function matchFunction = new Function(matchFunctionSignature, matchParamNames, matchParamTypes,
+            Function matchFunction = matchFunction = new Function(matchFunctionSignature, matchParamNames, matchParamTypes,
                     returnTypeSignature, null, FunctionKind.FJ_MATCH.toString(), library.getLanguage(),
                     libraryDataverseName, libraryName, externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(),
                     cfs.getResources(), dependencies);
@@ -3397,6 +3407,113 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         }
 
         return new Triple<>(paramTypeSignature, depTypeSignature, paramInlineTypeEntity);
+    }
+
+    protected void handleJoinDropStatement(MetadataProvider metadataProvider, Statement stmt,
+            IRequestParameters requestParameters) throws Exception {
+        JoinDropStatement stmtDropFunction = (JoinDropStatement) stmt;
+        FunctionSignature signature = stmtDropFunction.getFunctionSignature();
+        metadataProvider.validateDatabaseObjectName(signature.getDataverseName(), signature.getName(),
+                stmtDropFunction.getSourceLocation());
+        DataverseName dataverseName = getActiveDataverseName(signature.getDataverseName());
+        signature.setDataverseName(dataverseName);
+        lockUtil.dropFunctionBegin(lockManager, metadataProvider.getLocks(), dataverseName, signature.getName());
+        try {
+            doDropJoin(metadataProvider, stmtDropFunction, signature, requestParameters);
+        } finally {
+            metadataProvider.getLocks().unlock();
+        }
+    }
+
+    protected boolean doDropJoin(MetadataProvider metadataProvider, JoinDropStatement stmtDropFunction,
+            FunctionSignature signature, IRequestParameters requestParameters) throws Exception {
+        DataverseName dataverseName = signature.getDataverseName();
+        SourceLocation sourceLoc = stmtDropFunction.getSourceLocation();
+        MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
+        metadataProvider.setMetadataTxnContext(mdTxnCtx);
+        try {
+            Dataverse dataverse = MetadataManager.INSTANCE.getDataverse(mdTxnCtx, dataverseName);
+            if (dataverse == null) {
+                if (stmtDropFunction.getIfExists()) {
+                    MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
+                    return false;
+                } else {
+                    throw new CompilationException(ErrorCode.UNKNOWN_DATAVERSE, sourceLoc, dataverseName);
+                }
+            }
+            Function function = MetadataManager.INSTANCE.getFunction(mdTxnCtx, signature);
+            if (function == null) {
+                if (stmtDropFunction.getIfExists()) {
+                    MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
+                    return false;
+                } else {
+                    throw new CompilationException(ErrorCode.UNKNOWN_FUNCTION, sourceLoc, signature.toString());
+                }
+            }
+
+            List<TypeSignature> inlineTypes = TypeUtil.getFunctionInlineTypes(function);
+
+            MetadataManager.INSTANCE.dropFunction(mdTxnCtx, signature);
+
+            FunctionSignature matchFunctionSignature = new FunctionSignature(signature.createFunctionIdentifier());
+            matchFunctionSignature.setArity(2);
+            matchFunctionSignature.setName(signature.getName() + "_fj_match");
+
+            FunctionSignature verifyFunctionSignature = new FunctionSignature(signature.createFunctionIdentifier());
+            verifyFunctionSignature.setArity(5);
+            verifyFunctionSignature.setName(signature.getName() + "_fj_verify");
+
+            FunctionSignature divideFunctionSignature = new FunctionSignature(signature.createFunctionIdentifier());
+            divideFunctionSignature.setArity(2);
+            divideFunctionSignature.setName(signature.getName() + "_fj_divide");
+
+            FunctionSignature localSummaryOneFunctionSignature =
+                    new FunctionSignature(signature.createFunctionIdentifier());
+            localSummaryOneFunctionSignature.setArity(1);
+            localSummaryOneFunctionSignature.setName(signature.getName() + "_fj_local_summary_one");
+
+            FunctionSignature globalSummaryOneFunctionSignature =
+                    new FunctionSignature(signature.createFunctionIdentifier());
+            globalSummaryOneFunctionSignature.setArity(1);
+            globalSummaryOneFunctionSignature.setName(signature.getName() + "_fj_global_summary_one");
+
+            FunctionSignature localSummaryTwoFunctionSignature =
+                    new FunctionSignature(signature.createFunctionIdentifier());
+            localSummaryTwoFunctionSignature.setArity(1);
+            localSummaryTwoFunctionSignature.setName(signature.getName() + "_fj_local_summary_two");
+
+            FunctionSignature globalSummaryTwoFunctionSignature =
+                    new FunctionSignature(signature.createFunctionIdentifier());
+            globalSummaryTwoFunctionSignature.setArity(1);
+            globalSummaryTwoFunctionSignature.setName(signature.getName() + "_fj_global_summary_two");
+
+            FunctionSignature assignOneFunctionSignature = new FunctionSignature(signature.createFunctionIdentifier());
+            assignOneFunctionSignature.setArity(2);
+            assignOneFunctionSignature.setName(signature.getName() + "_fj_assign_one");
+
+            FunctionSignature assignTwoFunctionSignature = new FunctionSignature(signature.createFunctionIdentifier());
+            assignTwoFunctionSignature.setArity(2);
+            assignTwoFunctionSignature.setName(signature.getName() + "_fj_assign_two");
+
+            MetadataManager.INSTANCE.dropFunction(mdTxnCtx, matchFunctionSignature);
+            MetadataManager.INSTANCE.dropFunction(mdTxnCtx, verifyFunctionSignature);
+            MetadataManager.INSTANCE.dropFunction(mdTxnCtx, divideFunctionSignature);
+            MetadataManager.INSTANCE.dropFunction(mdTxnCtx, localSummaryOneFunctionSignature);
+            MetadataManager.INSTANCE.dropFunction(mdTxnCtx, globalSummaryOneFunctionSignature);
+            MetadataManager.INSTANCE.dropFunction(mdTxnCtx, localSummaryTwoFunctionSignature);
+            MetadataManager.INSTANCE.dropFunction(mdTxnCtx, globalSummaryTwoFunctionSignature);
+            MetadataManager.INSTANCE.dropFunction(mdTxnCtx, assignOneFunctionSignature);
+            MetadataManager.INSTANCE.dropFunction(mdTxnCtx, assignTwoFunctionSignature);
+
+            for (TypeSignature inlineType : inlineTypes) {
+                MetadataManager.INSTANCE.dropDatatype(mdTxnCtx, inlineType.getDataverseName(), inlineType.getName());
+            }
+            MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
+            return true;
+        } catch (Exception e) {
+            abort(e, e, mdTxnCtx);
+            throw e;
+        }
     }
 
     protected void handleFunctionDropStatement(MetadataProvider metadataProvider, Statement stmt,

@@ -24,8 +24,11 @@ import java.util.HashSet;
 import java.util.List;
 
 import org.apache.asterix.algebra.operators.physical.FlexibleJoinPOperator;
+import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.functions.FunctionSignature;
 import org.apache.asterix.common.metadata.DataverseName;
+import org.apache.asterix.external.library.ExternalLibraryManager;
+import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.Function;
 import org.apache.asterix.metadata.functions.ExternalFunctionCompilerUtil;
@@ -379,7 +382,7 @@ public class ApplyFlexibleJoinUtils {
                 new MutableObject<>(leftBucketIdVarPair.second), new MutableObject<>(rightBucketIdVarPair.second));
         //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
         //        keysLeftBranch, keysRightBranch, ));
-        //setFlexibleJoinOp(matchJoinOp,keysLeftBranch, keysRightBranch, context);
+        setFlexibleJoinOp(matchJoinOp,keysLeftBranch, keysRightBranch, context);
         //setHashJoinOp(matchJoinOp,keysLeftBranch, keysRightBranch, context);
         matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());

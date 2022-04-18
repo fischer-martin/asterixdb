@@ -70,6 +70,7 @@ import org.apache.asterix.lang.common.statement.FunctionDecl;
 import org.apache.asterix.lang.common.statement.FunctionDropStatement;
 import org.apache.asterix.lang.common.statement.IndexDropStatement;
 import org.apache.asterix.lang.common.statement.InsertStatement;
+import org.apache.asterix.lang.common.statement.JoinDropStatement;
 import org.apache.asterix.lang.common.statement.LibraryDropStatement;
 import org.apache.asterix.lang.common.statement.LoadStatement;
 import org.apache.asterix.lang.common.statement.NodeGroupDropStatement;
@@ -197,6 +198,8 @@ public interface ILangVisitor<R, T> {
     R visit(CreateJoinStatement cfs, T arg) throws CompilationException;
 
     R visit(FunctionDropStatement del, T arg) throws CompilationException;
+
+    R visit(JoinDropStatement del, T arg) throws CompilationException;
 
     R visit(CreateAdapterStatement cfs, T arg) throws CompilationException;
 

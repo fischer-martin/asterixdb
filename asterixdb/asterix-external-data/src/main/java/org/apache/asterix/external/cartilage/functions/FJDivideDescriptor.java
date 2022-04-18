@@ -28,9 +28,9 @@ import java.util.List;
 
 import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.metadata.DataverseName;
+import org.apache.asterix.external.cartilage.base.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.external.cartilage.base.Configuration;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
-import org.apache.asterix.external.cartilage.base.ObjectInputStreamWithLoader;
 import org.apache.asterix.external.cartilage.base.Summary;
 import org.apache.asterix.external.library.ExternalLibraryManager;
 import org.apache.asterix.external.library.JavaLibrary;
@@ -168,17 +168,14 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                         Summary<?> summaryOne;
                         Summary<?> summaryTwo;
                         try {
-                            in0 = new ObjectInputStreamWithLoader(dataIn0, classLoader);
-                            in1 = new ObjectInputStreamWithLoader(dataIn1, classLoader);
+                            in0 = new ClassLoaderAwareObjectInputStream(dataIn0, classLoader);
+                            in1 = new ClassLoaderAwareObjectInputStream(dataIn1, classLoader);
                             summaryOne = (Summary<?>) in0.readObject();
                             summaryTwo = (Summary<?>) in1.readObject();
 
                         } catch (IOException | ClassNotFoundException e) {
                             throw HyracksDataException.create(e);
                         }
-
-
-
 
                         if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
                             AlgebricksConfig.ALGEBRICKS_LOGGER

@@ -18,7 +18,10 @@
  */
 package org.apache.asterix.external.cartilage.functions;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
@@ -28,16 +31,18 @@ import java.util.List;
 import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
-import org.apache.asterix.dataflow.data.nontagged.serde.*;
+import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
+import org.apache.asterix.external.cartilage.base.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
-import org.apache.asterix.external.cartilage.base.ObjectInputStreamWithLoader;
 import org.apache.asterix.external.cartilage.base.Summary;
 import org.apache.asterix.external.cartilage.oipjoin.FJInterval;
 import org.apache.asterix.external.cartilage.spatialjoin.Rectangle;
 import org.apache.asterix.external.library.ExternalLibraryManager;
 import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
-import org.apache.asterix.om.base.ABinary;
 import org.apache.asterix.om.base.ANull;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.ATypeTag;
@@ -221,7 +226,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
         try {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset, len + 1);
             DataInputStream dataIn = new DataInputStream(inStream);
-            ObjectInput in = new ObjectInputStreamWithLoader(dataIn, classLoader);
+            ObjectInput in = new ClassLoaderAwareObjectInputStream(dataIn, classLoader);
             Summary<?> summaryTemp = (Summary<?>) in.readObject();
             summary.add(summaryTemp);
             if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {

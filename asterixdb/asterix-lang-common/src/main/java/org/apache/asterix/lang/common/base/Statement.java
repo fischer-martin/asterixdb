@@ -100,6 +100,7 @@ public interface Statement extends ILangExpression {
         DROP_FEED_POLICY,
         CREATE_FUNCTION,
         CREATE_JOIN,
+        JOIN_DROP,
         CREATE_ADAPTER,
         CREATE_LIBRARY,
         FUNCTION_DROP,

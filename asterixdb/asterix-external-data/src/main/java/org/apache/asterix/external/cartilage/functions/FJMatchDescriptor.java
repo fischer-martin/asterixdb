@@ -133,13 +133,13 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor i
                             AlgebricksConfig.ALGEBRICKS_LOGGER
                                     .info("FJ MATCH: ID: " + ctx.getServiceContext().getControllerService().getId());
                             //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
-                            Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
+                            Constructor<?> flexibleJoinClassConstructor = flexibleJoinClass.getConstructors()[0];
                             if (parameters != null) {
                                 ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
                                 IAlgebricksConstantValue d = c.getValue();
                                 Double dx = Double.valueOf(d.toString());
                                 try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(dx);
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinClassConstructor.newInstance(dx);
                                 } catch (InstantiationException e) {
                                     e.printStackTrace();
                                 } catch (IllegalAccessException e) {
@@ -149,7 +149,7 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor i
                                 }
                             } else {
                                 try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinClassConstructor.newInstance();
                                 } catch (InstantiationException e) {
                                     e.printStackTrace();
                                 } catch (IllegalAccessException e) {

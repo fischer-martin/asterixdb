@@ -35,8 +35,8 @@ import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeseria
 import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
+import org.apache.asterix.external.cartilage.base.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
-import org.apache.asterix.external.cartilage.base.ObjectInputStreamWithLoader;
 import org.apache.asterix.external.cartilage.base.Summary;
 import org.apache.asterix.external.cartilage.oipjoin.FJInterval;
 import org.apache.asterix.external.cartilage.spatialjoin.Rectangle;
@@ -212,7 +212,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         try {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset, len + 1);
             DataInputStream dataIn = new DataInputStream(inStream);
-            ObjectInput in = new ObjectInputStreamWithLoader(dataIn, classLoader);
+            ObjectInput in = new ClassLoaderAwareObjectInputStream(dataIn, classLoader);
             Summary<?> summaryTemp = (Summary<?>) in.readObject();
             summary.add(summaryTemp);
             if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {

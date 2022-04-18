@@ -134,6 +134,7 @@ import org.apache.asterix.lang.common.statement.CreateFeedPolicyStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedStatement;
 import org.apache.asterix.lang.common.statement.CreateFunctionStatement;
 import org.apache.asterix.lang.common.statement.CreateJoinStatement;
+import org.apache.asterix.lang.common.statement.JoinDropStatement;
 import org.apache.asterix.lang.common.statement.CreateIndexStatement;
 import org.apache.asterix.lang.common.statement.CreateSynonymStatement;
 import org.apache.asterix.lang.common.statement.CreateFullTextFilterStatement;
@@ -2188,6 +2189,7 @@ Statement DropStatement() throws ParseException:
     | stmt = DropDataverseStatement(startToken)
     | stmt = DropAdapterStatement(startToken)
     | stmt = DropFunctionStatement(startToken)
+    | stmt = JoinDropStatement(startToken)
     | stmt = DropFeedStatement(startToken)
     | stmt = DropFeedPolicyStatement(startToken)
     | stmt = DropSynonymStatement(startToken)
@@ -2407,6 +2409,30 @@ AdapterDropStatement DropAdapterSpecification(Token startStmtToken) throws Parse
   adapterName = QualifiedName() ifExists = IfExists()
   {
     AdapterDropStatement stmt = new AdapterDropStatement(adapterName.first, adapterName.second.getValue(), ifExists);
+    return addSourceLocation(stmt, startStmtToken);
+  }
+}
+
+JoinDropStatement JoinDropStatement(Token startStmtToken) throws ParseException:
+{
+  JoinDropStatement stmt = null;
+}
+{
+  <JOIN> stmt = JoinDropSpecification(startStmtToken)
+  {
+    return stmt;
+  }
+}
+
+JoinDropStatement JoinDropSpecification(Token startStmtToken) throws ParseException:
+{
+  FunctionSignature funcSig = null;
+  boolean ifExists = false;
+}
+{
+  funcSig = FunctionSignature() ifExists = IfExists()
+  {
+    JoinDropStatement stmt = new JoinDropStatement(funcSig, ifExists);
     return addSourceLocation(stmt, startStmtToken);
   }
 }

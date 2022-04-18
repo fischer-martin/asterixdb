@@ -34,9 +34,9 @@ import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserial
 import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
+import org.apache.asterix.external.cartilage.base.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.external.cartilage.base.Configuration;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
-import org.apache.asterix.external.cartilage.base.ObjectInputStreamWithLoader;
 import org.apache.asterix.external.cartilage.oipjoin.FJInterval;
 import org.apache.asterix.external.cartilage.oipjoin.IntervalJoin;
 import org.apache.asterix.external.cartilage.spatialjoin.Rectangle;
@@ -51,7 +51,6 @@ import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
@@ -204,7 +203,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 DataInputStream dataIn4 = new DataInputStream(inStream4);
                                 ObjectInput in4 = null;
                                 try {
-                                    in4 = new ObjectInputStreamWithLoader(dataIn4, classLoader);
+                                    in4 = new ClassLoaderAwareObjectInputStream(dataIn4, classLoader);
                                     configuration = (Configuration) in4.readObject();
 
                                 } catch (ClassNotFoundException | IOException e) {

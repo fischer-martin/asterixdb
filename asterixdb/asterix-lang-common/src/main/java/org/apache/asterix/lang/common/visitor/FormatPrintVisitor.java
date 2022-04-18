@@ -95,6 +95,7 @@ import org.apache.asterix.lang.common.statement.FunctionDropStatement;
 import org.apache.asterix.lang.common.statement.IndexDropStatement;
 import org.apache.asterix.lang.common.statement.InsertStatement;
 import org.apache.asterix.lang.common.statement.InternalDetailsDecl;
+import org.apache.asterix.lang.common.statement.JoinDropStatement;
 import org.apache.asterix.lang.common.statement.LibraryDropStatement;
 import org.apache.asterix.lang.common.statement.LoadStatement;
 import org.apache.asterix.lang.common.statement.NodeGroupDropStatement;
@@ -900,6 +901,15 @@ public abstract class FormatPrintVisitor implements ILangVisitor<Void, Integer> 
         out.println(cfjs.getFunctionBody());
         out.println("}" + SEMICOLON);
         out.println();
+        return null;
+    }
+
+    @Override
+    public Void visit(JoinDropStatement del, Integer step) throws CompilationException {
+        out.print(skip(step) + "drop join ");
+        FunctionSignature funcSignature = del.getFunctionSignature();
+        out.print(funcSignature.toString());
+        out.println(SEMICOLON);
         return null;
     }
 
