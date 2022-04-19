@@ -81,7 +81,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
 
     private Class<?> flexibleJoinClass = null;
     private FlexibleJoin flexibleJoin = null;
-    private List<Mutable<ILogicalExpression>> parameters = null;
+    private List<ILogicalExpression> parameters = null;
 
     private ClassLoader classLoader;
 
@@ -111,7 +111,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
             Constructor<?>[] constructors = flexibleJoinClass.getConstructors();
             Constructor<?> flexibleJoinClassConstructor = constructors[0];
             if (parameters != null) {
-                ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
+                ConstantExpression c = (ConstantExpression) parameters.get(0);
                 IAlgebricksConstantValue d = c.getValue();
                 Double dx = Double.valueOf(d.toString());
                 try {

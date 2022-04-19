@@ -24,18 +24,15 @@ import java.util.HashSet;
 import java.util.List;
 
 import org.apache.asterix.algebra.operators.physical.FlexibleJoinPOperator;
-import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.functions.FunctionSignature;
 import org.apache.asterix.common.metadata.DataverseName;
-import org.apache.asterix.external.library.ExternalLibraryManager;
-import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.Function;
+import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
 import org.apache.asterix.metadata.functions.ExternalFunctionCompilerUtil;
 import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
-import org.apache.asterix.om.functions.FunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.FlexibleJoinUtilFactory;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
@@ -57,7 +54,6 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression
 import org.apache.hyracks.algebricks.core.algebra.expressions.ScalarFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.UnnestingFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
-import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AggregateOperator;
@@ -169,9 +165,14 @@ public class ApplyFlexibleJoinUtils {
             rightInputVar = spatialJoinVar0;
         }
 
-        List<Mutable<ILogicalExpression>> parameters = null;
+        List<Mutable<ILogicalExpression>> parametersT = null;
+        List<ILogicalExpression> parameters = new ArrayList<>();
         if (joinArgs.size() > 2) {
-            parameters = joinArgs.subList(2, joinArgs.size());
+            parametersT = joinArgs.subList(2, joinArgs.size());
+        }
+        for (Mutable<ILogicalExpression> p:parametersT
+             ) {
+            parameters.add(p.getValue());
         }
         String libraryName = functionInfo.getLibraryName();
         DataverseName dataverseName = functionInfo.getLibraryDataverseName();
@@ -193,7 +194,7 @@ public class ApplyFlexibleJoinUtils {
 
         //Add a dynamic workflof for the summary one
         Triple<MutableObject<ILogicalOperator>, List<LogicalVariable>, MutableObject<ILogicalOperator>> leftSummarizer =
-                createSummary(joinOp, context, leftInputOp, leftInputVar, 0, dataverseName, functionName);
+                createSummary(joinOp, context, leftInputOp, leftInputVar, 0, dataverseName, functionName, parameters);
         MutableObject<ILogicalOperator> leftGlobalAgg = leftSummarizer.first;
         List<LogicalVariable> leftGlobalAggResultVars = leftSummarizer.second;
         MutableObject<ILogicalOperator> leftExchToJoinOpRef = leftSummarizer.third;
@@ -201,7 +202,7 @@ public class ApplyFlexibleJoinUtils {
 
         //Add a dynamic workflof for the summary two
         Triple<MutableObject<ILogicalOperator>, List<LogicalVariable>, MutableObject<ILogicalOperator>> rightSummarizer =
-                createSummary(joinOp, context, rightInputOp, rightInputVar, 1, dataverseName, functionName);
+                createSummary(joinOp, context, rightInputOp, rightInputVar, 1, dataverseName, functionName, parameters);
         MutableObject<ILogicalOperator> rightGlobalAgg = rightSummarizer.first;
         List<LogicalVariable> rightGlobalAggResultVars = rightSummarizer.second;
         MutableObject<ILogicalOperator> rightExchToJoinOpRef = rightSummarizer.third;
@@ -227,8 +228,8 @@ public class ApplyFlexibleJoinUtils {
         String divideFunctionName = functionName + "_fj_divide";
         FunctionSignature divideFunctionSignature = new FunctionSignature(dataverseName, divideFunctionName, 2);
         Function divideFunction = metadataProvider.lookupUserDefinedFunction(divideFunctionSignature);
-        FunctionInfo divideFunctionInfo =
-                (FunctionInfo) ExternalFunctionCompilerUtil.getExternalFunctionInfo(metadataProvider, divideFunction);
+        ExternalFJFunctionInfo divideFunctionInfo = ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider,
+                divideFunction, parameters);
 
         List<Mutable<ILogicalExpression>> getDivideFuncInputExprs = new ArrayList<>();
         getDivideFuncInputExprs.add(new MutableObject<>(new VariableReferenceExpression(leftSummary)));
@@ -317,16 +318,16 @@ public class ApplyFlexibleJoinUtils {
         // Inject unnest operator to add bucket IDs to the left and right branch of the join operator
         Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> leftBucketIdVarPair =
                 ApplyFlexibleJoinUtils.injectAssignOneUnnestOperator(context, leftInputOp, leftInputVar,
-                        leftConfigurationExpr, dataverseName, functionName);
+                        leftConfigurationExpr, dataverseName, functionName, parameters);
         Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> rightBucketIdVarPair =
                 ApplyFlexibleJoinUtils.injectAssignTwoUnnestOperator(context, rightInputOp, rightInputVar,
-                        rightConfigurationExpr, dataverseName, functionName);
+                        rightConfigurationExpr, dataverseName, functionName, parameters);
 
         LogicalVariable leftBucketIdVar = leftBucketIdVarPair.first;
         LogicalVariable rightBucketIdVar = rightBucketIdVarPair.first;
 
         ScalarFunctionCallExpression verifyJoinCondition = createVerifyCondition(joinOp, verifyConfigurationExpr,
-                leftBucketIdVar, rightBucketIdVar, leftInputVar, rightInputVar, dataverseName, functionName);
+                leftBucketIdVar, rightBucketIdVar, leftInputVar, rightInputVar, dataverseName, functionName, parameters);
 
         List<LogicalVariable> keysLeftBranch = new ArrayList<>();
         keysLeftBranch.add(leftBucketIdVar);
@@ -339,8 +340,9 @@ public class ApplyFlexibleJoinUtils {
         String matchFunctionName = functionName + "_fj_match";
         FunctionSignature matchFunctionSignature = new FunctionSignature(dataverseName, matchFunctionName, 2);
         Function matchFunction = metadataProvider.lookupUserDefinedFunction(matchFunctionSignature);
-        FunctionInfo MatchFunctionInfo =
-                (FunctionInfo) ExternalFunctionCompilerUtil.getExternalFunctionInfo(metadataProvider, matchFunction);
+        ExternalFJFunctionInfo MatchFunctionInfo = ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider,
+                        matchFunction, parameters);
+
 
         ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(MatchFunctionInfo,
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
@@ -382,7 +384,7 @@ public class ApplyFlexibleJoinUtils {
                 new MutableObject<>(leftBucketIdVarPair.second), new MutableObject<>(rightBucketIdVarPair.second));
         //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
         //        keysLeftBranch, keysRightBranch, ));
-        setFlexibleJoinOp(matchJoinOp,keysLeftBranch, keysRightBranch, context);
+        setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
         //setHashJoinOp(matchJoinOp,keysLeftBranch, keysRightBranch, context);
         matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());
@@ -451,20 +453,22 @@ public class ApplyFlexibleJoinUtils {
     private static Pair<MutableObject<ILogicalOperator>, List<LogicalVariable>> createLocalAndGlobalAggregateOperators(
             AbstractBinaryJoinOperator op, IOptimizationContext context, LogicalVariable inputVar,
             MutableObject<ILogicalOperator> exchToLocalAggRef, int one, DataverseName dataverseName,
-            String callerFunction) throws AlgebricksException {
+            String callerFunction, List<ILogicalExpression> parameters) throws AlgebricksException {
 
         AbstractLogicalExpression inputVarRef = new VariableReferenceExpression(inputVar, op.getSourceLocation());
         List<Mutable<ILogicalExpression>> fields = new ArrayList<>(1);
         fields.add(new MutableObject<>(inputVarRef));
 
-        IFunctionInfo localAggFunc = null;
+        ExternalFJFunctionInfo localAggFunc = null;
         String functionName = callerFunction + "_fj_local_summary_one";
         if (one == 1) {
             functionName = callerFunction + "_fj_local_summary_two";
         }
         FunctionSignature functionSignature = new FunctionSignature(dataverseName, functionName, 1);
         Function function = metadataProvider.lookupUserDefinedFunction(functionSignature);
-        localAggFunc = ExternalFunctionCompilerUtil.getExternalFunctionInfo(metadataProvider, function);
+
+
+        localAggFunc = (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider, function, parameters);
 
         AggregateFunctionCallExpression localAggExpr = new AggregateFunctionCallExpression(localAggFunc, false, fields);
         localAggExpr.setSourceLocation(op.getSourceLocation());
@@ -480,19 +484,20 @@ public class ApplyFlexibleJoinUtils {
 
         // Output of local aggregate operator is the input of global aggregate operator
         return createGlobalAggregateOperator(op, context, localOutVariable, localAgg, one, dataverseName,
-                callerFunction);
+                callerFunction, parameters);
     }
 
     private static Pair<MutableObject<ILogicalOperator>, List<LogicalVariable>> createGlobalAggregateOperator(
             AbstractBinaryJoinOperator op, IOptimizationContext context, LogicalVariable inputVar,
-            MutableObject<ILogicalOperator> inputOperator, int one, DataverseName dataverseName, String callerFunction)
+            MutableObject<ILogicalOperator> inputOperator, int one, DataverseName dataverseName, String callerFunction,
+            List<ILogicalExpression> parameters)
             throws AlgebricksException {
 
         List<Mutable<ILogicalExpression>> globalAggFuncArgs = new ArrayList<>(1);
         AbstractLogicalExpression inputVarRef = new VariableReferenceExpression(inputVar, op.getSourceLocation());
         globalAggFuncArgs.add(new MutableObject<>(inputVarRef));
 
-        IFunctionInfo globalAggFunc = null;
+        ExternalFJFunctionInfo globalAggFunc = null;
         String functionName = callerFunction + "_fj_global_summary_one";
         if (one == 1) {
             functionName = callerFunction + "_fj_global_summary_two";
@@ -500,7 +505,7 @@ public class ApplyFlexibleJoinUtils {
         }
         FunctionSignature functionSignature = new FunctionSignature(dataverseName, functionName, 1);
         Function function = metadataProvider.lookupUserDefinedFunction(functionSignature);
-        globalAggFunc = ExternalFunctionCompilerUtil.getExternalFunctionInfo(metadataProvider, function);
+        globalAggFunc = (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider, function, parameters);
 
         AggregateFunctionCallExpression globalAggExpr =
                 new AggregateFunctionCallExpression(globalAggFunc, true, globalAggFuncArgs);
@@ -522,7 +527,8 @@ public class ApplyFlexibleJoinUtils {
 
     private static Triple<MutableObject<ILogicalOperator>, List<LogicalVariable>, MutableObject<ILogicalOperator>> createSummary(
             AbstractBinaryJoinOperator op, IOptimizationContext context, Mutable<ILogicalOperator> inputOp,
-            LogicalVariable inputVar, int one, DataverseName dataverseName, String callerFunction)
+            LogicalVariable inputVar, int one, DataverseName dataverseName, String callerFunction,
+            List<ILogicalExpression> parameters)
             throws AlgebricksException {
         // Add ReplicationOperator for the input branch
         SourceLocation sourceLocation = op.getSourceLocation();
@@ -540,7 +546,7 @@ public class ApplyFlexibleJoinUtils {
 
         Pair<MutableObject<ILogicalOperator>, List<LogicalVariable>> createLocalAndGlobalAggResult =
                 createLocalAndGlobalAggregateOperators(op, context, inputVar, exchToLocalAggRef, one, dataverseName,
-                        callerFunction);
+                        callerFunction, parameters);
         return new Triple<>(createLocalAndGlobalAggResult.first, createLocalAndGlobalAggResult.second,
                 exchToForwardRef);
     }
@@ -576,7 +582,8 @@ public class ApplyFlexibleJoinUtils {
 
     private static Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> injectAssignOneUnnestOperator(
             IOptimizationContext context, Mutable<ILogicalOperator> op, LogicalVariable unnestVar,
-            Mutable<ILogicalExpression> configureExpr, DataverseName dataverseName, String functionCall)
+            Mutable<ILogicalExpression> configureExpr, DataverseName dataverseName, String functionCall,
+            List<ILogicalExpression> parameters)
             throws AlgebricksException {
         SourceLocation srcLoc = op.getValue().getSourceLocation();
         LogicalVariable bucketIdVar = context.newVar();
@@ -586,8 +593,8 @@ public class ApplyFlexibleJoinUtils {
         String verifyFunctionName = functionCall + "_fj_assign_one";
         FunctionSignature functionSignature = new FunctionSignature(dataverseName, verifyFunctionName, 2);
         Function function = metadataProvider.lookupUserDefinedFunction(functionSignature);
-        FunctionInfo externalFunctionInfo =
-                (FunctionInfo) ExternalFunctionCompilerUtil.getExternalFunctionInfo(metadataProvider, function);
+        ExternalFJFunctionInfo externalFunctionInfo =
+                (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider, function, parameters);
 
         UnnestingFunctionCallExpression assignFuncExpr = new UnnestingFunctionCallExpression(externalFunctionInfo,
                 new MutableObject<>(unnestVarRef), configureExpr);
@@ -605,7 +612,8 @@ public class ApplyFlexibleJoinUtils {
 
     private static Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> injectAssignTwoUnnestOperator(
             IOptimizationContext context, Mutable<ILogicalOperator> op, LogicalVariable unnestVar,
-            Mutable<ILogicalExpression> configureExpr, DataverseName dataverseName, String functionCall)
+            Mutable<ILogicalExpression> configureExpr, DataverseName dataverseName, String functionCall,
+            List<ILogicalExpression> parameters)
             throws AlgebricksException {
         SourceLocation srcLoc = op.getValue().getSourceLocation();
         LogicalVariable bucketIdVar = context.newVar();
@@ -615,9 +623,8 @@ public class ApplyFlexibleJoinUtils {
         String functionName = functionCall + "_fj_assign_two";
         FunctionSignature functionSignature = new FunctionSignature(dataverseName, functionName, 2);
         Function function = metadataProvider.lookupUserDefinedFunction(functionSignature);
-        FunctionInfo externalFunctionInfo =
-                (FunctionInfo) ExternalFunctionCompilerUtil.getExternalFunctionInfo(metadataProvider, function);
-
+        ExternalFJFunctionInfo externalFunctionInfo =
+                (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider, function, parameters);
         UnnestingFunctionCallExpression spatialTileFuncExpr = new UnnestingFunctionCallExpression(externalFunctionInfo,
                 new MutableObject<>(unnestVarRef), configureExpr);
         spatialTileFuncExpr.setSourceLocation(srcLoc);
@@ -693,14 +700,13 @@ public class ApplyFlexibleJoinUtils {
     private static ScalarFunctionCallExpression createVerifyCondition(AbstractBinaryJoinOperator op,
             Mutable<ILogicalExpression> configurationExpr, LogicalVariable leftBucketIdVar,
             LogicalVariable rightBucketIdVar, LogicalVariable leftInputVar, LogicalVariable rightInputVar,
-            DataverseName dataverseName, String functionName) throws AlgebricksException {
+            DataverseName dataverseName, String functionName, List<ILogicalExpression> parameters) throws AlgebricksException {
 
         String verifyFunctionName = functionName + "_fj_verify";
         FunctionSignature verifyFunctionSignature = new FunctionSignature(dataverseName, verifyFunctionName, 5);
         Function verifyFunction = metadataProvider.lookupUserDefinedFunction(verifyFunctionSignature);
-        FunctionInfo verifyFunctionInfo =
-                (FunctionInfo) ExternalFunctionCompilerUtil.getExternalFunctionInfo(metadataProvider, verifyFunction);
-
+        ExternalFJFunctionInfo verifyFunctionInfo =
+                (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider, verifyFunction, parameters);
         ScalarFunctionCallExpression verify = new ScalarFunctionCallExpression(verifyFunctionInfo,
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
                 new MutableObject<>(new VariableReferenceExpression(leftInputVar)),

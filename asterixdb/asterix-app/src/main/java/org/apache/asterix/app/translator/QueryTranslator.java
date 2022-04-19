@@ -26,8 +26,6 @@ import static org.apache.asterix.lang.common.statement.CreateFullTextFilterState
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -69,7 +67,6 @@ import org.apache.asterix.app.result.fields.ResultsPrinter;
 import org.apache.asterix.app.result.fields.StatusPrinter;
 import org.apache.asterix.common.api.IClientRequest;
 import org.apache.asterix.common.api.IMetadataLockManager;
-import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.api.IRequestTracker;
 import org.apache.asterix.common.api.IResponsePrinter;
 import org.apache.asterix.common.cluster.IClusterStateManager;
@@ -97,12 +94,9 @@ import org.apache.asterix.common.utils.JobUtils;
 import org.apache.asterix.common.utils.JobUtils.ProgressState;
 import org.apache.asterix.common.utils.StorageConstants;
 import org.apache.asterix.compiler.provider.ILangCompilationProvider;
-import org.apache.asterix.external.cartilage.base.FlexibleJoin;
 import org.apache.asterix.external.dataset.adapter.AdapterIdentifier;
 import org.apache.asterix.external.indexing.ExternalFile;
 import org.apache.asterix.external.indexing.IndexingConstants;
-import org.apache.asterix.external.library.ExternalLibraryManager;
-import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.external.operators.FeedIntakeOperatorNodePushable;
 import org.apache.asterix.external.util.ExternalDataConstants;
 import org.apache.asterix.external.util.ExternalDataUtils;
@@ -2976,8 +2970,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     new FunctionSignature(functionSignature.createFunctionIdentifier());
             matchFunctionSignature.setArity(2);
             matchFunctionSignature.setName(functionSignature.getName() + "_fj_match");
-            Function matchFunction = matchFunction = new Function(matchFunctionSignature, matchParamNames, matchParamTypes,
-                    returnTypeSignature, null, FunctionKind.FJ_MATCH.toString(), library.getLanguage(),
+            Function matchFunction = new Function(matchFunctionSignature, matchParamNames,
+                    matchParamTypes, returnTypeSignature, null, FunctionKind.FJ_MATCH.toString(), library.getLanguage(),
                     libraryDataverseName, libraryName, externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(),
                     cfs.getResources(), dependencies);
 

@@ -16,28 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.metadata.functions;
+package org.apache.asterix.om.functions;
 
 import java.util.List;
 import java.util.Map;
 
 import org.apache.asterix.common.functions.ExternalFunctionLanguage;
 import org.apache.asterix.common.metadata.DataverseName;
-import org.apache.asterix.om.functions.ExternalFunctionInfo;
 import org.apache.asterix.om.typecomputer.base.IResultTypeComputer;
 import org.apache.asterix.om.types.IAType;
+import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression.FunctionKind;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 
-public class ExternalFJCallerFunctionInfo extends ExternalFunctionInfo {
+public class ExternalFJFunctionInfo extends ExternalFunctionInfo implements IExternalFJFunctionInfo {
 
     private static final long serialVersionUID = 3L;
+    private final List<ILogicalExpression> parameters;
 
-    public ExternalFJCallerFunctionInfo(FunctionIdentifier fid, List<IAType> parameterTypes, IAType returnType,
+
+    public ExternalFJFunctionInfo(FunctionIdentifier fid, List<IAType> parameterTypes, IAType returnType,
             IResultTypeComputer rtc, ExternalFunctionLanguage language, DataverseName libraryDataverseName,
             String libraryName, List<String> externalIdentifier, Map<String, String> resources, boolean deterministic,
-            boolean nullCall) {
-        super(fid, FunctionKind.FJ_CALLER, parameterTypes, returnType, rtc, language, libraryDataverseName, libraryName,
+            boolean nullCall, FunctionKind functionKind, List<ILogicalExpression> parameters) {
+        super(fid, functionKind, parameterTypes, returnType, rtc, language, libraryDataverseName, libraryName,
                 externalIdentifier, resources, deterministic, nullCall);
+        this.parameters = parameters;
+    }
+
+    public List<ILogicalExpression> getParameters() {
+        return parameters;
     }
 }

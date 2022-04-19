@@ -23,9 +23,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.asterix.common.api.INcApplicationContext;
-import org.apache.asterix.external.library.ExternalLibraryManager;
-import org.apache.asterix.lang.common.clause.GroupbyClause;
 import org.apache.asterix.runtime.operators.joins.flexible.FlexibleJoinOperatorDescriptor;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -38,15 +35,12 @@ import org.apache.hyracks.algebricks.core.algebra.base.PhysicalOperatorTag;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator.JoinKind;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.OrderOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.AbstractJoinPOperator;
 import org.apache.hyracks.algebricks.core.algebra.properties.ILocalStructuralProperty;
 import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningProperty;
 import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningRequirementsCoordinator;
 import org.apache.hyracks.algebricks.core.algebra.properties.IPhysicalPropertiesVector;
 import org.apache.hyracks.algebricks.core.algebra.properties.LocalGroupingProperty;
-import org.apache.hyracks.algebricks.core.algebra.properties.LocalOrderProperty;
-import org.apache.hyracks.algebricks.core.algebra.properties.OrderColumn;
 import org.apache.hyracks.algebricks.core.algebra.properties.PhysicalRequirements;
 import org.apache.hyracks.algebricks.core.algebra.properties.StructuralPropertiesVector;
 import org.apache.hyracks.algebricks.core.algebra.properties.UnorderedPartitionedProperty;
@@ -132,13 +126,11 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         IPartitioningProperty pp2 = new UnorderedPartitionedProperty(new ListSet<>(keysRightBranchTileId),
                 context.getComputationNodeDomain());
 
-
         List<ILocalStructuralProperty> localProperties1 = new ArrayList<>();
         Set<LogicalVariable> orderColumns1 = new ListSet<LogicalVariable>();
         orderColumns1.add(keysLeftBranch.get(0));
         //orderColumns1.add(new OrderColumn(keysLeftBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
         localProperties1.add(new LocalGroupingProperty(orderColumns1));
-
 
         List<ILocalStructuralProperty> localProperties2 = new ArrayList<>();
         Set<LogicalVariable> orderColumns2 = new ListSet<LogicalVariable>();
