@@ -54,14 +54,9 @@ import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
-import org.apache.asterix.om.utils.ConstantExpressionUtil;
 import org.apache.asterix.runtime.aggregates.std.AbstractAggregateFunction;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.commons.lang3.mutable.Mutable;
-import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
 import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
@@ -118,9 +113,8 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
             List<Object> parametersList = new ArrayList<>();
             parameters = ((IExternalFJFunctionInfo) finfo).getParameters();
             if (!parameters.isEmpty()) {
-                for (IAObject p: parameters
-                     ) {
-                    switch(p.getType().getTypeTag()) {
+                for (IAObject p : parameters) {
+                    switch (p.getType().getTypeTag()) {
                         case DOUBLE:
                             parametersList.add(((ADouble) p).getDoubleValue());
                             break;

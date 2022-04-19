@@ -57,10 +57,6 @@ import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.runtime.aggregates.std.AbstractAggregateFunction;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.commons.lang3.mutable.Mutable;
-import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
 import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
@@ -118,9 +114,8 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
             List<Object> parametersList = new ArrayList<>();
             parameters = ((IExternalFJFunctionInfo) finfo).getParameters();
             if (!parameters.isEmpty()) {
-                for (IAObject p: parameters
-                ) {
-                    switch(p.getType().getTypeTag()) {
+                for (IAObject p : parameters) {
+                    switch (p.getType().getTypeTag()) {
                         case DOUBLE:
                             parametersList.add(((ADouble) p).getDoubleValue());
                             break;
@@ -234,14 +229,6 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
         int offset = inputVal.getStartOffset();
         int len = inputVal.getLength();
 
-        //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
-        //int nullBitmapSize = 0;
-        //int offset1 = ARecordSerializerDeserializer.getFieldOffsetById(data, offset, 0,
-        //        nullBitmapSize, false);
-        //int len = ARecordSerializerDeserializer.getRecordLength(data, 0);
-
-        //System.out.println(dataIn.readAllBytes().toString());
-        //String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
         try {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset, len + 1);
             DataInputStream dataIn = new DataInputStream(inStream);

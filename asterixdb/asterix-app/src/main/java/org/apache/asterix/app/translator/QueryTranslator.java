@@ -2970,8 +2970,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     new FunctionSignature(functionSignature.createFunctionIdentifier());
             matchFunctionSignature.setArity(2);
             matchFunctionSignature.setName(functionSignature.getName() + "_fj_match");
-            Function matchFunction = new Function(matchFunctionSignature, matchParamNames,
-                    matchParamTypes, returnTypeSignature, null, FunctionKind.FJ_MATCH.toString(), library.getLanguage(),
+            Function matchFunction = new Function(matchFunctionSignature, matchParamNames, matchParamTypes,
+                    returnTypeSignature, null, FunctionKind.FJ_MATCH.toString(), library.getLanguage(),
                     libraryDataverseName, libraryName, externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(),
                     cfs.getResources(), dependencies);
 

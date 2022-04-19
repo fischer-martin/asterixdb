@@ -26,8 +26,6 @@ import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.typecomputer.base.IResultTypeComputer;
 import org.apache.asterix.om.types.IAType;
-import org.apache.commons.lang3.mutable.Mutable;
-import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression.FunctionKind;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 
@@ -35,7 +33,6 @@ public class ExternalFJFunctionInfo extends ExternalFunctionInfo implements IExt
 
     private static final long serialVersionUID = 3L;
     private final List<IAObject> parameters;
-
 
     public ExternalFJFunctionInfo(FunctionIdentifier fid, List<IAType> parameterTypes, IAType returnType,
             IResultTypeComputer rtc, ExternalFunctionLanguage language, DataverseName libraryDataverseName,

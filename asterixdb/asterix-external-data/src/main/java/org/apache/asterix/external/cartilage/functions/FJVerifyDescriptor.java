@@ -59,8 +59,6 @@ import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.IAlgebricksConstantValue;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
@@ -184,9 +182,8 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                 List<Object> parametersList = new ArrayList<>();
                                 parameters = ((IExternalFJFunctionInfo) finfo).getParameters();
                                 if (!parameters.isEmpty()) {
-                                    for (IAObject p: parameters
-                                    ) {
-                                        switch(p.getType().getTypeTag()) {
+                                    for (IAObject p : parameters) {
+                                        switch (p.getType().getTypeTag()) {
                                             case DOUBLE:
                                                 parametersList.add(((ADouble) p).getDoubleValue());
                                                 break;
@@ -199,7 +196,8 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                                         }
                                     }
                                     try {
-                                        flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance(parametersList.get(0));
+                                        flexibleJoin = (FlexibleJoin) flexibleJoinConstructor
+                                                .newInstance(parametersList.get(0));
                                     } catch (InstantiationException e) {
                                         e.printStackTrace();
                                     } catch (IllegalAccessException e) {

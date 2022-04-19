@@ -36,9 +36,7 @@ import org.apache.asterix.om.typecomputer.base.IResultTypeComputer;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.om.types.TypeSignature;
-import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
-import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression.FunctionKind;
 import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
 import org.apache.hyracks.api.exceptions.SourceLocation;
@@ -102,7 +100,8 @@ public class ExternalFunctionCompilerUtil {
         return null;
     }
 
-    public static ExternalFJFunctionInfo getFJFunctionInfo(MetadataProvider metadataProvider, Function function, List<IAObject> parameters) throws AlgebricksException {
+    public static ExternalFJFunctionInfo getFJFunctionInfo(MetadataProvider metadataProvider, Function function,
+            List<IAObject> parameters) throws AlgebricksException {
 
         List<IAType> paramTypes = getParameterTypes(function, metadataProvider);
 

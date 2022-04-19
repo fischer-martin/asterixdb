@@ -18,10 +18,10 @@
  */
 package org.apache.asterix.om.base;
 
+import java.io.Serializable;
+
 import org.apache.asterix.om.types.IAType;
 import org.apache.hyracks.api.dataflow.value.JSONSerializable;
-
-import java.io.Serializable;
 
 /**
  * Represents an object in Asterix.
