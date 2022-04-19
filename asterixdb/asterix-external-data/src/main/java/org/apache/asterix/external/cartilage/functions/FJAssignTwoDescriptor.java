@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.asterix.common.api.INcApplicationContext;
@@ -41,7 +42,12 @@ import org.apache.asterix.external.cartilage.spatialjoin.Rectangle;
 import org.apache.asterix.external.library.ExternalLibraryManager;
 import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
+import org.apache.asterix.om.base.ADouble;
+import org.apache.asterix.om.base.AInt32;
+import org.apache.asterix.om.base.AInt64;
 import org.apache.asterix.om.base.AMutableInt32;
+import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.functions.IExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.ATypeTag;
@@ -130,7 +136,7 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
 
                     private FlexibleJoin flexibleJoin = null;
                     private Configuration configuration = null;
-                    private List<Mutable<ILogicalExpression>> parameters = null;
+                    private List<IAObject> parameters = null;
 
                     @Override
                     public void init(IFrameTupleReference tuple) throws HyracksDataException {
@@ -151,14 +157,26 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                         if (flexibleJoin == null) {
                             AlgebricksConfig.ALGEBRICKS_LOGGER.info(
                                     "FJ ASSIGN TWO: ID: " + ctx.getServiceContext().getControllerService().getId());
-                            //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
-                            Constructor<?> flexibleJoinConstructer = flexibleJoinClass.getConstructors()[0];
-                            if (parameters != null) {
-                                ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
-                                IAlgebricksConstantValue d = c.getValue();
-                                Double dx = Double.valueOf(d.toString());
+                            Constructor<?> flexibleJoinConstructor = flexibleJoinClass.getConstructors()[0];
+                            List<Object> parametersList = new ArrayList<>();
+                            parameters = ((IExternalFJFunctionInfo) finfo).getParameters();
+                            if (!parameters.isEmpty()) {
+                                for (IAObject p: parameters
+                                ) {
+                                    switch(p.getType().getTypeTag()) {
+                                        case DOUBLE:
+                                            parametersList.add(((ADouble) p).getDoubleValue());
+                                            break;
+                                        case BIGINT:
+                                            parametersList.add(((AInt64) p).getLongValue());
+                                            break;
+                                        case INTEGER:
+                                            parametersList.add(((AInt32) p).getIntegerValue());
+                                            break;
+                                    }
+                                }
                                 try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance(dx);
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance(parametersList.get(0));
                                 } catch (InstantiationException e) {
                                     e.printStackTrace();
                                 } catch (IllegalAccessException e) {
@@ -168,7 +186,7 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                                 }
                             } else {
                                 try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructer.newInstance();
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
                                 } catch (InstantiationException e) {
                                     e.printStackTrace();
                                 } catch (IllegalAccessException e) {

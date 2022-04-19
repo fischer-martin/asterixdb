@@ -29,6 +29,7 @@ import org.apache.asterix.common.functions.ExternalFunctionLanguage;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.BuiltinTypeMap;
 import org.apache.asterix.metadata.entities.Function;
+import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.typecomputer.base.IResultTypeComputer;
@@ -101,7 +102,7 @@ public class ExternalFunctionCompilerUtil {
         return null;
     }
 
-    public static ExternalFJFunctionInfo getFJFunctionInfo(MetadataProvider metadataProvider, Function function, List<ILogicalExpression> parameters) throws AlgebricksException {
+    public static ExternalFJFunctionInfo getFJFunctionInfo(MetadataProvider metadataProvider, Function function, List<IAObject> parameters) throws AlgebricksException {
 
         List<IAType> paramTypes = getParameterTypes(function, metadataProvider);
 

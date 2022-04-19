@@ -19,6 +19,7 @@
 package org.apache.asterix.om.utils;
 
 import org.apache.asterix.om.base.ABoolean;
+import org.apache.asterix.om.base.ADouble;
 import org.apache.asterix.om.base.AInt32;
 import org.apache.asterix.om.base.AInt64;
 import org.apache.asterix.om.base.AOrderedList;
@@ -62,6 +63,11 @@ public class ConstantExpressionUtil {
     public static Long getLongConstant(ILogicalExpression expr) {
         final IAObject iaObject = getConstantIaObject(expr, ATypeTag.BIGINT);
         return iaObject != null ? ((AInt64) iaObject).getLongValue() : null;
+    }
+
+    public static Double getDoubleConstant(ILogicalExpression expr) {
+        final IAObject iaObject = getConstantIaObject(expr, ATypeTag.DOUBLE);
+        return iaObject != null ? ((ADouble) iaObject).getDoubleValue() : null;
     }
 
     public static Integer getIntConstant(ILogicalExpression expr) {

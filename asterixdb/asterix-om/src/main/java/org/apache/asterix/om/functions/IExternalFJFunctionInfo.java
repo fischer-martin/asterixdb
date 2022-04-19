@@ -18,11 +18,12 @@
  */
 package org.apache.asterix.om.functions;
 
+import org.apache.asterix.om.base.IAObject;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 
 import java.util.List;
 
 public interface IExternalFJFunctionInfo extends IExternalFunctionInfo {
 
-    List<ILogicalExpression> getParameters();
+    List<IAObject> getParameters();
 }

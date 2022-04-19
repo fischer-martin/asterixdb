@@ -21,6 +21,7 @@ package org.apache.asterix.external.cartilage.functions;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.asterix.common.api.INcApplicationContext;
@@ -33,6 +34,11 @@ import org.apache.asterix.external.library.ExternalLibraryManager;
 import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ABoolean;
+import org.apache.asterix.om.base.ADouble;
+import org.apache.asterix.om.base.AInt32;
+import org.apache.asterix.om.base.AInt64;
+import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.functions.IExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.BuiltinType;
@@ -114,7 +120,7 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor i
 
                     private FlexibleJoin flexibleJoin = null;
                     private Configuration configuration = null;
-                    private List<Mutable<ILogicalExpression>> parameters = null;
+                    private List<IAObject> parameters = null;
 
                     private final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
                     private final IPointable inputArg0 = new VoidPointable();
@@ -132,14 +138,26 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor i
                         if (flexibleJoin == null) {
                             AlgebricksConfig.ALGEBRICKS_LOGGER
                                     .info("FJ MATCH: ID: " + ctx.getServiceContext().getControllerService().getId());
-                            //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
-                            Constructor<?> flexibleJoinClassConstructor = flexibleJoinClass.getConstructors()[0];
-                            if (parameters != null) {
-                                ConstantExpression c = (ConstantExpression) parameters.get(0).getValue();
-                                IAlgebricksConstantValue d = c.getValue();
-                                Double dx = Double.valueOf(d.toString());
+                            Constructor<?> flexibleJoinConstructor = flexibleJoinClass.getConstructors()[0];
+                            List<Object> parametersList = new ArrayList<>();
+                            parameters = ((IExternalFJFunctionInfo) finfo).getParameters();
+                            if (!parameters.isEmpty()) {
+                                for (IAObject p: parameters
+                                ) {
+                                    switch(p.getType().getTypeTag()) {
+                                        case DOUBLE:
+                                            parametersList.add(((ADouble) p).getDoubleValue());
+                                            break;
+                                        case BIGINT:
+                                            parametersList.add(((AInt64) p).getLongValue());
+                                            break;
+                                        case INTEGER:
+                                            parametersList.add(((AInt32) p).getIntegerValue());
+                                            break;
+                                    }
+                                }
                                 try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinClassConstructor.newInstance(dx);
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance(parametersList.get(0));
                                 } catch (InstantiationException e) {
                                     e.printStackTrace();
                                 } catch (IllegalAccessException e) {
@@ -149,7 +167,7 @@ public class FJMatchDescriptor extends AbstractScalarFunctionDynamicDescriptor i
                                 }
                             } else {
                                 try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinClassConstructor.newInstance();
+                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
                                 } catch (InstantiationException e) {
                                     e.printStackTrace();
                                 } catch (IllegalAccessException e) {

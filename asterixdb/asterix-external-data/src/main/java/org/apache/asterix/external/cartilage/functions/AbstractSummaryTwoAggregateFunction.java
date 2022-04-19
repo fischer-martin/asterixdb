@@ -26,6 +26,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.asterix.common.api.INcApplicationContext;
@@ -43,7 +44,12 @@ import org.apache.asterix.external.cartilage.spatialjoin.Rectangle;
 import org.apache.asterix.external.library.ExternalLibraryManager;
 import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
+import org.apache.asterix.om.base.ADouble;
+import org.apache.asterix.om.base.AInt32;
+import org.apache.asterix.om.base.AInt64;
 import org.apache.asterix.om.base.ANull;
+import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.functions.IExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
@@ -81,7 +87,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
 
     private Class<?> flexibleJoinClass = null;
     private FlexibleJoin flexibleJoin = null;
-    private List<ILogicalExpression> parameters = null;
+    private List<IAObject> parameters = null;
 
     private ClassLoader classLoader;
 
@@ -108,14 +114,27 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
 
             flexibleJoinClass = Class.forName(classname, true, classLoader);
 
-            Constructor<?>[] constructors = flexibleJoinClass.getConstructors();
-            Constructor<?> flexibleJoinClassConstructor = constructors[0];
-            if (parameters != null) {
-                ConstantExpression c = (ConstantExpression) parameters.get(0);
-                IAlgebricksConstantValue d = c.getValue();
-                Double dx = Double.valueOf(d.toString());
+            Constructor<?> flexibleJoinConstructor = flexibleJoinClass.getConstructors()[0];
+            List<Object> parametersList = new ArrayList<>();
+            parameters = ((IExternalFJFunctionInfo) finfo).getParameters();
+            if (!parameters.isEmpty()) {
+                for (IAObject p: parameters
+                ) {
+                    switch(p.getType().getTypeTag()) {
+                        case DOUBLE:
+                            parametersList.add(((ADouble) p).getDoubleValue());
+                            break;
+                        case BIGINT:
+                            parametersList.add(((AInt64) p).getLongValue());
+                            break;
+                        case INTEGER:
+                            parametersList.add(((AInt32) p).getIntegerValue());
+                            break;
+
+                    }
+                }
                 try {
-                    flexibleJoin = (FlexibleJoin) flexibleJoinClassConstructor.newInstance(dx);
+                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance(parametersList.get(0));
                 } catch (InstantiationException e) {
                     e.printStackTrace();
                 } catch (IllegalAccessException e) {
@@ -125,7 +144,7 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
                 }
             } else {
                 try {
-                    flexibleJoin = (FlexibleJoin) flexibleJoinClassConstructor.newInstance();
+                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
                 } catch (InstantiationException e) {
                     e.printStackTrace();
                 } catch (IllegalAccessException e) {

@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.apache.asterix.common.functions.ExternalFunctionLanguage;
 import org.apache.asterix.common.metadata.DataverseName;
+import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.typecomputer.base.IResultTypeComputer;
 import org.apache.asterix.om.types.IAType;
 import org.apache.commons.lang3.mutable.Mutable;
@@ -33,19 +34,19 @@ import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 public class ExternalFJFunctionInfo extends ExternalFunctionInfo implements IExternalFJFunctionInfo {
 
     private static final long serialVersionUID = 3L;
-    private final List<ILogicalExpression> parameters;
+    private final List<IAObject> parameters;
 
 
     public ExternalFJFunctionInfo(FunctionIdentifier fid, List<IAType> parameterTypes, IAType returnType,
             IResultTypeComputer rtc, ExternalFunctionLanguage language, DataverseName libraryDataverseName,
             String libraryName, List<String> externalIdentifier, Map<String, String> resources, boolean deterministic,
-            boolean nullCall, FunctionKind functionKind, List<ILogicalExpression> parameters) {
+            boolean nullCall, FunctionKind functionKind, List<IAObject> parameters) {
         super(fid, functionKind, parameterTypes, returnType, rtc, language, libraryDataverseName, libraryName,
                 externalIdentifier, resources, deterministic, nullCall);
         this.parameters = parameters;
     }
 
-    public List<ILogicalExpression> getParameters() {
+    public List<IAObject> getParameters() {
         return parameters;
     }
 }
