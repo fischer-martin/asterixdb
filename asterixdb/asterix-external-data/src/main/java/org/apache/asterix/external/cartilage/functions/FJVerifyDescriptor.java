@@ -35,7 +35,7 @@ import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserial
 import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
-import org.apache.asterix.external.cartilage.base.ClassLoaderAwareObjectInputStream;
+import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.external.cartilage.base.Configuration;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
 import org.apache.asterix.external.cartilage.oipjoin.FJInterval;

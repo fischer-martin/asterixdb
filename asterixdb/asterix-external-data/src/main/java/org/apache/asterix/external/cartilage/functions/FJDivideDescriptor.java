@@ -29,7 +29,7 @@ import java.util.List;
 
 import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.metadata.DataverseName;
-import org.apache.asterix.external.cartilage.base.ClassLoaderAwareObjectInputStream;
+import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.external.cartilage.base.Configuration;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
 import org.apache.asterix.external.cartilage.base.Summary;

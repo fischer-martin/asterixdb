@@ -2823,10 +2823,12 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     protected CreateResult doCreateJoin(MetadataProvider metadataProvider, CreateJoinStatement cfs,
             FunctionSignature functionSignature, IStatementRewriter stmtRewriter, IRequestParameters requestParameters)
             throws Exception {
+
         DataverseName dataverseName = functionSignature.getDataverseName();
         SourceLocation sourceLoc = cfs.getSourceLocation();
         MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
         metadataProvider.setMetadataTxnContext(mdTxnCtx);
+
         try {
             Dataverse dv = MetadataManager.INSTANCE.getDataverse(mdTxnCtx, dataverseName);
             if (dv == null) {

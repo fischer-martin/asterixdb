@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.external.cartilage.base;
+package org.apache.asterix.external.cartilage.util;
 
 import java.io.IOException;
 import java.io.InputStream;

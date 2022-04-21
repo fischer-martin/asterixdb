@@ -34,7 +34,7 @@ import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeseria
 import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
-import org.apache.asterix.external.cartilage.base.ClassLoaderAwareObjectInputStream;
+import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.external.cartilage.base.Configuration;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
 import org.apache.asterix.external.cartilage.oipjoin.FJInterval;
@@ -47,6 +47,7 @@ import org.apache.asterix.om.base.AInt32;
 import org.apache.asterix.om.base.AInt64;
 import org.apache.asterix.om.base.AMutableInt32;
 import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
@@ -68,6 +69,10 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
+
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
+import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getTypedObjectsParametersArray;
 
 public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescriptor
         implements IExternalFunctionDescriptor {
@@ -153,55 +158,17 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
                         if (flexibleJoin == null) {
                             AlgebricksConfig.ALGEBRICKS_LOGGER.info(
                                     "FJ ASSIGN ONE: ID: " + ctx.getServiceContext().getControllerService().getId());
-                            Constructor<?> flexibleJoinConstructor = flexibleJoinClass.getConstructors()[0];
-                            List<Object> parametersList = new ArrayList<>();
-                            parameters = ((IExternalFJFunctionInfo) finfo).getParameters();
-                            if (!parameters.isEmpty()) {
-                                for (IAObject p : parameters) {
-                                    switch (p.getType().getTypeTag()) {
-                                        case DOUBLE:
-                                            parametersList.add(((ADouble) p).getDoubleValue());
-                                            break;
-                                        case BIGINT:
-                                            parametersList.add(((AInt64) p).getLongValue());
-                                            break;
-                                        case INTEGER:
-                                            parametersList.add(((AInt32) p).getIntegerValue());
-                                            break;
-                                    }
-                                }
-                                try {
-                                    flexibleJoin =
-                                            (FlexibleJoin) flexibleJoinConstructor.newInstance(parametersList.get(0));
-                                } catch (InstantiationException e) {
-                                    e.printStackTrace();
-                                } catch (IllegalAccessException e) {
-                                    e.printStackTrace();
-                                } catch (InvocationTargetException e) {
-                                    e.printStackTrace();
-                                }
-                            } else {
-                                try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
-                                } catch (InstantiationException e) {
-                                    e.printStackTrace();
-                                } catch (IllegalAccessException e) {
-                                    e.printStackTrace();
-                                } catch (InvocationTargetException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                            ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1, len1 + 1);
-                            DataInputStream dataIn1 = new DataInputStream(inStream1);
-                            ObjectInput in1 = null;
+                            classLoader = getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, ctx);
                             try {
-                                in1 = new ClassLoaderAwareObjectInputStream(dataIn1, classLoader);
+                                flexibleJoin = getFlexibleJoin((ExternalFJFunctionInfo) finfo, classLoader);
+                                ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1, len1 + 1);
+                                DataInputStream dataIn1 = new DataInputStream(inStream1);
+                                ObjectInput in1 = new ClassLoaderAwareObjectInputStream(dataIn1, classLoader);
                                 configuration = (Configuration) in1.readObject();
 
-                            } catch (ClassNotFoundException | IOException e) {
-                                throw HyracksDataException.create(e);
+                            } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException | IOException e) {
+                                e.printStackTrace();
                             }
-
                         }
 
                         if (tag0 == ATypeTag.STRING) {

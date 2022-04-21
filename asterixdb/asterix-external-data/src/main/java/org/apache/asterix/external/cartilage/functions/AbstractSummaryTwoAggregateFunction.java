@@ -36,7 +36,7 @@ import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeseria
 import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
-import org.apache.asterix.external.cartilage.base.ClassLoaderAwareObjectInputStream;
+import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
 import org.apache.asterix.external.cartilage.base.Summary;
 import org.apache.asterix.external.cartilage.oipjoin.FJInterval;
@@ -49,6 +49,7 @@ import org.apache.asterix.om.base.AInt32;
 import org.apache.asterix.om.base.AInt64;
 import org.apache.asterix.om.base.ANull;
 import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.ATypeTag;
@@ -68,6 +69,10 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
+
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
+import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getTypedObjectsParametersArray;
 
 public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggregateFunction {
 
@@ -97,64 +102,13 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
         this.eval = args[0].createScalarEvaluator(context);
         this.context = context;
         this.finfo = finfo;
-
+        classLoader = getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, context);
         try {
-            DataverseName libraryDataverseName = finfo.getLibraryDataverseName();
-            String libraryName = finfo.getLibraryName();
-            ExternalLibraryManager libraryManager = (ExternalLibraryManager) ((INcApplicationContext) context
-                    .getServiceContext().getApplicationContext()).getLibraryManager();
-            JavaLibrary library = (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
-
-            String classname = finfo.getExternalIdentifier().get(0);
-            classLoader = library.getClassLoader();
-
-            flexibleJoinClass = Class.forName(classname, true, classLoader);
-
-            Constructor<?> flexibleJoinConstructor = flexibleJoinClass.getConstructors()[0];
-            List<Object> parametersList = new ArrayList<>();
-            parameters = ((IExternalFJFunctionInfo) finfo).getParameters();
-            if (!parameters.isEmpty()) {
-                for (IAObject p : parameters) {
-                    switch (p.getType().getTypeTag()) {
-                        case DOUBLE:
-                            parametersList.add(((ADouble) p).getDoubleValue());
-                            break;
-                        case BIGINT:
-                            parametersList.add(((AInt64) p).getLongValue());
-                            break;
-                        case INTEGER:
-                            parametersList.add(((AInt32) p).getIntegerValue());
-                            break;
-
-                    }
-                }
-                try {
-                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance(parametersList.get(0));
-                } catch (InstantiationException e) {
-                    e.printStackTrace();
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                } catch (InvocationTargetException e) {
-                    e.printStackTrace();
-                }
-            } else {
-                try {
-                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
-                } catch (InstantiationException e) {
-                    e.printStackTrace();
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                } catch (InvocationTargetException e) {
-                    e.printStackTrace();
-                }
-            }
-            this.summary = (Summary) flexibleJoin.createSummarizer2();
-        } catch (ClassNotFoundException e) {
+            FlexibleJoin<?, ?> flexibleJoin = getFlexibleJoin((ExternalFJFunctionInfo) finfo, classLoader);
+            this.summary = flexibleJoin.createSummarizer2();
+        } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
         }
-
-        Type[] genericInterfaces = flexibleJoinClass.getGenericInterfaces();
-        type = (((ParameterizedType) genericInterfaces[0]).getActualTypeArguments()[0]);
     }
 
     @Override
