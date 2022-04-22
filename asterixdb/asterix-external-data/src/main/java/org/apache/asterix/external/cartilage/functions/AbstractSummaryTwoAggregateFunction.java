@@ -22,15 +22,7 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.ObjectInput;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.asterix.common.api.INcApplicationContext;
-import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
 import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
@@ -72,6 +64,7 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
+import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getKeyObject;
 import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getTypedObjectsParametersArray;
 
 public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggregateFunction {
@@ -80,17 +73,10 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
     private IPointable inputVal = new VoidPointable();
     private final IScalarEvaluator eval;
     protected final IEvaluatorContext context;
-    private String libraryName = "";
     private Summary summary;
-    Type type;
-    protected ATypeTag aggType;
-    private IExternalFunctionInfo finfo;
-
-    private Class<?> flexibleJoinClass = null;
-    private FlexibleJoin flexibleJoin = null;
-    private List<IAObject> parameters = null;
-
-    private ClassLoader classLoader;
+    protected ATypeTag typeTag;
+    private final IExternalFunctionInfo finfo;
+    private final ClassLoader classLoader;
 
     @SuppressWarnings("unchecked")
     private ISerializerDeserializer<ANull> nullSerde =
@@ -135,44 +121,14 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
         int offset = inputVal.getStartOffset();
         int len = inputVal.getLength();
 
-        //System.out.println(offset);
-        ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
-        aggType = typeTag;
+        typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
 
         if (typeTag == ATypeTag.NULL || typeTag == ATypeTag.MISSING) {
             processNull(typeTag);
         } else {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len - 1);
             DataInputStream dataIn = new DataInputStream(inStream);
-
-            if (typeTag == ATypeTag.STRING && type.equals(String.class)) {
-                String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
-                summary.add(key);
-                if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
-                    AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Data Summary Two: " + key + " ID: "
-                            + context.getServiceContext().getControllerService().getId() + ".\n");
-                }
-            } else if (typeTag == ATypeTag.RECTANGLE) {
-                double minX = ADoubleSerializerDeserializer.getDouble(data,
-                        offset + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
-                double minY = ADoubleSerializerDeserializer.getDouble(data,
-                        offset + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
-                double maxX = ADoubleSerializerDeserializer.getDouble(data,
-                        offset + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
-                double maxY = ADoubleSerializerDeserializer.getDouble(data,
-                        offset + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
-
-                Rectangle key = new Rectangle(minX, maxX, minY, maxY);
-                summary.add(key);
-            } else if (typeTag == ATypeTag.INTERVAL) {
-
-                long start = AIntervalSerializerDeserializer.getIntervalStart(data, offset + 1);
-                long end = AIntervalSerializerDeserializer.getIntervalEnd(data, offset + 1);
-
-                FJInterval fjInterval = new FJInterval(start, end);
-                summary.add(fjInterval);
-
-            }
+            summary.add(getKeyObject(dataIn, typeTag));
         }
     }
 

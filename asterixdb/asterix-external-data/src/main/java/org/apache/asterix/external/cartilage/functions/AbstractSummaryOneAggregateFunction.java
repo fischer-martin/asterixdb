@@ -60,6 +60,7 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
+import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getKeyObject;
 
 public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggregateFunction {
 
@@ -68,9 +69,8 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     private final IScalarEvaluator eval;
     protected final IEvaluatorContext context;
     private Summary summary;
-    Type type;
 
-    protected ATypeTag aggType;
+    protected ATypeTag typeTag;
     private IExternalFunctionInfo finfo;
 
     private ClassLoader classLoader;
@@ -114,45 +114,14 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         int offset = inputVal.getStartOffset();
         int len = inputVal.getLength();
 
-        //System.out.println(offset);
-        ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
-        aggType = typeTag;
+        typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
 
         if (typeTag == ATypeTag.NULL || typeTag == ATypeTag.MISSING) {
             processNull(typeTag);
         } else {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len - 1);
             DataInputStream dataIn = new DataInputStream(inStream);
-
-            if (typeTag == ATypeTag.STRING && type.equals(String.class)) {
-                String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
-
-                summary.add(key);
-                if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
-                    AlgebricksConfig.ALGEBRICKS_LOGGER.info("Process Data Summary One: " + key + " ID: "
-                            + context.getServiceContext().getControllerService().getId() + ".\n");
-                }
-            } else if (typeTag == ATypeTag.RECTANGLE) {
-                double minX = ADoubleSerializerDeserializer.getDouble(data,
-                        offset + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
-                double minY = ADoubleSerializerDeserializer.getDouble(data,
-                        offset + 1 + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
-                double maxX = ADoubleSerializerDeserializer.getDouble(data,
-                        offset + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
-                double maxY = ADoubleSerializerDeserializer.getDouble(data,
-                        offset + 1 + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
-
-                Rectangle key = new Rectangle(minX, maxX, minY, maxY);
-                summary.add(key);
-            } else if (typeTag == ATypeTag.INTERVAL) {
-
-                long start = AIntervalSerializerDeserializer.getIntervalStart(data, offset + 1);
-                long end = AIntervalSerializerDeserializer.getIntervalEnd(data, offset + 1);
-
-                FJInterval fjInterval = new FJInterval(start, end);
-                summary.add(fjInterval);
-
-            }
+            summary.add(getKeyObject(dataIn, typeTag));
         }
     }
 

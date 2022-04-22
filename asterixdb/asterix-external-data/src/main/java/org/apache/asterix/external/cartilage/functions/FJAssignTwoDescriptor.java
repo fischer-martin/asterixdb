@@ -72,6 +72,7 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
+import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getKeyObject;
 import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getTypedObjectsParametersArray;
 
 public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescriptor
@@ -114,7 +115,6 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                     private ISerializerDeserializer serde =
                             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT32);
 
-                    private ClassLoader classLoader;
                     private FlexibleJoin flexibleJoin = null;
                     private Configuration configuration = null;
 
@@ -130,7 +130,7 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                         if (flexibleJoin == null) {
                             AlgebricksConfig.ALGEBRICKS_LOGGER.info(
                                     "FJ ASSIGN TWO: ID: " + ctx.getServiceContext().getControllerService().getId());
-                            classLoader = getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, ctx);
+                            ClassLoader classLoader = getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, ctx);
                             try {
                                 flexibleJoin = getFlexibleJoin((ExternalFJFunctionInfo) finfo, classLoader);
                                 eval1.evaluate(tuple, inputArg1);
@@ -141,37 +141,15 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                                 DataInputStream dataIn1 = new DataInputStream(inStream1);
                                 ObjectInput in1 = new ClassLoaderAwareObjectInputStream(dataIn1, classLoader);
                                 configuration = (Configuration) in1.readObject();
-
                             } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException | IOException e) {
                                 e.printStackTrace();
                             }
                         }
 
-                        if (tag0 == ATypeTag.STRING) {
-                            ByteArrayInputStream inStream =
-                                    new ByteArrayInputStream(inputArg0.getByteArray(), offset0 + 1, len - 1);
-                            DataInputStream dataIn = new DataInputStream(inStream);
-                            String key = AStringSerializerDeserializer.INSTANCE.deserialize(dataIn).getStringValue();
-                            buckets = flexibleJoin.assign2(key, configuration);
-                        } else if (tag0 == ATypeTag.RECTANGLE) {
-                            double minX = ADoubleSerializerDeserializer.getDouble(bytes0, offset0 + 1
-                                    + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
-                            double minY = ADoubleSerializerDeserializer.getDouble(bytes0, offset0 + 1
-                                    + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
-                            double maxX = ADoubleSerializerDeserializer.getDouble(bytes0, offset0 + 1
-                                    + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
-                            double maxY = ADoubleSerializerDeserializer.getDouble(bytes0, offset0 + 1
-                                    + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
-
-                            Rectangle key = new Rectangle(minX, maxX, minY, maxY);
-                            buckets = flexibleJoin.assign2(key, configuration);
-                        } else if (tag0 == ATypeTag.INTERVAL) {
-                            long start = AIntervalSerializerDeserializer.getIntervalStart(bytes0, offset0 + 1);
-                            long end = AIntervalSerializerDeserializer.getIntervalEnd(bytes0, offset0 + 1);
-
-                            FJInterval fjInterval = new FJInterval(start, end);
-                            buckets = flexibleJoin.assign1(fjInterval, configuration);
-                        }
+                        ByteArrayInputStream inStream =
+                                new ByteArrayInputStream(inputArg0.getByteArray(), offset0 + 1, len - 1);
+                        DataInputStream dataIn = new DataInputStream(inStream);
+                        buckets = flexibleJoin.assign1(getKeyObject(dataIn, tag0), configuration);
                         pos = 0;
                     }
 

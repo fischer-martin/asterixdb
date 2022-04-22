@@ -49,6 +49,7 @@ import org.apache.asterix.om.base.ADouble;
 import org.apache.asterix.om.base.AInt32;
 import org.apache.asterix.om.base.AInt64;
 import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
@@ -70,6 +71,9 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
+
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
 
 public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 2L;
@@ -98,31 +102,8 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                 return new IScalarEvaluator() {
 
-                    private ClassLoader classLoader;
-
-                    private Class<?> flexibleJoinClass = null;
-                    {
-                        try {
-                            DataverseName libraryDataverseName = finfo.getLibraryDataverseName();
-                            String libraryName = finfo.getLibraryName();
-                            ExternalLibraryManager libraryManager =
-                                    (ExternalLibraryManager) ((INcApplicationContext) ctx.getServiceContext()
-                                            .getApplicationContext()).getLibraryManager();
-                            JavaLibrary library =
-                                    (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
-
-                            String classname = finfo.getExternalIdentifier().get(0);
-                            classLoader = library.getClassLoader();
-                            flexibleJoinClass = Class.forName(classname, false, classLoader);
-
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-
                     private FlexibleJoin flexibleJoin = null;
                     private Configuration configuration = null;
-                    private List<IAObject> parameters = null;
 
                     private final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
                     private final IPointable inputArg0 = new VoidPointable();
@@ -153,23 +134,19 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                         eval1.evaluate(tuple, inputArg1);
                         eval2.evaluate(tuple, inputArg2);
                         eval3.evaluate(tuple, inputArg3);
-                        eval4.evaluate(tuple, inputArg4);
 
                         byte[] bytes0 = inputArg0.getByteArray();
                         byte[] bytes1 = inputArg1.getByteArray();
                         byte[] bytes2 = inputArg2.getByteArray();
                         byte[] bytes3 = inputArg3.getByteArray();
-                        byte[] bytes4 = inputArg4.getByteArray();
 
                         int offset0 = inputArg0.getStartOffset();
                         int offset1 = inputArg1.getStartOffset();
                         int offset2 = inputArg2.getStartOffset();
                         int offset3 = inputArg3.getStartOffset();
-                        int offset4 = inputArg4.getStartOffset();
 
                         int len3 = inputArg3.getLength();
                         int len1 = inputArg1.getLength();
-                        int len4 = inputArg4.getLength();
                         try {
 
                             int bucketID0 = AInt32SerializerDeserializer.getInt(bytes0, offset0 + 1);
@@ -178,59 +155,20 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             if (flexibleJoin == null) {
                                 AlgebricksConfig.ALGEBRICKS_LOGGER.info(
                                         "FJ VERIFY: ID: " + ctx.getServiceContext().getControllerService().getId());
-                                Constructor<?> flexibleJoinConstructor = flexibleJoinClass.getConstructors()[0];
-                                List<Object> parametersList = new ArrayList<>();
-                                parameters = ((IExternalFJFunctionInfo) finfo).getParameters();
-                                if (!parameters.isEmpty()) {
-                                    for (IAObject p : parameters) {
-                                        switch (p.getType().getTypeTag()) {
-                                            case DOUBLE:
-                                                parametersList.add(((ADouble) p).getDoubleValue());
-                                                break;
-                                            case BIGINT:
-                                                parametersList.add(((AInt64) p).getLongValue());
-                                                break;
-                                            case INTEGER:
-                                                parametersList.add(((AInt32) p).getIntegerValue());
-                                                break;
-                                        }
-                                    }
-                                    try {
-                                        flexibleJoin = (FlexibleJoin) flexibleJoinConstructor
-                                                .newInstance(parametersList.get(0));
-                                    } catch (InstantiationException e) {
-                                        e.printStackTrace();
-                                    } catch (IllegalAccessException e) {
-                                        e.printStackTrace();
-                                    } catch (InvocationTargetException e) {
-                                        e.printStackTrace();
-                                    }
-                                } else {
-                                    try {
-                                        flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
-                                    } catch (InstantiationException e) {
-                                        e.printStackTrace();
-                                    } catch (IllegalAccessException e) {
-                                        e.printStackTrace();
-                                    } catch (InvocationTargetException e) {
-                                        e.printStackTrace();
-                                    }
-                                }
-                                ByteArrayInputStream inStream4 = new ByteArrayInputStream(bytes4, offset4, len4 + 1);
-                                DataInputStream dataIn4 = new DataInputStream(inStream4);
-                                ObjectInput in4 = null;
+                                ClassLoader classLoader = getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, ctx);
                                 try {
-                                    in4 = new ClassLoaderAwareObjectInputStream(dataIn4, classLoader);
+                                    flexibleJoin = getFlexibleJoin((ExternalFJFunctionInfo) finfo, classLoader);
+                                    eval4.evaluate(tuple, inputArg4);
+                                    byte[] bytes4 = inputArg4.getByteArray();
+                                    int offset4 = inputArg4.getStartOffset();
+                                    int len4 = inputArg4.getLength();
+                                    ByteArrayInputStream inStream4 = new ByteArrayInputStream(bytes4, offset4, len4 + 1);
+                                    DataInputStream dataIn4 = new DataInputStream(inStream4);
+                                    ObjectInput in4 = new ClassLoaderAwareObjectInputStream(dataIn4, classLoader);
                                     configuration = (Configuration) in4.readObject();
-
-                                } catch (ClassNotFoundException | IOException e) {
-                                    throw HyracksDataException.create(e);
+                                } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException | IOException e) {
+                                    e.printStackTrace();
                                 }
-
-                                AlgebricksConfig.ALGEBRICKS_LOGGER.info("MATCH COUNTER 1:" + IntervalJoin.matchCounter);
-
-                                AlgebricksConfig.ALGEBRICKS_LOGGER
-                                        .info("MATCH COUNTER 2:" + IntervalJoin.verifyCounter);
 
                             }
 

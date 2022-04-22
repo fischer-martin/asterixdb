@@ -39,6 +39,7 @@ import org.apache.asterix.om.base.ADouble;
 import org.apache.asterix.om.base.AInt32;
 import org.apache.asterix.om.base.AInt64;
 import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
@@ -55,6 +56,9 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
+
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
 
 public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 1L;
@@ -88,28 +92,7 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private final IScalarEvaluator eval0 = args[0].createScalarEvaluator(ctx);
                     private final IScalarEvaluator eval1 = args[1].createScalarEvaluator(ctx);
 
-                    private Class<?> flexibleJoinClass = null;
-                    {
-                        try {
-                            DataverseName libraryDataverseName = finfo.getLibraryDataverseName();
-                            String libraryName = finfo.getLibraryName();
-                            ExternalLibraryManager libraryManager =
-                                    (ExternalLibraryManager) ((INcApplicationContext) ctx.getServiceContext()
-                                            .getApplicationContext()).getLibraryManager();
-                            JavaLibrary library =
-                                    (JavaLibrary) libraryManager.getLibrary(libraryDataverseName, libraryName);
-
-                            String classname = finfo.getExternalIdentifier().get(0);
-                            classLoader = library.getClassLoader();
-                            flexibleJoinClass = Class.forName(classname, false, classLoader);
-                        } catch (ClassNotFoundException e) {
-                            e.printStackTrace();
-                        }
-                    }
-
-                    private FlexibleJoin flexibleJoin = null;
-                    private Configuration configuration = null;
-                    private List<IAObject> parameters = null;
+                    private FlexibleJoin<?,?> flexibleJoin = null;
 
                     @Override
                     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
@@ -136,57 +119,24 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                         DataInputStream dataIn1 = new DataInputStream(inStream1);
 
                         if (flexibleJoin == null) {
-                            //ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(data[offset]);
-                            Constructor<?> flexibleJoinConstructor = flexibleJoinClass.getConstructors()[0];
-                            List<Object> parametersList = new ArrayList<>();
-                            parameters = ((IExternalFJFunctionInfo) finfo).getParameters();
-                            if (!parameters.isEmpty()) {
-                                for (IAObject p : parameters) {
-                                    switch (p.getType().getTypeTag()) {
-                                        case DOUBLE:
-                                            parametersList.add(((ADouble) p).getDoubleValue());
-                                            break;
-                                        case BIGINT:
-                                            parametersList.add(((AInt64) p).getLongValue());
-                                            break;
-                                        case INTEGER:
-                                            parametersList.add(((AInt32) p).getIntegerValue());
-                                            break;
-                                    }
-                                }
-                                try {
-                                    flexibleJoin =
-                                            (FlexibleJoin) flexibleJoinConstructor.newInstance(parametersList.get(0));
-                                } catch (InstantiationException e) {
-                                    e.printStackTrace();
-                                } catch (IllegalAccessException e) {
-                                    e.printStackTrace();
-                                } catch (InvocationTargetException e) {
-                                    e.printStackTrace();
-                                }
-                            } else {
-                                try {
-                                    flexibleJoin = (FlexibleJoin) flexibleJoinConstructor.newInstance();
-                                } catch (InstantiationException e) {
-                                    e.printStackTrace();
-                                } catch (IllegalAccessException e) {
-                                    e.printStackTrace();
-                                } catch (InvocationTargetException e) {
-                                    e.printStackTrace();
-                                }
+                            classLoader = getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, ctx);
+                            try {
+                                flexibleJoin = getFlexibleJoin((ExternalFJFunctionInfo) finfo, classLoader);
+                            } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+                                e.printStackTrace();
                             }
                         }
 
-                        ObjectInput in0 = null;
-                        ObjectInput in1 = null;
+                        ObjectInput in0;
+                        ObjectInput in1;
 
-                        Summary<?> summaryOne;
-                        Summary<?> summaryTwo;
+                        Summary summaryOne;
+                        Summary summaryTwo;
                         try {
                             in0 = new ClassLoaderAwareObjectInputStream(dataIn0, classLoader);
                             in1 = new ClassLoaderAwareObjectInputStream(dataIn1, classLoader);
-                            summaryOne = (Summary<?>) in0.readObject();
-                            summaryTwo = (Summary<?>) in1.readObject();
+                            summaryOne = (Summary) in0.readObject();
+                            summaryTwo = (Summary) in1.readObject();
 
                         } catch (IOException | ClassNotFoundException e) {
                             throw HyracksDataException.create(e);

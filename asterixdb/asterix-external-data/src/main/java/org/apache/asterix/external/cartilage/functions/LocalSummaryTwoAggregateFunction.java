@@ -53,7 +53,7 @@ public class LocalSummaryTwoAggregateFunction extends AbstractSummaryTwoAggregat
 
     @Override
     protected boolean skipStep() {
-        return aggType == ATypeTag.NULL;
+        return typeTag == ATypeTag.NULL;
     }
 
 }

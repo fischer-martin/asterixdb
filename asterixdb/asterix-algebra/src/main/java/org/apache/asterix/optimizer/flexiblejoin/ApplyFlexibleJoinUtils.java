@@ -468,7 +468,7 @@ public class ApplyFlexibleJoinUtils {
         ExternalFJFunctionInfo localAggFunc = null;
         String functionName = callerFunction + "_fj_local_summary_one";
         if (one == 1) {
-            functionName = callerFunction + "_fj_local_summary_one";
+            functionName = callerFunction + "_fj_local_summary_two";
         }
         FunctionSignature functionSignature = new FunctionSignature(dataverseName, functionName, 1);
         Function function = metadataProvider.lookupUserDefinedFunction(functionSignature);
@@ -505,7 +505,7 @@ public class ApplyFlexibleJoinUtils {
         ExternalFJFunctionInfo globalAggFunc = null;
         String functionName = callerFunction + "_fj_global_summary_one";
         if (one == 1) {
-            functionName = callerFunction + "_fj_global_summary_one";
+            functionName = callerFunction + "_fj_global_summary_two";
 
         }
         FunctionSignature functionSignature = new FunctionSignature(dataverseName, functionName, 1);
@@ -623,7 +623,7 @@ public class ApplyFlexibleJoinUtils {
         VariableReferenceExpression unnestVarRef = new VariableReferenceExpression(unnestVar);
         unnestVarRef.setSourceLocation(srcLoc);
 
-        String functionName = functionCall + "_fj_assign_one";
+        String functionName = functionCall + "_fj_assign_two";
         FunctionSignature functionSignature = new FunctionSignature(dataverseName, functionName, 2);
         Function function = metadataProvider.lookupUserDefinedFunction(functionSignature);
         ExternalFJFunctionInfo externalFunctionInfo = (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil
