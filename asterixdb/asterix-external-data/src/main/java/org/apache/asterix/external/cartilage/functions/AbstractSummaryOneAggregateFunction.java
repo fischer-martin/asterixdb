@@ -18,24 +18,19 @@
  */
 package org.apache.asterix.external.cartilage.functions;
 
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
+import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getKeyObject;
+
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Type;
 
-import org.apache.asterix.common.api.INcApplicationContext;
-import org.apache.asterix.dataflow.data.nontagged.Coordinate;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
-import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
 import org.apache.asterix.external.cartilage.base.Summary;
-import org.apache.asterix.external.cartilage.oipjoin.FJInterval;
-import org.apache.asterix.external.cartilage.spatialjoin.Rectangle;
+import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ANull;
 import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
@@ -57,10 +52,6 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
-
-import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
-import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
-import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getKeyObject;
 
 public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggregateFunction {
 
@@ -90,7 +81,8 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         try {
             FlexibleJoin<?, ?> flexibleJoin = getFlexibleJoin((ExternalFJFunctionInfo) finfo, classLoader);
             this.summary = flexibleJoin.createSummarizer1();
-        } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+        } catch (ClassNotFoundException | InvocationTargetException | InstantiationException
+                | IllegalAccessException e) {
             e.printStackTrace();
         }
     }

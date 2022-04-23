@@ -18,29 +18,20 @@
  */
 package org.apache.asterix.external.cartilage.functions;
 
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
+
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.ObjectInput;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
 
-import org.apache.asterix.common.api.INcApplicationContext;
-import org.apache.asterix.common.metadata.DataverseName;
-import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.external.cartilage.base.Configuration;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
 import org.apache.asterix.external.cartilage.base.Summary;
-import org.apache.asterix.external.library.ExternalLibraryManager;
-import org.apache.asterix.external.library.JavaLibrary;
-import org.apache.asterix.om.base.ADouble;
-import org.apache.asterix.om.base.AInt32;
-import org.apache.asterix.om.base.AInt64;
-import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
-import org.apache.asterix.om.functions.IExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.IAType;
@@ -56,9 +47,6 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
-
-import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
-import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
 
 public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 1L;
@@ -92,7 +80,7 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private final IScalarEvaluator eval0 = args[0].createScalarEvaluator(ctx);
                     private final IScalarEvaluator eval1 = args[1].createScalarEvaluator(ctx);
 
-                    private FlexibleJoin<?,?> flexibleJoin = null;
+                    private FlexibleJoin<?, ?> flexibleJoin = null;
 
                     @Override
                     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
@@ -122,7 +110,8 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             classLoader = getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, ctx);
                             try {
                                 flexibleJoin = getFlexibleJoin((ExternalFJFunctionInfo) finfo, classLoader);
-                            } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+                            } catch (ClassNotFoundException | InvocationTargetException | InstantiationException
+                                    | IllegalAccessException e) {
                                 e.printStackTrace();
                             }
                         }

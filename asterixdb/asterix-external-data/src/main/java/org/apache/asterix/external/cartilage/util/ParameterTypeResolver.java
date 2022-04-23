@@ -1,4 +1,25 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.asterix.external.cartilage.util;
+
+import java.io.DataInputStream;
+import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.serde.ABooleanSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ADateSerializerDeserializer;
@@ -13,13 +34,13 @@ import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserial
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt64SerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt8SerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
+import org.apache.asterix.external.cartilage.base.types.Interval;
+import org.apache.asterix.external.cartilage.base.types.Rectangle;
 import org.apache.asterix.om.base.*;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-
-import java.io.DataInputStream;
-import java.util.List;
 
 public class ParameterTypeResolver {
     public static Object[] getTypedObjectsParametersArray(List<IAObject> parameters) {
@@ -87,7 +108,8 @@ public class ParameterTypeResolver {
                 returnObject = ADateTimeSerializerDeserializer.INSTANCE.deserialize(dataInputStream).getChrononTime();
                 break;
             case DAYTIMEDURATION:
-                returnObject = ADayTimeDurationSerializerDeserializer.INSTANCE.deserialize(dataInputStream).getMilliseconds();
+                returnObject =
+                        ADayTimeDurationSerializerDeserializer.INSTANCE.deserialize(dataInputStream).getMilliseconds();
                 break;
             case DOUBLE:
                 returnObject = ADoubleSerializerDeserializer.INSTANCE.deserialize(dataInputStream).getDoubleValue();
@@ -113,12 +135,26 @@ public class ParameterTypeResolver {
             case BIGINT:
                 returnObject = AInt64SerializerDeserializer.INSTANCE.deserialize(dataInputStream).getLongValue();
                 break;
-            case INTERVAL:
-                returnObject = AIntervalSerializerDeserializer.INSTANCE.deserialize(dataInputStream).toString();
+            case INTERVAL: {
+                //returnObject = AIntervalSerializerDeserializer.INSTANCE.deserialize(dataInputStream).toString();
+                AInterval interval = AIntervalSerializerDeserializer.INSTANCE.deserialize(dataInputStream);
+                long start0 = interval.getIntervalStart();
+                long end0 = interval.getIntervalEnd();
+                returnObject = new Interval(start0, end0);
                 break;
+            }
             case STRING:
                 returnObject = AStringSerializerDeserializer.INSTANCE.deserialize(dataInputStream).getStringValue();
                 break;
+            case RECTANGLE: {
+                ARectangle rectangle = ARectangleSerializerDeserializer.INSTANCE.deserialize(dataInputStream);
+                double minX1 = rectangle.getP1().getX();
+                double minY1 = rectangle.getP1().getY();
+                double maxX1 = rectangle.getP2().getX();
+                double maxY1 = rectangle.getP2().getY();
+                returnObject = new Rectangle(minX1, maxX1, minY1, maxY1);
+                break;
+            }
         }
         return returnObject;
     }

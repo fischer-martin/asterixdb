@@ -18,39 +18,25 @@
  */
 package org.apache.asterix.external.cartilage.functions;
 
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
+import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getKeyObject;
+
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.ObjectInput;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.asterix.common.api.INcApplicationContext;
-import org.apache.asterix.common.metadata.DataverseName;
-import org.apache.asterix.dataflow.data.nontagged.Coordinate;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
-import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.external.cartilage.base.Configuration;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
-import org.apache.asterix.external.cartilage.oipjoin.FJInterval;
-import org.apache.asterix.external.cartilage.oipjoin.IntervalJoin;
-import org.apache.asterix.external.cartilage.spatialjoin.Rectangle;
-import org.apache.asterix.external.library.ExternalLibraryManager;
-import org.apache.asterix.external.library.JavaLibrary;
+import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ABoolean;
-import org.apache.asterix.om.base.ADouble;
-import org.apache.asterix.om.base.AInt32;
-import org.apache.asterix.om.base.AInt64;
-import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
-import org.apache.asterix.om.functions.IExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.ATypeTag;
@@ -71,9 +57,6 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
-
-import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
-import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
 
 public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 2L;
@@ -155,18 +138,21 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             if (flexibleJoin == null) {
                                 AlgebricksConfig.ALGEBRICKS_LOGGER.info(
                                         "FJ VERIFY: ID: " + ctx.getServiceContext().getControllerService().getId());
-                                ClassLoader classLoader = getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, ctx);
+                                ClassLoader classLoader =
+                                        getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, ctx);
                                 try {
                                     flexibleJoin = getFlexibleJoin((ExternalFJFunctionInfo) finfo, classLoader);
                                     eval4.evaluate(tuple, inputArg4);
                                     byte[] bytes4 = inputArg4.getByteArray();
                                     int offset4 = inputArg4.getStartOffset();
                                     int len4 = inputArg4.getLength();
-                                    ByteArrayInputStream inStream4 = new ByteArrayInputStream(bytes4, offset4, len4 + 1);
+                                    ByteArrayInputStream inStream4 =
+                                            new ByteArrayInputStream(bytes4, offset4, len4 + 1);
                                     DataInputStream dataIn4 = new DataInputStream(inStream4);
                                     ObjectInput in4 = new ClassLoaderAwareObjectInputStream(dataIn4, classLoader);
                                     configuration = (Configuration) in4.readObject();
-                                } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException | IOException e) {
+                                } catch (ClassNotFoundException | InvocationTargetException | InstantiationException
+                                        | IllegalAccessException | IOException e) {
                                     e.printStackTrace();
                                 }
 
@@ -174,59 +160,15 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                             tag = eser.deserialize(bytes1[offset1]);
 
-                            if (tag == ATypeTag.STRING) {
-                                ByteArrayInputStream inStream1 =
-                                        new ByteArrayInputStream(inputArg1.getByteArray(), offset1 + 1, len1 - 1);
-                                DataInputStream dataIn1 = new DataInputStream(inStream1);
-                                String key0 = serde.deserialize(dataIn1).getStringValue();
+                            ByteArrayInputStream inStream1 =
+                                    new ByteArrayInputStream(inputArg1.getByteArray(), offset1 + 1, len1 - 1);
+                            DataInputStream dataIn1 = new DataInputStream(inStream1);
+                            ByteArrayInputStream inStream3 =
+                                    new ByteArrayInputStream(inputArg3.getByteArray(), offset3 + 1, len3 - 1);
+                            DataInputStream dataIn3 = new DataInputStream(inStream3);
 
-                                ByteArrayInputStream inStream3 =
-                                        new ByteArrayInputStream(inputArg3.getByteArray(), offset3 + 1, len3 - 1);
-                                DataInputStream dataIn3 = new DataInputStream(inStream3);
-                                String key1 = serde.deserialize(dataIn3).getStringValue();
-
-                                res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)
-                                        ? ABoolean.TRUE : ABoolean.FALSE;
-                            } else if (tag == ATypeTag.RECTANGLE) {
-                                double minX1 = ADoubleSerializerDeserializer.getDouble(bytes1, offset1 + 1
-                                        + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
-                                double minY1 = ADoubleSerializerDeserializer.getDouble(bytes1, offset1 + 1
-                                        + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
-                                double maxX1 = ADoubleSerializerDeserializer.getDouble(bytes1, offset1 + 1
-                                        + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
-                                double maxY1 = ADoubleSerializerDeserializer.getDouble(bytes1, offset1 + 1
-                                        + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
-
-                                Rectangle key0 = new Rectangle(minX1, maxX1, minY1, maxY1);
-
-                                double minX2 = ADoubleSerializerDeserializer.getDouble(bytes3, offset3 + 1
-                                        + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
-                                double minY2 = ADoubleSerializerDeserializer.getDouble(bytes3, offset3 + 1
-                                        + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
-                                double maxX2 = ADoubleSerializerDeserializer.getDouble(bytes3, offset3 + 1
-                                        + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
-                                double maxY2 = ADoubleSerializerDeserializer.getDouble(bytes3, offset3 + 1
-                                        + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
-
-                                Rectangle key1 = new Rectangle(minX2, maxX2, minY2, maxY2);
-
-                                res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)
-                                        ? ABoolean.TRUE : ABoolean.FALSE;
-
-                            } else if (tag == ATypeTag.INTERVAL) {
-                                long start0 = AIntervalSerializerDeserializer.getIntervalStart(bytes1, offset1 + 1);
-                                long end0 = AIntervalSerializerDeserializer.getIntervalEnd(bytes1, offset1 + 1);
-
-                                FJInterval key0 = new FJInterval(start0, end0);
-
-                                long start1 = AIntervalSerializerDeserializer.getIntervalStart(bytes3, offset3 + 1);
-                                long end1 = AIntervalSerializerDeserializer.getIntervalEnd(bytes3, offset3 + 1);
-
-                                FJInterval key1 = new FJInterval(start1, end1);
-                                res = flexibleJoin.verify(bucketID0, key0, bucketID1, key1, configuration)
-                                        ? ABoolean.TRUE : ABoolean.FALSE;
-
-                            }
+                            res = flexibleJoin.verify(bucketID0, getKeyObject(dataIn1, tag), bucketID1,
+                                    getKeyObject(dataIn3, tag), configuration) ? ABoolean.TRUE : ABoolean.FALSE;
 
                         } catch (Exception e) {
                             e.printStackTrace();

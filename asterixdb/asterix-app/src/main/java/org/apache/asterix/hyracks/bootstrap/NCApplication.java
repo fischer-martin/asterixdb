@@ -20,11 +20,7 @@ package org.apache.asterix.hyracks.bootstrap;
 
 import static org.apache.asterix.api.http.server.ServletConstants.HYRACKS_CONNECTION_ATTR;
 import static org.apache.asterix.api.http.server.ServletConstants.SYS_AUTH_HEADER;
-import static org.apache.asterix.common.utils.Servlets.QUERY_RESULT;
-import static org.apache.asterix.common.utils.Servlets.QUERY_SERVICE;
-import static org.apache.asterix.common.utils.Servlets.QUERY_STATUS;
-import static org.apache.asterix.common.utils.Servlets.UDF;
-import static org.apache.asterix.common.utils.Servlets.UDF_RECOVERY;
+import static org.apache.asterix.common.utils.Servlets.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,15 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.asterix.algebra.base.ILangExtension;
-import org.apache.asterix.api.http.server.BasicAuthServlet;
-import org.apache.asterix.api.http.server.NCQueryServiceServlet;
-import org.apache.asterix.api.http.server.NCUdfApiServlet;
-import org.apache.asterix.api.http.server.NCUdfRecoveryServlet;
-import org.apache.asterix.api.http.server.NetDiagnosticsApiServlet;
-import org.apache.asterix.api.http.server.QueryResultApiServlet;
-import org.apache.asterix.api.http.server.QueryStatusApiServlet;
-import org.apache.asterix.api.http.server.ServletConstants;
-import org.apache.asterix.api.http.server.StorageApiServlet;
+import org.apache.asterix.api.http.server.*;
 import org.apache.asterix.app.config.ConfigValidator;
 import org.apache.asterix.app.io.PersistedResourceRegistry;
 import org.apache.asterix.app.nc.NCAppRuntimeContext;
@@ -235,7 +223,7 @@ public class NCApplication extends BaseNCApplication {
                         auth.getFirst(), auth.getSecond()));
         /*apiServer
                 .addServlet(new BasicAuthServlet(apiServer.ctx(),
-                        new NCCartilageApiServlet(apiServer.ctx(), new String[] { CARTILAGE }, getApplicationContext(),
+                        new NCFlexibleJoinApiServlet(apiServer.ctx(), new String[] { JOIN }, getApplicationContext(),
                                 apiServer.getScheme(), apiServer.getAddress().getPort()),
                         auth.getFirst(), auth.getSecond()));*/
         apiServer.addServlet(new BasicAuthServlet(

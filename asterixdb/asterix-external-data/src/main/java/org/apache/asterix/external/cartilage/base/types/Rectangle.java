@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.external.cartilage.setsimilarity;
+package org.apache.asterix.external.cartilage.base.types;
 
-import java.util.HashMap;
+import java.io.Serializable;
 
-import org.apache.asterix.external.cartilage.base.Configuration;
+public class Rectangle implements Serializable {
+    public double x1, x2, y1, y2 = 0.0;
 
-public class SetSimilarityConfig implements Configuration {
-    HashMap<String, Integer> S = new HashMap<>();
-
-    SetSimilarityConfig(String[] OrderedTokens) {
-        for (int i = 0; i < OrderedTokens.length; i++) {
-            this.S.put(OrderedTokens[i], i);
-        }
+    public Rectangle(double x1, double x2, double y1, double y2) {
+        this.x1 = x1;
+        this.x2 = x2;
+        this.y1 = y1;
+        this.y2 = y2;
     }
+
+    public Rectangle() {
+    };
 }

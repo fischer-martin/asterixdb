@@ -18,31 +18,22 @@
  */
 package org.apache.asterix.external.cartilage.functions;
 
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
+import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
+import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getKeyObject;
+
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.lang.reflect.InvocationTargetException;
-import org.apache.asterix.dataflow.data.nontagged.Coordinate;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
-import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
+
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
 import org.apache.asterix.external.cartilage.base.Summary;
-import org.apache.asterix.external.cartilage.oipjoin.FJInterval;
-import org.apache.asterix.external.cartilage.spatialjoin.Rectangle;
-import org.apache.asterix.external.library.ExternalLibraryManager;
-import org.apache.asterix.external.library.JavaLibrary;
+import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
-import org.apache.asterix.om.base.ADouble;
-import org.apache.asterix.om.base.AInt32;
-import org.apache.asterix.om.base.AInt64;
 import org.apache.asterix.om.base.ANull;
-import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
-import org.apache.asterix.om.functions.IExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
@@ -61,11 +52,6 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
-
-import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
-import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
-import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getKeyObject;
-import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getTypedObjectsParametersArray;
 
 public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggregateFunction {
 
@@ -92,7 +78,8 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
         try {
             FlexibleJoin<?, ?> flexibleJoin = getFlexibleJoin((ExternalFJFunctionInfo) finfo, classLoader);
             this.summary = flexibleJoin.createSummarizer2();
-        } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+        } catch (ClassNotFoundException | InvocationTargetException | InstantiationException
+                | IllegalAccessException e) {
             e.printStackTrace();
         }
     }

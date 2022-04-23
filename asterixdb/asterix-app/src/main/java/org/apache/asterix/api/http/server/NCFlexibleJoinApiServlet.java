@@ -54,6 +54,8 @@ import org.apache.asterix.common.messaging.api.ICcAddressedMessage;
 import org.apache.asterix.common.messaging.api.INCMessageBroker;
 import org.apache.asterix.common.messaging.api.MessageFuture;
 import org.apache.asterix.common.metadata.DataverseName;
+import org.apache.asterix.external.library.ExternalLibraryManager;
+import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.external.util.ExternalLibraryUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -76,7 +78,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpScheme;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 
-public class NCCartilageApiServlet extends AbstractNCUdfServlet {
+public class NCFlexibleJoinApiServlet extends AbstractNCUdfServlet {
 
     protected final IReceptionist receptionist;
 
@@ -87,8 +89,8 @@ public class NCCartilageApiServlet extends AbstractNCUdfServlet {
 
     private static final Logger LOGGER = LogManager.getLogger();
 
-    public NCCartilageApiServlet(ConcurrentMap<String, Object> ctx, String[] paths, IApplicationContext appCtx,
-            HttpScheme httpServerProtocol, int httpServerPort) {
+    public NCFlexibleJoinApiServlet(ConcurrentMap<String, Object> ctx, String[] paths, IApplicationContext appCtx,
+                                    HttpScheme httpServerProtocol, int httpServerPort) {
         super(ctx, paths, appCtx, httpServerProtocol, httpServerPort);
         this.receptionist = appCtx.getReceptionist();
         this.timeout = appCtx.getExternalProperties().getLibraryDeployTimeout();
@@ -136,10 +138,12 @@ public class NCCartilageApiServlet extends AbstractNCUdfServlet {
             IRequestReference requestReference, IServletRequest request) throws Exception {
         INCMessageBroker ncMb = (INCMessageBroker) srvCtx.getMessageBroker();
         MessageFuture responseFuture = ncMb.registerMessageFuture();
+
         CreateLibraryRequestMessage req = new CreateLibraryRequestMessage(srvCtx.getNodeId(),
                 responseFuture.getFutureId(), dataverseName, libraryName, language, hash, downloadURI, replaceIfExists,
-                sysAuthHeader, requestReference, additionalHttpHeadersFromRequest(request));
+                sysAuthHeader, requestReference, additionalHttpHeadersFromRequest(request), true);
         sendMessage(req, responseFuture);
+
     }
 
     private void doDrop(DataverseName dataverseName, String libraryName, boolean replaceIfExists,
