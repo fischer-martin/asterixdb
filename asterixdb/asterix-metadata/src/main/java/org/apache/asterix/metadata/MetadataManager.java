@@ -561,55 +561,6 @@ public abstract class MetadataManager implements IMetadataManager {
     }
 
     @Override
-    public void addJoin(MetadataTransactionContext mdTxnCtx, Function function) throws AlgebricksException {
-        try {
-            metadataNode.addJoin(mdTxnCtx.getTxnId(), function);
-        } catch (RemoteException e) {
-            throw new MetadataException(ErrorCode.REMOTE_EXCEPTION_WHEN_CALLING_METADATA_NODE, e);
-        }
-        mdTxnCtx.addFunction(function);
-    }
-
-    @Override
-    public Function getJoin(MetadataTransactionContext ctx, FunctionSignature functionSignature)
-            throws AlgebricksException {
-        // First look in the context to see if this transaction created the
-        // requested function itself (but the function is still uncommitted).
-        Function function = ctx.getJoin(functionSignature);
-        if (function != null) {
-            // Don't add this function to the cache, since it is still
-            // uncommitted.
-            return function;
-        }
-        if (ctx.functionIsDropped(functionSignature)) {
-            // Function has been dropped by this transaction but could still be
-            // in the cache.
-            return null;
-        }
-        if (ctx.getDataverse(functionSignature.getDataverseName()) != null) {
-            // This transaction has dropped and subsequently created the same
-            // dataverse.
-            return null;
-        }
-        function = cache.getFunction(functionSignature);
-        if (function != null) {
-            // Function is already in the cache, don't add it again.
-            return function;
-        }
-        try {
-            function = metadataNode.getJoin(ctx.getTxnId(), functionSignature);
-        } catch (RemoteException e) {
-            throw new MetadataException(ErrorCode.REMOTE_EXCEPTION_WHEN_CALLING_METADATA_NODE, e);
-        }
-        // We fetched the function from the MetadataNode. Add it to the cache
-        // when this transaction commits.
-        if (function != null) {
-            ctx.addFunction(function);
-        }
-        return function;
-    }
-
-    @Override
     public void addFunction(MetadataTransactionContext mdTxnCtx, Function function) throws AlgebricksException {
         try {
             metadataNode.addFunction(mdTxnCtx.getTxnId(), function);

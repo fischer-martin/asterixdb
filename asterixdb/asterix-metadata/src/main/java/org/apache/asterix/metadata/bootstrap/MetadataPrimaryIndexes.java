@@ -157,13 +157,6 @@ public class MetadataPrimaryIndexes {
                             Arrays.asList(MetadataRecordTypes.FIELD_NAME_FULL_TEXT_FILTER_NAME)),
                     0, MetadataRecordTypes.FULL_TEXT_FILTER_RECORDTYPE, true, new int[] { 0, 1 });
 
-    public static final IMetadataIndex JOIN_DATASET = new MetadataIndex(PROPERTIES_FUNCTION, 4,
-            new IAType[] { BuiltinType.ASTRING, BuiltinType.ASTRING, BuiltinType.ASTRING },
-            Arrays.asList(Arrays.asList(MetadataRecordTypes.FIELD_NAME_DATAVERSE_NAME),
-                    Arrays.asList(MetadataRecordTypes.FIELD_NAME_NAME),
-                    Arrays.asList(MetadataRecordTypes.FIELD_NAME_ARITY)),
-            0, MetadataRecordTypes.FUNCTION_RECORDTYPE, true, new int[] { 0, 1, 2 });
-
     private MetadataPrimaryIndexes() {
     }
 }
