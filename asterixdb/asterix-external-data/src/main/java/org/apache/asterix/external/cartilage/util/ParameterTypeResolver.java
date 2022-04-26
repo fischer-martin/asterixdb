@@ -38,7 +38,22 @@ import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDese
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.external.cartilage.base.types.Interval;
 import org.apache.asterix.external.cartilage.base.types.Rectangle;
-import org.apache.asterix.om.base.*;
+import org.apache.asterix.om.base.ABoolean;
+import org.apache.asterix.om.base.ADate;
+import org.apache.asterix.om.base.ADateTime;
+import org.apache.asterix.om.base.ADayTimeDuration;
+import org.apache.asterix.om.base.ADouble;
+import org.apache.asterix.om.base.ADuration;
+import org.apache.asterix.om.base.AFloat;
+import org.apache.asterix.om.base.AGeometry;
+import org.apache.asterix.om.base.AInt16;
+import org.apache.asterix.om.base.AInt32;
+import org.apache.asterix.om.base.AInt64;
+import org.apache.asterix.om.base.AInt8;
+import org.apache.asterix.om.base.AInterval;
+import org.apache.asterix.om.base.ARectangle;
+import org.apache.asterix.om.base.AString;
+import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 

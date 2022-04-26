@@ -41,7 +41,8 @@ public final class CreateLibraryRequestMessage extends AbstractInternalRequestMe
 
     public CreateLibraryRequestMessage(String nodeRequestId, long requestMessageId, DataverseName dataverseName,
             String libraryName, ExternalFunctionLanguage lang, String hash, URI location, boolean replaceIfExists,
-            String authToken, IRequestReference requestReference, Map<String, String> additionalParams, boolean isFlexibleJoin) {
+            String authToken, IRequestReference requestReference, Map<String, String> additionalParams,
+            boolean isFlexibleJoin) {
         super(nodeRequestId, requestMessageId, requestReference, additionalParams);
         this.dataverseName = dataverseName;
         this.libraryName = libraryName;
@@ -54,6 +55,7 @@ public final class CreateLibraryRequestMessage extends AbstractInternalRequestMe
     }
 
     protected Statement produceStatement() {
-        return new CreateLibraryStatement(dataverseName, libraryName, lang, hash, location, replaceIfExists, authToken, isFlexibleJoin);
+        return new CreateLibraryStatement(dataverseName, libraryName, lang, hash, location, replaceIfExists, authToken,
+                isFlexibleJoin);
     }
 }

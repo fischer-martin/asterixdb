@@ -54,8 +54,6 @@ import org.apache.asterix.common.messaging.api.ICcAddressedMessage;
 import org.apache.asterix.common.messaging.api.INCMessageBroker;
 import org.apache.asterix.common.messaging.api.MessageFuture;
 import org.apache.asterix.common.metadata.DataverseName;
-import org.apache.asterix.external.library.ExternalLibraryManager;
-import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.external.util.ExternalLibraryUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -90,7 +88,7 @@ public class NCFlexibleJoinApiServlet extends AbstractNCUdfServlet {
     private static final Logger LOGGER = LogManager.getLogger();
 
     public NCFlexibleJoinApiServlet(ConcurrentMap<String, Object> ctx, String[] paths, IApplicationContext appCtx,
-                                    HttpScheme httpServerProtocol, int httpServerPort) {
+            HttpScheme httpServerProtocol, int httpServerPort) {
         super(ctx, paths, appCtx, httpServerProtocol, httpServerPort);
         this.receptionist = appCtx.getReceptionist();
         this.timeout = appCtx.getExternalProperties().getLibraryDeployTimeout();
