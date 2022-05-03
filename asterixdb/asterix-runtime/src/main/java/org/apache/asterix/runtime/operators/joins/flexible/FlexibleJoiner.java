@@ -32,6 +32,7 @@ import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.comm.IFrameWriter;
 import org.apache.hyracks.api.comm.VSizeFrame;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
+import org.apache.hyracks.api.dataflow.value.IPredicateEvaluator;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
@@ -65,9 +66,12 @@ public class FlexibleJoiner {
     protected final FrameTupleAppender resultAppender;
     protected final FrameTupleCursor[] inputCursor;
 
+    private final IPredicateEvaluator predEvaluator;
+
     public FlexibleJoiner(IHyracksTaskContext ctx, int memorySize, IFlexibleJoinUtil mjc, int[] buildKeys,
-            int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd) throws HyracksDataException {
+                          int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd, IPredicateEvaluator predEvaluator) throws HyracksDataException {
         this.mjc = mjc;
+        this.predEvaluator = predEvaluator;
 
         // Memory (probe buffer)
         if (memorySize < 5) {
@@ -224,5 +228,11 @@ public class FlexibleJoiner {
 
     private boolean memoryHasTuples() {
         return bufferManager.getNumTuples() > 0;
+    }
+
+    private boolean evaluatePredicate(int tIx1, int tIx2) {
+        return false;
+        //return ((predEvaluator == null) || predEvaluator.evaluate(accessorOuter, tIx1, accessorInner, tIx2));
+
     }
 }

@@ -32,6 +32,8 @@ import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import org.apache.hyracks.algebricks.core.algebra.base.PhysicalOperatorTag;
+import org.apache.hyracks.algebricks.core.algebra.expressions.IExpressionRuntimeProvider;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator.JoinKind;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
@@ -46,7 +48,11 @@ import org.apache.hyracks.algebricks.core.algebra.properties.StructuralPropertie
 import org.apache.hyracks.algebricks.core.algebra.properties.UnorderedPartitionedProperty;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenHelper;
+import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
+import org.apache.hyracks.algebricks.runtime.evaluators.TuplePairEvaluatorFactory;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
+import org.apache.hyracks.api.dataflow.value.IPredicateEvaluatorFactory;
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 
@@ -156,8 +162,19 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         RecordDescriptor recordDescriptor =
                 JobGenHelper.mkRecordDescriptor(context.getTypeEnvironment(op), propagatedSchema, context);
 
+        AbstractBinaryJoinOperator join = (AbstractBinaryJoinOperator) op;
+        RecordDescriptor recDescriptor =
+                JobGenHelper.mkRecordDescriptor(context.getTypeEnvironment(op), propagatedSchema, context);
+        IOperatorSchema[] conditionInputSchemas = new IOperatorSchema[1];
+        conditionInputSchemas[0] = propagatedSchema;
+        IExpressionRuntimeProvider expressionRuntimeProvider = context.getExpressionRuntimeProvider();
+        IScalarEvaluatorFactory cond = expressionRuntimeProvider.createEvaluatorFactory(join.getCondition().getValue(),
+                context.getTypeEnvironment(op), conditionInputSchemas, context);
+        ITuplePairComparatorFactory comparatorFactory =
+                new TuplePairEvaluatorFactory(cond, false, context.getBinaryBooleanInspectorFactory());
+
         IOperatorDescriptor opDesc =
-                new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe, recordDescriptor, mjcf);
+                new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe, recordDescriptor, mjcf, (IPredicateEvaluatorFactory) comparatorFactory);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
 
         ILogicalOperator src1 = op.getInputs().get(0).getValue();

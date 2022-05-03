@@ -28,6 +28,8 @@ import org.apache.hyracks.api.dataflow.IActivity;
 import org.apache.hyracks.api.dataflow.IActivityGraphBuilder;
 import org.apache.hyracks.api.dataflow.IOperatorNodePushable;
 import org.apache.hyracks.api.dataflow.TaskId;
+import org.apache.hyracks.api.dataflow.value.IPredicateEvaluator;
+import org.apache.hyracks.api.dataflow.value.IPredicateEvaluatorFactory;
 import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -50,9 +52,12 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
     private final int memoryForJoin;
     private final IFlexibleJoinUtilFactory imjcf;
 
+    private final IPredicateEvaluatorFactory predEvaluatorFactory;
+
     public FlexibleJoinOperatorDescriptor(IOperatorDescriptorRegistry spec, int memoryForJoin, int[] buildKeys,
-            int[] probeKeys, RecordDescriptor recordDescriptor, IFlexibleJoinUtilFactory imjcf) {
+                                          int[] probeKeys, RecordDescriptor recordDescriptor, IFlexibleJoinUtilFactory imjcf, IPredicateEvaluatorFactory predEvaluatorFactory) {
         super(spec, 2, 1);
+        this.predEvaluatorFactory = predEvaluatorFactory;
         outRecDescs[0] = recordDescriptor;
         this.buildKeys = buildKeys;
         this.probeKeys = probeKeys;
@@ -101,6 +106,9 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
             final RecordDescriptor probeRd = recordDescProvider.getInputRecordDescriptor(nljAid, 0);
             final RecordDescriptor buildRd = recordDescProvider.getInputRecordDescriptor(getActivityId(), 0);
 
+            final IPredicateEvaluator predEvaluator =
+                    (predEvaluatorFactory != null) ? predEvaluatorFactory.createPredicateEvaluator() : null;
+
             return new AbstractUnaryInputSinkOperatorNodePushable() {
                 private JoinCacheTaskState state;
 
@@ -111,7 +119,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
 
                     IFlexibleJoinUtil imjc = imjcf.createFlexibleJoinUtil(buildKeys, probeKeys, ctx, nPartitions);
 
-                    state.joiner = new FlexibleJoiner(ctx, memoryForJoin, imjc, buildKeys, probeKeys, buildRd, probeRd);
+                    state.joiner = new FlexibleJoiner(ctx, memoryForJoin, imjc, buildKeys, probeKeys, buildRd, probeRd, predEvaluator);
                 }
 
                 @Override

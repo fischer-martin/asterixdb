@@ -34,6 +34,7 @@ import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
+import org.apache.asterix.om.functions.FunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.utils.ConstantExpressionUtil;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.FlexibleJoinUtilFactory;
@@ -346,11 +347,14 @@ public class ApplyFlexibleJoinUtils {
         String matchFunctionName = functionName + "_fj_match";
         FunctionSignature matchFunctionSignature = new FunctionSignature(dataverseName, matchFunctionName, 2);
         Function matchFunction = metadataProvider.lookupUserDefinedFunction(matchFunctionSignature);
-        ExternalFJFunctionInfo MatchFunctionInfo =
-                ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider, matchFunction, parameters);
+        FunctionInfo MatchFunctionInfo;
+
+        if(matchFunction == null) {
+            MatchFunctionInfo = BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.EQ);
+        } else MatchFunctionInfo = ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider, matchFunction, parameters);
 
         ScalarFunctionCallExpression match =
-                new ScalarFunctionCallExpression(BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.EQ),
+                new ScalarFunctionCallExpression(MatchFunctionInfo,
                         new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
                         new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar)));
 
@@ -466,12 +470,15 @@ public class ApplyFlexibleJoinUtils {
         fields.add(new MutableObject<>(inputVarRef));
 
         ExternalFJFunctionInfo localAggFunc = null;
-        String functionName = callerFunction + "_fj_local_summary_one";
-        if (one == 1) {
-            functionName = callerFunction + "_fj_local_summary_two";
-        }
-        FunctionSignature functionSignature = new FunctionSignature(dataverseName, functionName, 1);
+        FunctionSignature functionSignature;
+        String functionName = callerFunction + "_fj_local_summary_two";
+        functionSignature = new FunctionSignature(dataverseName, functionName, 1);
         Function function = metadataProvider.lookupUserDefinedFunction(functionSignature);
+        if (function == null || one == 0) {
+            functionName = callerFunction + "_fj_local_summary_one";
+            functionSignature = new FunctionSignature(dataverseName, functionName, 1);
+            function = metadataProvider.lookupUserDefinedFunction(functionSignature);
+        }
 
         localAggFunc = (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider,
                 function, parameters);
@@ -503,13 +510,15 @@ public class ApplyFlexibleJoinUtils {
         globalAggFuncArgs.add(new MutableObject<>(inputVarRef));
 
         ExternalFJFunctionInfo globalAggFunc = null;
-        String functionName = callerFunction + "_fj_global_summary_one";
-        if (one == 1) {
-            functionName = callerFunction + "_fj_global_summary_two";
-
-        }
-        FunctionSignature functionSignature = new FunctionSignature(dataverseName, functionName, 1);
+        FunctionSignature functionSignature;
+        String functionName = callerFunction + "_fj_global_summary_two";
+        functionSignature = new FunctionSignature(dataverseName, functionName, 1);
         Function function = metadataProvider.lookupUserDefinedFunction(functionSignature);
+        if (function == null || one == 0) {
+            functionName = callerFunction + "_fj_global_summary_one";
+            functionSignature = new FunctionSignature(dataverseName, functionName, 1);
+            function = metadataProvider.lookupUserDefinedFunction(functionSignature);
+        }
         globalAggFunc = (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider,
                 function, parameters);
 
@@ -626,6 +635,11 @@ public class ApplyFlexibleJoinUtils {
         String functionName = functionCall + "_fj_assign_two";
         FunctionSignature functionSignature = new FunctionSignature(dataverseName, functionName, 2);
         Function function = metadataProvider.lookupUserDefinedFunction(functionSignature);
+        if(function == null) {
+            functionName = functionCall + "_fj_assign_one";
+            functionSignature = new FunctionSignature(dataverseName, functionName, 2);
+            function = metadataProvider.lookupUserDefinedFunction(functionSignature);
+        }
         ExternalFJFunctionInfo externalFunctionInfo = (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil
                 .getFJFunctionInfo(metadataProvider, function, parameters);
         UnnestingFunctionCallExpression spatialTileFuncExpr = new UnnestingFunctionCallExpression(externalFunctionInfo,

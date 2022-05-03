@@ -27,7 +27,6 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.lang.reflect.InvocationTargetException;
-import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
@@ -44,8 +43,6 @@ import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
-import org.apache.commons.lang3.mutable.Mutable;
-import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
@@ -61,12 +58,9 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 2L;
     private final IExternalFunctionInfo finfo;
-    private IAType[] argTypes;
-    private List<Mutable<ILogicalExpression>> parameters;
 
     public FJVerifyDescriptor(IExternalFunctionInfo finfo) {
         this.finfo = finfo;
-        //this.parameters =
     }
 
     @Override
@@ -106,7 +100,6 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ABOOLEAN);
                     private final EnumDeserializer<ATypeTag> eser = EnumDeserializer.ATYPETAGDESERIALIZER;
 
-                    private ATypeTag tag;
                     private ABoolean res;
 
                     @Override
@@ -158,23 +151,23 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                             }
 
-                            tag = eser.deserialize(bytes1[offset1]);
+                            ATypeTag tag1 = eser.deserialize(bytes1[offset1]);
+                            ATypeTag tag3 = eser.deserialize(bytes3[offset3]);
 
                             ByteArrayInputStream inStream1 =
-                                    new ByteArrayInputStream(inputArg1.getByteArray(), offset1 + 1, len1 - 1);
+                                    new ByteArrayInputStream(bytes1, offset1 + 1, len1 - 1);
                             DataInputStream dataIn1 = new DataInputStream(inStream1);
                             ByteArrayInputStream inStream3 =
-                                    new ByteArrayInputStream(inputArg3.getByteArray(), offset3 + 1, len3 - 1);
+                                    new ByteArrayInputStream(bytes3, offset3 + 1, len3 - 1);
                             DataInputStream dataIn3 = new DataInputStream(inStream3);
 
-                            res = flexibleJoin.verify(bucketID0, getKeyObject(dataIn1, tag), bucketID1,
-                                    getKeyObject(dataIn3, tag), configuration) ? ABoolean.TRUE : ABoolean.FALSE;
+                            res = flexibleJoin.verify(bucketID0, getKeyObject(dataIn1, tag1), bucketID1,
+                                    getKeyObject(dataIn3, tag3), configuration) ? ABoolean.TRUE : ABoolean.FALSE;
 
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
 
-                        //ABooleanSerializerDeserializer.INSTANCE.serialize(res, resultStorage.getDataOutput());
                         bserde.serialize(res, resultStorage.getDataOutput());
                         result.set(resultStorage);
 

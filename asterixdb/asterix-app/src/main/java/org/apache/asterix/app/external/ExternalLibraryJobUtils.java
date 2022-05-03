@@ -24,12 +24,15 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
+import com.azure.core.annotation.Get;
 import org.apache.asterix.common.cluster.ClusterPartition;
 import org.apache.asterix.common.cluster.IClusterStateManager;
 import org.apache.asterix.common.dataflow.ICcApplicationContext;
 import org.apache.asterix.common.functions.ExternalFunctionLanguage;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.common.utils.StoragePathUtil;
+import org.apache.asterix.external.library.JavaLibrary;
+import org.apache.asterix.external.operators.GetLibraryOperatorDescriptor;
 import org.apache.asterix.external.operators.LibraryDeployAbortOperatorDescriptor;
 import org.apache.asterix.external.operators.LibraryDeployCommitOperatorDescriptor;
 import org.apache.asterix.external.operators.LibraryDeployPrepareOperatorDescriptor;
@@ -70,6 +73,19 @@ public class ExternalLibraryJobUtils {
         return new Triple<>(prepareJobSpec, commitJobSpec, abortJobSpec);
     }
 
+    public static Pair<JobSpecification, GetLibraryOperatorDescriptor> getJavaLibraryJobSpec(
+            DataverseName dataverseName, String libraryName, MetadataProvider metadataProvider) {
+
+        ICcApplicationContext appCtx = metadataProvider.getApplicationContext();
+        Pair<IFileSplitProvider, AlgebricksPartitionConstraint> splitsAndConstraint = getSplitsAndConstraints(appCtx);
+        JobSpecification jobSpec = RuntimeUtils.createJobSpecification(appCtx);
+        GetLibraryOperatorDescriptor opDesc = new GetLibraryOperatorDescriptor(jobSpec, dataverseName, libraryName);
+        AlgebricksPartitionConstraintHelper.setPartitionConstraintInJobSpec(jobSpec, opDesc,
+                splitsAndConstraint.second);
+        jobSpec.addRoot(opDesc);
+        return new Pair<>(jobSpec, opDesc);
+    }
+
     private static JobSpecification createLibraryPrepareJobSpec(DataverseName dataverseName, String libraryName,
             ExternalFunctionLanguage language, URI downloadURI, String authToken, ICcApplicationContext appCtx,
             Pair<IFileSplitProvider, AlgebricksPartitionConstraint> splitsAndConstraint) {
@@ -86,6 +102,7 @@ public class ExternalLibraryJobUtils {
             ICcApplicationContext appCtx, Pair<IFileSplitProvider, AlgebricksPartitionConstraint> splitsAndConstraint) {
         JobSpecification jobSpec = RuntimeUtils.createJobSpecification(appCtx);
         IOperatorDescriptor opDesc = new LibraryDeployCommitOperatorDescriptor(jobSpec, dataverseName, libraryName);
+
         AlgebricksPartitionConstraintHelper.setPartitionConstraintInJobSpec(jobSpec, opDesc,
                 splitsAndConstraint.second);
         return jobSpec;
