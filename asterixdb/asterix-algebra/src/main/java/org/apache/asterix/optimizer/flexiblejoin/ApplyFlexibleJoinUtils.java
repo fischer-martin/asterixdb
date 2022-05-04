@@ -358,25 +358,6 @@ public class ApplyFlexibleJoinUtils {
                         new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
                         new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar)));
 
-        /*ScalarFunctionCallExpression wt1 = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
-                BuiltinFunctions.WORD_TOKENS),
-                new MutableObject<>(new VariableReferenceExpression(leftInputVar)));
-        
-        ScalarFunctionCallExpression wt2 = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
-                BuiltinFunctions.WORD_TOKENS),
-                new MutableObject<>(new VariableReferenceExpression(rightInputVar)));
-        
-        ScalarFunctionCallExpression simjac = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
-                BuiltinFunctions.SIMILARITY_JACCARD_CHECK),
-                new MutableObject<>(wt1),
-                new MutableObject<>(wt2),
-                new MutableObject<>(new ConstantExpression(new AsterixConstantValue(new ADouble(0.5)))));
-        
-        ScalarFunctionCallExpression bsimjac = new ScalarFunctionCallExpression(context.getMetadataProvider().lookupFunction(
-                BuiltinFunctions.GET_ITEM),
-                new MutableObject<>(simjac),
-                new MutableObject<>(new ConstantExpression(new AsterixConstantValue(new AInt32(0)))));*/
-
         conditionExprs.add(new MutableObject<>(match));
 
         ScalarFunctionCallExpression updatedJoinCondition;
@@ -469,7 +450,7 @@ public class ApplyFlexibleJoinUtils {
         List<Mutable<ILogicalExpression>> fields = new ArrayList<>(1);
         fields.add(new MutableObject<>(inputVarRef));
 
-        ExternalFJFunctionInfo localAggFunc = null;
+        ExternalFJFunctionInfo localAggFunc;
         FunctionSignature functionSignature;
         String functionName = callerFunction + "_fj_local_summary_two";
         functionSignature = new FunctionSignature(dataverseName, functionName, 1);
@@ -509,7 +490,7 @@ public class ApplyFlexibleJoinUtils {
         AbstractLogicalExpression inputVarRef = new VariableReferenceExpression(inputVar, op.getSourceLocation());
         globalAggFuncArgs.add(new MutableObject<>(inputVarRef));
 
-        ExternalFJFunctionInfo globalAggFunc = null;
+        ExternalFJFunctionInfo globalAggFunc;
         FunctionSignature functionSignature;
         String functionName = callerFunction + "_fj_global_summary_two";
         functionSignature = new FunctionSignature(dataverseName, functionName, 1);
@@ -606,7 +587,7 @@ public class ApplyFlexibleJoinUtils {
         String verifyFunctionName = functionCall + "_fj_assign_one";
         FunctionSignature functionSignature = new FunctionSignature(dataverseName, verifyFunctionName, 2);
         Function function = metadataProvider.lookupUserDefinedFunction(functionSignature);
-        ExternalFJFunctionInfo externalFunctionInfo = (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil
+        ExternalFJFunctionInfo externalFunctionInfo = ExternalFunctionCompilerUtil
                 .getFJFunctionInfo(metadataProvider, function, parameters);
 
         UnnestingFunctionCallExpression assignFuncExpr = new UnnestingFunctionCallExpression(externalFunctionInfo,
@@ -640,7 +621,7 @@ public class ApplyFlexibleJoinUtils {
             functionSignature = new FunctionSignature(dataverseName, functionName, 2);
             function = metadataProvider.lookupUserDefinedFunction(functionSignature);
         }
-        ExternalFJFunctionInfo externalFunctionInfo = (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil
+        ExternalFJFunctionInfo externalFunctionInfo = ExternalFunctionCompilerUtil
                 .getFJFunctionInfo(metadataProvider, function, parameters);
         UnnestingFunctionCallExpression spatialTileFuncExpr = new UnnestingFunctionCallExpression(externalFunctionInfo,
                 new MutableObject<>(unnestVarRef), configureExpr);
@@ -703,7 +684,7 @@ public class ApplyFlexibleJoinUtils {
         projectOperator.setPhysicalOperator(new StreamProjectPOperator());
         projectOperator.setExecutionMode(replicateOperator.getExecutionMode());
         assignOperator.getInputs().add(exchMBRToForwardRef);
-        projectOperator.getInputs().add(new MutableObject<ILogicalOperator>(assignOperator));
+        projectOperator.getInputs().add(new MutableObject<>(assignOperator));
 
         context.computeAndSetTypeEnvironmentForOperator(assignOperator);
         assignOperator.recomputeSchema();
@@ -722,7 +703,7 @@ public class ApplyFlexibleJoinUtils {
         String verifyFunctionName = functionName + "_fj_verify";
         FunctionSignature verifyFunctionSignature = new FunctionSignature(dataverseName, verifyFunctionName, 5);
         Function verifyFunction = metadataProvider.lookupUserDefinedFunction(verifyFunctionSignature);
-        ExternalFJFunctionInfo verifyFunctionInfo = (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil
+        ExternalFJFunctionInfo verifyFunctionInfo = ExternalFunctionCompilerUtil
                 .getFJFunctionInfo(metadataProvider, verifyFunction, parameters);
         ScalarFunctionCallExpression verify = new ScalarFunctionCallExpression(verifyFunctionInfo,
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),

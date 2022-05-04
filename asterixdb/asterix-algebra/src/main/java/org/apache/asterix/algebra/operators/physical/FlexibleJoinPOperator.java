@@ -174,7 +174,7 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
                 new TuplePairEvaluatorFactory(cond, false, context.getBinaryBooleanInspectorFactory());
 
         IOperatorDescriptor opDesc =
-                new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe, recordDescriptor, mjcf, (IPredicateEvaluatorFactory) comparatorFactory);
+                new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe, recordDescriptor, mjcf, comparatorFactory);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
 
         ILogicalOperator src1 = op.getInputs().get(0).getValue();
