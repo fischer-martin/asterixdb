@@ -162,6 +162,7 @@ public class FlexibleJoiner {
             memoryCursor.reset(memoryBuffer.iterator());
             while (memoryCursor.hasNext()) {
                 memoryCursor.next();
+                //tpComparator.compare();
                 if (inputTuple[BUILD_PARTITION].removeFromMemory(memoryTuple)) {
                     // remove from memory
                     bufferManager.deleteTuple(memoryCursor.getTuplePointer());

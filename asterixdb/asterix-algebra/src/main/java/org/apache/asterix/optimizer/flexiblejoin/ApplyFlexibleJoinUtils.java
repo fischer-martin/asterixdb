@@ -349,9 +349,14 @@ public class ApplyFlexibleJoinUtils {
         Function matchFunction = metadataProvider.lookupUserDefinedFunction(matchFunctionSignature);
         FunctionInfo MatchFunctionInfo;
 
+
+        boolean useHashJoin = false;
         if(matchFunction == null) {
             MatchFunctionInfo = BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.EQ);
-        } else MatchFunctionInfo = ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider, matchFunction, parameters);
+            useHashJoin = true;
+        } else {
+            MatchFunctionInfo = ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider, matchFunction, parameters);
+        }
 
         ScalarFunctionCallExpression match =
                 new ScalarFunctionCallExpression(MatchFunctionInfo,
@@ -371,12 +376,15 @@ public class ApplyFlexibleJoinUtils {
         //Mutable<ILogicalExpression> joinConditionRef = joinOp.getCondition();
         //joinConditionRef.setValue(updatedJoinCondition);
 
-        InnerJoinOperator matchJoinOp = new InnerJoinOperator(new MutableObject<>(updatedJoinCondition),
-                new MutableObject<>(leftBucketIdVarPair.second), new MutableObject<>(rightBucketIdVarPair.second));
+        InnerJoinOperator matchJoinOp = new InnerJoinOperator(
+                new MutableObject<>(updatedJoinCondition),
+                new MutableObject<>(leftBucketIdVarPair.second),
+                new MutableObject<>(rightBucketIdVarPair.second)
+        );
         //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
         //        keysLeftBranch, keysRightBranch, ));
-        //setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
-        //setHashJoinOp(matchJoinOp,keysLeftBranch, keysRightBranch, context);
+        if(!useHashJoin) setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
+
         matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());
         matchJoinOp.setSchema(joinOp.getSchema());
@@ -461,7 +469,7 @@ public class ApplyFlexibleJoinUtils {
             function = metadataProvider.lookupUserDefinedFunction(functionSignature);
         }
 
-        localAggFunc = (ExternalFJFunctionInfo) ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider,
+        localAggFunc = ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider,
                 function, parameters);
 
         AggregateFunctionCallExpression localAggExpr = new AggregateFunctionCallExpression(localAggFunc, false, fields);

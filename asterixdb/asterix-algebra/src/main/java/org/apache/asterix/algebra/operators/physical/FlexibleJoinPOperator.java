@@ -38,14 +38,8 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBina
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.AbstractJoinPOperator;
-import org.apache.hyracks.algebricks.core.algebra.properties.ILocalStructuralProperty;
-import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningProperty;
-import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningRequirementsCoordinator;
-import org.apache.hyracks.algebricks.core.algebra.properties.IPhysicalPropertiesVector;
-import org.apache.hyracks.algebricks.core.algebra.properties.LocalGroupingProperty;
-import org.apache.hyracks.algebricks.core.algebra.properties.PhysicalRequirements;
-import org.apache.hyracks.algebricks.core.algebra.properties.StructuralPropertiesVector;
-import org.apache.hyracks.algebricks.core.algebra.properties.UnorderedPartitionedProperty;
+import org.apache.hyracks.algebricks.core.algebra.operators.physical.OneToOneExchangePOperator;
+import org.apache.hyracks.algebricks.core.algebra.properties.*;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenHelper;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
@@ -145,8 +139,10 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         localProperties2.add(new LocalGroupingProperty(orderColumns2));
 
         StructuralPropertiesVector[] pv = new StructuralPropertiesVector[2];
-        pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
-        pv[1] = new StructuralPropertiesVector(pp2, localProperties2);
+        //pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
+        pv[0] = new StructuralPropertiesVector(new RandomPartitioningProperty(context.getComputationNodeDomain()), localProperties1);
+        //pv[1] = new StructuralPropertiesVector(pp2, localProperties2);
+        pv[1] = new StructuralPropertiesVector(new BroadcastPartitioningProperty(context.getComputationNodeDomain()), localProperties2);
 
         return new PhysicalRequirements(pv, IPartitioningRequirementsCoordinator.NO_COORDINATION);
     }
