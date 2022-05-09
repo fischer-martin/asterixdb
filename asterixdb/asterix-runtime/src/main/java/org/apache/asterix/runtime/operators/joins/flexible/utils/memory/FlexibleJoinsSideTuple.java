@@ -20,6 +20,7 @@ package org.apache.asterix.runtime.operators.joins.flexible.utils.memory;
 
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.ITupleCursor;
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
 public class FlexibleJoinsSideTuple {
@@ -27,11 +28,10 @@ public class FlexibleJoinsSideTuple {
     int[] fieldId;
     ITupleCursor cursor;
 
-    // Join details
-    final IFlexibleJoinUtil imjc;
+    ITuplePairComparator tuplePairComparator;
 
-    public FlexibleJoinsSideTuple(IFlexibleJoinUtil imjc, ITupleCursor cursor, int[] fieldId) {
-        this.imjc = imjc;
+    public FlexibleJoinsSideTuple(ITuplePairComparator tuplePairComparator, ITupleCursor cursor, int[] fieldId) {
+        this.tuplePairComparator = tuplePairComparator;
         this.cursor = cursor;
         this.fieldId = fieldId;
     }
@@ -45,17 +45,17 @@ public class FlexibleJoinsSideTuple {
     }
 
     public boolean compareJoin(FlexibleJoinsSideTuple ist) throws HyracksDataException {
-        return imjc.checkToSaveInResult(cursor.getAccessor(), cursor.getTupleId(), ist.cursor.getAccessor(),
-                ist.cursor.getTupleId());
+        return tuplePairComparator.compare(cursor.getAccessor(), cursor.getTupleId(), ist.cursor.getAccessor(),
+                ist.cursor.getTupleId()) == 0;
     }
 
     public boolean removeFromMemory(FlexibleJoinsSideTuple ist) throws HyracksDataException {
-        return imjc.checkToRemoveInMemory(cursor.getAccessor(), cursor.getTupleId(), ist.cursor.getAccessor(),
-                ist.cursor.getTupleId());
+        return tuplePairComparator.compare(cursor.getAccessor(), cursor.getTupleId(), ist.cursor.getAccessor(),
+                ist.cursor.getTupleId()) == 1;
     }
 
     public boolean checkForEarlyExit(FlexibleJoinsSideTuple ist) throws HyracksDataException {
-        return imjc.checkForEarlyExit(cursor.getAccessor(), cursor.getTupleId(), ist.cursor.getAccessor(),
-                ist.cursor.getTupleId());
+        return tuplePairComparator.compare(cursor.getAccessor(), cursor.getTupleId(), ist.cursor.getAccessor(),
+                ist.cursor.getTupleId()) == 1;
     }
 }

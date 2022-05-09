@@ -92,7 +92,7 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                     private final AMutableInt32 aInt32 = new AMutableInt32(0);
 
                     @SuppressWarnings("rawtypes")
-                    private ISerializerDeserializer serde =
+                    private final ISerializerDeserializer serde =
                             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT32);
 
                     private FlexibleJoin flexibleJoin = null;

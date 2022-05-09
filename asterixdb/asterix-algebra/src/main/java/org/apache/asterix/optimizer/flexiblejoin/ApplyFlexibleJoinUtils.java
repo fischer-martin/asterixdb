@@ -726,10 +726,9 @@ public class ApplyFlexibleJoinUtils {
 
     private static void setFlexibleJoinOp(AbstractBinaryJoinOperator op, List<LogicalVariable> keysLeftBranch,
             List<LogicalVariable> keysRightBranch, IOptimizationContext context) throws AlgebricksException {
-        IFlexibleJoinUtilFactory isjuf = new FlexibleJoinUtilFactory();
         op.setPhysicalOperator(new FlexibleJoinPOperator(op.getJoinKind(),
                 AbstractJoinPOperator.JoinPartitioningType.PAIRWISE, keysLeftBranch, keysRightBranch,
-                context.getPhysicalOptimizationConfig().getMaxFramesForJoin(), isjuf));
+                context.getPhysicalOptimizationConfig().getMaxFramesForJoin()));
         op.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(op);
     }

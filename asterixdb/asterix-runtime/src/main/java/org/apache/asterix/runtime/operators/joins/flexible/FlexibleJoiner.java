@@ -56,8 +56,6 @@ public class FlexibleJoiner {
     private FlexibleJoinsSideTuple[] inputTuple;
     private TuplePointer tp;
 
-    private final IFlexibleJoinUtil mjc;
-
     protected static final int JOIN_PARTITIONS = 2;
     protected static final int BUILD_PARTITION = 0;
     protected static final int PROBE_PARTITION = 1;
@@ -68,15 +66,16 @@ public class FlexibleJoiner {
 
     private ITuplePairComparator tpComparator;
 
-    public FlexibleJoiner(IHyracksTaskContext ctx, int memorySize, IFlexibleJoinUtil mjc, int[] buildKeys,
+    public FlexibleJoiner(IHyracksTaskContext ctx, ITuplePairComparator tpComparator, int memorySize, int[] buildKeys,
                           int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd) throws HyracksDataException {
-        this.mjc = mjc;
 
         // Memory (probe buffer)
         if (memorySize < 5) {
             throw new RuntimeException(
                     "FlexibleJoiner does not have enough memory (needs > 4, got " + memorySize + ").");
         }
+
+        this.tpComparator = tpComparator;
 
         inputCursor = new FrameTupleCursor[JOIN_PARTITIONS];
         inputCursor[BUILD_PARTITION] = new FrameTupleCursor(buildRd);
@@ -97,11 +96,11 @@ public class FlexibleJoiner {
         runFileStream.createRunFileWriting();
         runFileStream.startRunFileWriting();
 
-        memoryTuple = new FlexibleJoinsSideTuple(mjc, memoryCursor, probeKeys);
+        memoryTuple = new FlexibleJoinsSideTuple(tpComparator, memoryCursor, probeKeys);
 
         inputTuple = new FlexibleJoinsSideTuple[JOIN_PARTITIONS];
-        inputTuple[PROBE_PARTITION] = new FlexibleJoinsSideTuple(mjc, inputCursor[PROBE_PARTITION], probeKeys);
-        inputTuple[BUILD_PARTITION] = new FlexibleJoinsSideTuple(mjc, inputCursor[BUILD_PARTITION], buildKeys);
+        inputTuple[PROBE_PARTITION] = new FlexibleJoinsSideTuple(tpComparator, inputCursor[PROBE_PARTITION], probeKeys);
+        inputTuple[BUILD_PARTITION] = new FlexibleJoinsSideTuple(tpComparator, inputCursor[BUILD_PARTITION], buildKeys);
 
         // Result
         this.resultAppender = new FrameTupleAppender(new VSizeFrame(ctx));
@@ -122,9 +121,9 @@ public class FlexibleJoiner {
     public void processProbeFrame(ByteBuffer buffer, IFrameWriter writer) throws HyracksDataException {
         inputCursor[PROBE_PARTITION].reset(buffer);
         while (buildHasNext() && inputCursor[PROBE_PARTITION].hasNext()) {
-            if (inputCursor[PROBE_PARTITION].hasNext() && mjc.checkToLoadNextProbeTuple(
+            if (inputCursor[PROBE_PARTITION].hasNext() && tpComparator.compare(
                     inputCursor[BUILD_PARTITION].getAccessor(), inputCursor[BUILD_PARTITION].getTupleId() + 1,
-                    inputCursor[PROBE_PARTITION].getAccessor(), inputCursor[PROBE_PARTITION].getTupleId() + 1)) {
+                    inputCursor[PROBE_PARTITION].getAccessor(), inputCursor[PROBE_PARTITION].getTupleId() + 1) == 0) {
                 // Process probe side from stream
                 inputCursor[PROBE_PARTITION].next();
                 processProbeTuple(writer);
@@ -162,7 +161,6 @@ public class FlexibleJoiner {
             memoryCursor.reset(memoryBuffer.iterator());
             while (memoryCursor.hasNext()) {
                 memoryCursor.next();
-                //tpComparator.compare();
                 if (inputTuple[BUILD_PARTITION].removeFromMemory(memoryTuple)) {
                     // remove from memory
                     bufferManager.deleteTuple(memoryCursor.getTuplePointer());
@@ -183,9 +181,9 @@ public class FlexibleJoiner {
     private void processProbeTuple(IFrameWriter writer) throws HyracksDataException {
         // append to memory
         // BUILD Cursor is guaranteed to have next
-        if (mjc.checkToSaveInMemory(inputCursor[BUILD_PARTITION].getAccessor(),
+        if (tpComparator.compare(inputCursor[BUILD_PARTITION].getAccessor(),
                 inputCursor[BUILD_PARTITION].getTupleId() + 1, inputCursor[PROBE_PARTITION].getAccessor(),
-                inputCursor[PROBE_PARTITION].getTupleId())) {
+                inputCursor[PROBE_PARTITION].getTupleId()) == 0) {
             if (!addToMemory(inputCursor[PROBE_PARTITION].getAccessor(), inputCursor[PROBE_PARTITION].getTupleId())) {
                 unfreezeAndClearMemory(writer);
                 if (!addToMemory(inputCursor[PROBE_PARTITION].getAccessor(),
@@ -234,10 +232,6 @@ public class FlexibleJoiner {
         return false;
         //return ((predEvaluator == null) || predEvaluator.evaluate(accessorOuter, tIx1, accessorInner, tIx2));
 
-    }
-
-    void setComparator(ITuplePairComparator tpComparator) {
-        this.tpComparator = tpComparator;
     }
 
 }

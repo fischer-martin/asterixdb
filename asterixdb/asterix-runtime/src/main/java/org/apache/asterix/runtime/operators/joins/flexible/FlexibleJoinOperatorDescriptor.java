@@ -21,7 +21,6 @@ package org.apache.asterix.runtime.operators.joins.flexible;
 import java.nio.ByteBuffer;
 
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtil;
-import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.ActivityId;
 import org.apache.hyracks.api.dataflow.IActivity;
@@ -47,19 +46,17 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
     private final int[] buildKeys;
     private final int[] probeKeys;
     private final int memoryForJoin;
-    private final IFlexibleJoinUtilFactory imjcf;
 
-    private final ITuplePairComparatorFactory predEvaluatorFactory;
+    private final ITuplePairComparatorFactory tuplePairComparatorFactory;
 
     public FlexibleJoinOperatorDescriptor(IOperatorDescriptorRegistry spec, int memoryForJoin, int[] buildKeys,
-                                          int[] probeKeys, RecordDescriptor recordDescriptor, IFlexibleJoinUtilFactory imjcf, ITuplePairComparatorFactory predEvaluatorFactory) {
+                                          int[] probeKeys, RecordDescriptor recordDescriptor, ITuplePairComparatorFactory tuplePairComparatorFactory) {
         super(spec, 2, 1);
-        this.predEvaluatorFactory = predEvaluatorFactory;
+        this.tuplePairComparatorFactory = tuplePairComparatorFactory;
         outRecDescs[0] = recordDescriptor;
         this.buildKeys = buildKeys;
         this.probeKeys = probeKeys;
         this.memoryForJoin = memoryForJoin;
-        this.imjcf = imjcf;
     }
 
     @Override
@@ -111,8 +108,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                     state = new JoinCacheTaskState(ctx.getJobletContext().getJobId(),
                             new TaskId(getActivityId(), partition));
 
-                    IFlexibleJoinUtil imjc = imjcf.createFlexibleJoinUtil(buildKeys, probeKeys, ctx, nPartitions);
-                    state.joiner = new FlexibleJoiner(ctx, memoryForJoin, imjc, buildKeys, probeKeys, buildRd, probeRd);
+                    state.joiner = new FlexibleJoiner(ctx,tuplePairComparatorFactory.createTuplePairComparator(ctx), memoryForJoin, buildKeys, probeKeys, buildRd, probeRd);
                 }
 
                 @Override

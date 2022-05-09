@@ -58,16 +58,13 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
     private final List<LogicalVariable> keysLeftBranch;
     private final List<LogicalVariable> keysRightBranch;
 
-    protected final IFlexibleJoinUtilFactory mjcf;
     private final int memSizeInFrames;
 
     public FlexibleJoinPOperator(JoinKind kind, JoinPartitioningType partitioningType,
-            List<LogicalVariable> keysLeftBranch, List<LogicalVariable> keysRightBranch, int memSizeInFrames,
-            IFlexibleJoinUtilFactory mjcf) {
+            List<LogicalVariable> keysLeftBranch, List<LogicalVariable> keysRightBranch, int memSizeInFrames) {
         super(kind, partitioningType);
         this.keysLeftBranch = keysLeftBranch;
         this.keysRightBranch = keysRightBranch;
-        this.mjcf = mjcf;
         this.memSizeInFrames = memSizeInFrames;
     }
 
@@ -170,7 +167,7 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
                 new TuplePairEvaluatorFactory(cond, false, context.getBinaryBooleanInspectorFactory());
 
         IOperatorDescriptor opDesc =
-                new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe, recordDescriptor, mjcf, comparatorFactory);
+                new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe, recordDescriptor, comparatorFactory);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
 
         ILogicalOperator src1 = op.getInputs().get(0).getValue();
