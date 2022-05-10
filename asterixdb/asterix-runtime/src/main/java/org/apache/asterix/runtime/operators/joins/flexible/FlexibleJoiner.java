@@ -19,6 +19,7 @@
 package org.apache.asterix.runtime.operators.joins.flexible;
 
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.LinkedList;
 
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
@@ -51,6 +52,7 @@ public class FlexibleJoiner {
     private final IDeletableTupleBufferManager bufferManager;
     private final TuplePointerCursor memoryCursor;
     private final LinkedList<TuplePointer> memoryBuffer = new LinkedList<>();
+    private final HashMap<Integer, Long> bucketIdsMap = new HashMap<>();
 
     private final RunFileStream runFileStream;
     private final RunFilePointer runFilePointer;
@@ -114,19 +116,18 @@ public class FlexibleJoiner {
 
     public void processBuildFrame(ByteBuffer buffer) throws HyracksDataException {
         inputCursor[BUILD_PARTITION].reset(buffer);
-        System.out.println("NEW FRAME");
+        int lastBucketId = 0;
         for (int x = 0; x < inputCursor[BUILD_PARTITION].getAccessor().getTupleCount(); x++) {
-            /*int start = inputCursor[BUILD_PARTITION].getAccessor().getTupleStartOffset(x)
-                    + inputCursor[BUILD_PARTITION].getAccessor().getFieldSlotsLength()
-                    + inputCursor[BUILD_PARTITION].getAccessor().getFieldStartOffset(x,0);*/
-            int tileIdB = FlexibleJoinsUtil.getBucketId(inputCursor[BUILD_PARTITION].getAccessor(), x, 0);
-            int tileIdP = FlexibleJoinsUtil.getBucketId(inputCursor[BUILD_PARTITION].getAccessor(), x, 1);
-            /*AlgebricksConfig.ALGEBRICKS_LOGGER
-                    .info("\nFJ MATCH: ID: " + ctx.getJobletContext().getServiceContext().getNodeId()
-                            + " bucket ids: " + tileIdB + ", " + tileIdP);*/
-            System.out.println("build frame\t"+ctx.getJobletContext().getServiceContext().getNodeId()+"\t"+tileIdB+"\t"+tileIdP);
-            //int tupleId = inputCursor[BUILD_PARTITION].getTupleId();
+            int currBucketId = FlexibleJoinsUtil.getBucketId(inputCursor[BUILD_PARTITION].getAccessor(), x, 1);
+
+            System.out.println("build frame\t"+ctx.getJobletContext().getServiceContext().getNodeId()+"\t"+currBucketId);
+
+            if(lastBucketId != currBucketId) {
+                lastBucketId = currBucketId;
+                bucketIdsMap.put(currBucketId, runFileStream.getTupleCount());
+            }
             runFileStream.addToRunFile(inputCursor[BUILD_PARTITION].getAccessor(), x);
+
         }
     }
 

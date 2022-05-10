@@ -383,7 +383,9 @@ public class ApplyFlexibleJoinUtils {
         );
         //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
         //        keysLeftBranch, keysRightBranch, ));
-        if(!useHashJoin) setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
+        if(!useHashJoin)
+            //setHashJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
+            setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
 
         matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());
@@ -736,7 +738,7 @@ public class ApplyFlexibleJoinUtils {
     private static void setHashJoinOp(AbstractBinaryJoinOperator op, List<LogicalVariable> sideLeft,
             List<LogicalVariable> sideRight, IOptimizationContext context) throws AlgebricksException {
         op.setPhysicalOperator(
-                new HybridHashJoinPOperator(op.getJoinKind(), AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
+                new HybridHashJoinPOperator(op.getJoinKind(), AbstractJoinPOperator.JoinPartitioningType.BROADCAST,
                         sideLeft, sideRight, context.getPhysicalOptimizationConfig().getMaxFramesForJoinLeftInput(),
                         context.getPhysicalOptimizationConfig().getMaxRecordsPerFrame(),
                         context.getPhysicalOptimizationConfig().getFudgeFactor()));
