@@ -2832,8 +2832,6 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         MetadataTransactionContext mdTxnCtx = MetadataManager.INSTANCE.beginTransaction();
         metadataProvider.setMetadataTxnContext(mdTxnCtx);
 
-
-
         try {
             Dataverse dv = MetadataManager.INSTANCE.getDataverse(mdTxnCtx, dataverseName);
             if (dv == null) {
@@ -2948,7 +2946,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             boolean implementsMatch = false;
             boolean implementsAssignTwo = false;
             boolean implementsSummaryTwo = false;
-            for(Method method : methods) {
+            for (Method method : methods) {
                 switch (method.getName()) {
                     case "match":
                         implementsMatch = !method.isDefault();
@@ -2994,7 +2992,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     cfs.getResources(), dependencies);
 
             Function matchFunction = null;
-            if(implementsMatch) {
+            if (implementsMatch) {
                 //Create match function
                 List<String> matchParamNames = new ArrayList<>(2);
                 List<TypeSignature> matchParamTypes = new ArrayList<>(2);
@@ -3008,8 +3006,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 matchFunctionSignature.setName(functionSignature.getName() + "_fj_match");
                 matchFunction = new Function(matchFunctionSignature, matchParamNames, matchParamTypes,
                         returnTypeSignature, null, FunctionKind.FJ_MATCH.toString(), library.getLanguage(),
-                        libraryDataverseName, libraryName, externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(),
-                        cfs.getResources(), dependencies);
+                        libraryDataverseName, libraryName, externalIdentifier, cfs.getNullCall(),
+                        cfs.getDeterministic(), cfs.getResources(), dependencies);
             }
             //Create local summary one function
             List<String> localSummaryOneParamNames = new ArrayList<>(1);
@@ -3045,7 +3043,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
             Function localSummaryTwoFunction = null;
             Function globalSummaryTwoFunction = null;
-            if(implementsSummaryTwo) {
+            if (implementsSummaryTwo) {
                 //Create local summary two function
                 List<String> localSummaryTwoParamNames = new ArrayList<>(1);
                 List<TypeSignature> localSummaryTwoParamTypes = new ArrayList<>(1);
@@ -3056,11 +3054,11 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         new FunctionSignature(functionSignature.createFunctionIdentifier());
                 localSummaryTwoFunctionSignature.setArity(1);
                 localSummaryTwoFunctionSignature.setName(functionSignature.getName() + "_fj_local_summary_two");
-                localSummaryTwoFunction =
-                        new Function(localSummaryTwoFunctionSignature, localSummaryTwoParamNames, localSummaryTwoParamTypes,
-                                localSummaryTwoReturnTypeSignature, null, FunctionKind.FJ_LOCAL_SUMMARY_TWO.toString(),
-                                library.getLanguage(), libraryDataverseName, libraryName, externalIdentifier,
-                                cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(), dependencies);
+                localSummaryTwoFunction = new Function(localSummaryTwoFunctionSignature, localSummaryTwoParamNames,
+                        localSummaryTwoParamTypes, localSummaryTwoReturnTypeSignature, null,
+                        FunctionKind.FJ_LOCAL_SUMMARY_TWO.toString(), library.getLanguage(), libraryDataverseName,
+                        libraryName, externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(),
+                        dependencies);
 
                 //Create global summary two function
                 List<String> globalSummaryTwoParamNames = new ArrayList<>(1);
@@ -3072,8 +3070,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         new FunctionSignature(functionSignature.createFunctionIdentifier());
                 globalSummaryTwoFunctionSignature.setArity(1);
                 globalSummaryTwoFunctionSignature.setName(functionSignature.getName() + "_fj_global_summary_two");
-                globalSummaryTwoFunction = new Function(globalSummaryTwoFunctionSignature,
-                        globalSummaryTwoParamNames, globalSummaryTwoParamTypes, globalSummaryTwoReturnTypeSignature, null,
+                globalSummaryTwoFunction = new Function(globalSummaryTwoFunctionSignature, globalSummaryTwoParamNames,
+                        globalSummaryTwoParamTypes, globalSummaryTwoReturnTypeSignature, null,
                         FunctionKind.FJ_GLOBAL_SUMMARY_TWO.toString(), library.getLanguage(), libraryDataverseName,
                         libraryName, externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(), cfs.getResources(),
                         dependencies);
@@ -3096,7 +3094,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     cfs.getDeterministic(), cfs.getResources(), dependencies);
 
             Function assignTwoFunction = null;
-            if(implementsAssignTwo) {
+            if (implementsAssignTwo) {
                 //Create assign two function
                 List<String> assignTwoParamNames = new ArrayList<>(2);
                 List<TypeSignature> assignTwoParamTypes = new ArrayList<>(2);
@@ -3109,8 +3107,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         new FunctionSignature(functionSignature.createFunctionIdentifier());
                 assignTwoFunctionSignature.setArity(2);
                 assignTwoFunctionSignature.setName(functionSignature.getName() + "_fj_assign_two");
-                assignTwoFunction = new Function(assignTwoFunctionSignature, assignTwoParamNames,
-                        assignTwoParamTypes, assignTwoReturnTypeSignature, null, FunctionKind.FJ_ASSIGN_TWO.toString(),
+                assignTwoFunction = new Function(assignTwoFunctionSignature, assignTwoParamNames, assignTwoParamTypes,
+                        assignTwoReturnTypeSignature, null, FunctionKind.FJ_ASSIGN_TWO.toString(),
                         library.getLanguage(), libraryDataverseName, libraryName, externalIdentifier, cfs.getNullCall(),
                         cfs.getDeterministic(), cfs.getResources(), dependencies);
             }
@@ -3131,26 +3129,27 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     libraryDataverseName, libraryName, externalIdentifier, cfs.getNullCall(), cfs.getDeterministic(),
                     cfs.getResources(), dependencies);
 
-
             if (existingFunction == null) {
                 // add new function and its inline types
                 for (Datatype newInlineType : newInlineTypes.values()) {
                     MetadataManager.INSTANCE.addDatatype(mdTxnCtx, newInlineType);
                 }
                 MetadataManager.INSTANCE.addFunction(mdTxnCtx, function);
-                if(implementsMatch) MetadataManager.INSTANCE.addFunction(mdTxnCtx, matchFunction);
+                if (implementsMatch)
+                    MetadataManager.INSTANCE.addFunction(mdTxnCtx, matchFunction);
                 MetadataManager.INSTANCE.addFunction(mdTxnCtx, verifyFunction);
                 MetadataManager.INSTANCE.addFunction(mdTxnCtx, divideFunction);
 
                 MetadataManager.INSTANCE.addFunction(mdTxnCtx, localSummaryOneFunction);
                 MetadataManager.INSTANCE.addFunction(mdTxnCtx, globalSummaryOneFunction);
 
-                if(implementsSummaryTwo) {
+                if (implementsSummaryTwo) {
                     MetadataManager.INSTANCE.addFunction(mdTxnCtx, localSummaryTwoFunction);
                     MetadataManager.INSTANCE.addFunction(mdTxnCtx, globalSummaryTwoFunction);
                 }
                 MetadataManager.INSTANCE.addFunction(mdTxnCtx, assignOneFunction);
-                if(implementsAssignTwo) MetadataManager.INSTANCE.addFunction(mdTxnCtx, assignTwoFunction);
+                if (implementsAssignTwo)
+                    MetadataManager.INSTANCE.addFunction(mdTxnCtx, assignTwoFunction);
             } else {
                 // replace existing function and its inline types
                 for (TypeSignature existingInlineType : existingInlineTypes) {
@@ -3167,17 +3166,19 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     MetadataManager.INSTANCE.addDatatype(mdTxnCtx, inlineType);
                 }
                 MetadataManager.INSTANCE.updateFunction(mdTxnCtx, function);
-                if(implementsMatch) MetadataManager.INSTANCE.updateFunction(mdTxnCtx, matchFunction);
+                if (implementsMatch)
+                    MetadataManager.INSTANCE.updateFunction(mdTxnCtx, matchFunction);
                 MetadataManager.INSTANCE.updateFunction(mdTxnCtx, verifyFunction);
                 MetadataManager.INSTANCE.updateFunction(mdTxnCtx, divideFunction);
                 MetadataManager.INSTANCE.updateFunction(mdTxnCtx, localSummaryOneFunction);
                 MetadataManager.INSTANCE.updateFunction(mdTxnCtx, globalSummaryOneFunction);
-                if(implementsSummaryTwo) {
+                if (implementsSummaryTwo) {
                     MetadataManager.INSTANCE.updateFunction(mdTxnCtx, localSummaryTwoFunction);
                     MetadataManager.INSTANCE.updateFunction(mdTxnCtx, globalSummaryTwoFunction);
                 }
                 MetadataManager.INSTANCE.updateFunction(mdTxnCtx, assignOneFunction);
-                if(implementsAssignTwo) MetadataManager.INSTANCE.updateFunction(mdTxnCtx, assignTwoFunction);
+                if (implementsAssignTwo)
+                    MetadataManager.INSTANCE.updateFunction(mdTxnCtx, assignTwoFunction);
 
             }
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
@@ -3531,7 +3532,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     new FunctionSignature(signature.createFunctionIdentifier());
             globalSummaryTwoFunctionSignature.setArity(1);
             globalSummaryTwoFunctionSignature.setName(signature.getName() + "_fj_global_summary_two");
-            Function globalSummaryTwo = MetadataManager.INSTANCE.getFunction(mdTxnCtx, globalSummaryTwoFunctionSignature);
+            Function globalSummaryTwo =
+                    MetadataManager.INSTANCE.getFunction(mdTxnCtx, globalSummaryTwoFunctionSignature);
 
             FunctionSignature assignOneFunctionSignature = new FunctionSignature(signature.createFunctionIdentifier());
             assignOneFunctionSignature.setArity(2);
@@ -3542,15 +3544,19 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             assignTwoFunctionSignature.setName(signature.getName() + "_fj_assign_two");
             Function assignTwo = MetadataManager.INSTANCE.getFunction(mdTxnCtx, assignTwoFunctionSignature);
 
-            if(match != null) MetadataManager.INSTANCE.dropFunction(mdTxnCtx, matchFunctionSignature);
+            if (match != null)
+                MetadataManager.INSTANCE.dropFunction(mdTxnCtx, matchFunctionSignature);
             MetadataManager.INSTANCE.dropFunction(mdTxnCtx, verifyFunctionSignature);
             MetadataManager.INSTANCE.dropFunction(mdTxnCtx, divideFunctionSignature);
             MetadataManager.INSTANCE.dropFunction(mdTxnCtx, localSummaryOneFunctionSignature);
             MetadataManager.INSTANCE.dropFunction(mdTxnCtx, globalSummaryOneFunctionSignature);
-            if(localSummaryTwo != null) MetadataManager.INSTANCE.dropFunction(mdTxnCtx, localSummaryTwoFunctionSignature);
-            if(globalSummaryTwo != null) MetadataManager.INSTANCE.dropFunction(mdTxnCtx, globalSummaryTwoFunctionSignature);
+            if (localSummaryTwo != null)
+                MetadataManager.INSTANCE.dropFunction(mdTxnCtx, localSummaryTwoFunctionSignature);
+            if (globalSummaryTwo != null)
+                MetadataManager.INSTANCE.dropFunction(mdTxnCtx, globalSummaryTwoFunctionSignature);
             MetadataManager.INSTANCE.dropFunction(mdTxnCtx, assignOneFunctionSignature);
-            if(assignTwo != null) MetadataManager.INSTANCE.dropFunction(mdTxnCtx, assignTwoFunctionSignature);
+            if (assignTwo != null)
+                MetadataManager.INSTANCE.dropFunction(mdTxnCtx, assignTwoFunctionSignature);
 
             for (TypeSignature inlineType : inlineTypes) {
                 MetadataManager.INSTANCE.dropDatatype(mdTxnCtx, inlineType.getDataverseName(), inlineType.getName());

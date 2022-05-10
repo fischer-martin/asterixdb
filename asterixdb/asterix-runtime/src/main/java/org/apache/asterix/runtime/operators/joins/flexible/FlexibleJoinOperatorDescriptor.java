@@ -20,14 +20,15 @@ package org.apache.asterix.runtime.operators.joins.flexible;
 
 import java.nio.ByteBuffer;
 
-import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtil;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.ActivityId;
 import org.apache.hyracks.api.dataflow.IActivity;
 import org.apache.hyracks.api.dataflow.IActivityGraphBuilder;
 import org.apache.hyracks.api.dataflow.IOperatorNodePushable;
 import org.apache.hyracks.api.dataflow.TaskId;
-import org.apache.hyracks.api.dataflow.value.*;
+import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparatorFactory;
+import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 import org.apache.hyracks.api.job.JobId;
@@ -50,7 +51,8 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
     private final ITuplePairComparatorFactory tuplePairComparatorFactory;
 
     public FlexibleJoinOperatorDescriptor(IOperatorDescriptorRegistry spec, int memoryForJoin, int[] buildKeys,
-                                          int[] probeKeys, RecordDescriptor recordDescriptor, ITuplePairComparatorFactory tuplePairComparatorFactory) {
+            int[] probeKeys, RecordDescriptor recordDescriptor,
+            ITuplePairComparatorFactory tuplePairComparatorFactory) {
         super(spec, 2, 1);
         this.tuplePairComparatorFactory = tuplePairComparatorFactory;
         outRecDescs[0] = recordDescriptor;
@@ -108,7 +110,8 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                     state = new JoinCacheTaskState(ctx.getJobletContext().getJobId(),
                             new TaskId(getActivityId(), partition));
 
-                    state.joiner = new FlexibleJoiner(ctx,tuplePairComparatorFactory.createTuplePairComparator(ctx), memoryForJoin, buildKeys, probeKeys, buildRd, probeRd);
+                    state.joiner = new FlexibleJoiner(ctx, tuplePairComparatorFactory.createTuplePairComparator(ctx),
+                            memoryForJoin, buildKeys, probeKeys, buildRd, probeRd);
                 }
 
                 @Override

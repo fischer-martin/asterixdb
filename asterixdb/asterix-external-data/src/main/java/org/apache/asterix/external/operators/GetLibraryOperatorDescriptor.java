@@ -19,17 +19,16 @@
 
 package org.apache.asterix.external.operators;
 
+import java.io.IOException;
+
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.IOperatorNodePushable;
 import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
-import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.io.IOException;
 
 public final class GetLibraryOperatorDescriptor extends AbstractLibraryOperatorDescriptor {
 
@@ -40,7 +39,7 @@ public final class GetLibraryOperatorDescriptor extends AbstractLibraryOperatorD
     public static JavaLibrary javaLibrary;
 
     public GetLibraryOperatorDescriptor(IOperatorDescriptorRegistry spec, DataverseName dataverseName,
-                                        String libraryName) {
+            String libraryName) {
         super(spec, dataverseName, libraryName);
     }
 

@@ -154,11 +154,9 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             ATypeTag tag1 = eser.deserialize(bytes1[offset1]);
                             ATypeTag tag3 = eser.deserialize(bytes3[offset3]);
 
-                            ByteArrayInputStream inStream1 =
-                                    new ByteArrayInputStream(bytes1, offset1 + 1, len1 - 1);
+                            ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1 + 1, len1 - 1);
                             DataInputStream dataIn1 = new DataInputStream(inStream1);
-                            ByteArrayInputStream inStream3 =
-                                    new ByteArrayInputStream(bytes3, offset3 + 1, len3 - 1);
+                            ByteArrayInputStream inStream3 = new ByteArrayInputStream(bytes3, offset3 + 1, len3 - 1);
                             DataInputStream dataIn3 = new DataInputStream(inStream3);
 
                             res = flexibleJoin.verify(bucketID0, getKeyObject(dataIn1, tag1), bucketID1,

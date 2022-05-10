@@ -18,7 +18,6 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible.utils.memory;
 
-import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.ITupleCursor;
 import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
 import org.apache.hyracks.api.exceptions.HyracksDataException;

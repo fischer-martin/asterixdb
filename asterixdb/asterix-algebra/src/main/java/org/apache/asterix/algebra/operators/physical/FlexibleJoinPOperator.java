@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.asterix.runtime.operators.joins.flexible.FlexibleJoinOperatorDescriptor;
-import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtilFactory;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.ListSet;
 import org.apache.hyracks.algebricks.core.algebra.base.IHyracksJobBuilder;
@@ -38,14 +37,21 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBina
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.AbstractJoinPOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.physical.OneToOneExchangePOperator;
-import org.apache.hyracks.algebricks.core.algebra.properties.*;
+import org.apache.hyracks.algebricks.core.algebra.properties.BroadcastPartitioningProperty;
+import org.apache.hyracks.algebricks.core.algebra.properties.ILocalStructuralProperty;
+import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningProperty;
+import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningRequirementsCoordinator;
+import org.apache.hyracks.algebricks.core.algebra.properties.IPhysicalPropertiesVector;
+import org.apache.hyracks.algebricks.core.algebra.properties.LocalGroupingProperty;
+import org.apache.hyracks.algebricks.core.algebra.properties.PhysicalRequirements;
+import org.apache.hyracks.algebricks.core.algebra.properties.RandomPartitioningProperty;
+import org.apache.hyracks.algebricks.core.algebra.properties.StructuralPropertiesVector;
+import org.apache.hyracks.algebricks.core.algebra.properties.UnorderedPartitionedProperty;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenHelper;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.algebricks.runtime.evaluators.TuplePairEvaluatorFactory;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
-import org.apache.hyracks.api.dataflow.value.IPredicateEvaluatorFactory;
 import org.apache.hyracks.api.dataflow.value.ITuplePairComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
@@ -137,9 +143,11 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
 
         StructuralPropertiesVector[] pv = new StructuralPropertiesVector[2];
         //pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
-        pv[0] = new StructuralPropertiesVector(new RandomPartitioningProperty(context.getComputationNodeDomain()), localProperties1);
+        pv[0] = new StructuralPropertiesVector(new RandomPartitioningProperty(context.getComputationNodeDomain()),
+                localProperties1);
         //pv[1] = new StructuralPropertiesVector(pp2, localProperties2);
-        pv[1] = new StructuralPropertiesVector(new BroadcastPartitioningProperty(context.getComputationNodeDomain()), localProperties2);
+        pv[1] = new StructuralPropertiesVector(new BroadcastPartitioningProperty(context.getComputationNodeDomain()),
+                localProperties2);
 
         return new PhysicalRequirements(pv, IPartitioningRequirementsCoordinator.NO_COORDINATION);
     }
@@ -166,8 +174,8 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         ITuplePairComparatorFactory comparatorFactory =
                 new TuplePairEvaluatorFactory(cond, false, context.getBinaryBooleanInspectorFactory());
 
-        IOperatorDescriptor opDesc =
-                new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe, recordDescriptor, comparatorFactory);
+        IOperatorDescriptor opDesc = new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe,
+                recordDescriptor, comparatorFactory);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
 
         ILogicalOperator src1 = op.getInputs().get(0).getValue();

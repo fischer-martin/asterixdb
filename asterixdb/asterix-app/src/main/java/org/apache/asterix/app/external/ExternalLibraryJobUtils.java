@@ -24,14 +24,12 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-import com.azure.core.annotation.Get;
 import org.apache.asterix.common.cluster.ClusterPartition;
 import org.apache.asterix.common.cluster.IClusterStateManager;
 import org.apache.asterix.common.dataflow.ICcApplicationContext;
 import org.apache.asterix.common.functions.ExternalFunctionLanguage;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.common.utils.StoragePathUtil;
-import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.external.operators.GetLibraryOperatorDescriptor;
 import org.apache.asterix.external.operators.LibraryDeployAbortOperatorDescriptor;
 import org.apache.asterix.external.operators.LibraryDeployCommitOperatorDescriptor;
