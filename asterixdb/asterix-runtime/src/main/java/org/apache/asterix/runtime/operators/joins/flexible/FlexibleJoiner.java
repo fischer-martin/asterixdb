@@ -21,12 +21,15 @@ package org.apache.asterix.runtime.operators.joins.flexible;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
 
+import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IFlexibleJoinUtil;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsSideTuple;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFilePointer;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.TuplePointerCursor;
+import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.api.comm.IFrame;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.comm.IFrameWriter;
@@ -64,7 +67,10 @@ public class FlexibleJoiner {
     protected final FrameTupleAppender resultAppender;
     protected final FrameTupleCursor[] inputCursor;
 
-    private ITuplePairComparator tpComparator;
+    private final ITuplePairComparator tpComparator;
+    private final IHyracksTaskContext ctx;
+
+
 
     public FlexibleJoiner(IHyracksTaskContext ctx, ITuplePairComparator tpComparator, int memorySize, int[] buildKeys,
                           int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd) throws HyracksDataException {
@@ -74,7 +80,7 @@ public class FlexibleJoiner {
             throw new RuntimeException(
                     "FlexibleJoiner does not have enough memory (needs > 4, got " + memorySize + ").");
         }
-
+        this.ctx = ctx;
         this.tpComparator = tpComparator;
 
         inputCursor = new FrameTupleCursor[JOIN_PARTITIONS];
@@ -108,7 +114,18 @@ public class FlexibleJoiner {
 
     public void processBuildFrame(ByteBuffer buffer) throws HyracksDataException {
         inputCursor[BUILD_PARTITION].reset(buffer);
+        System.out.println("NEW FRAME");
         for (int x = 0; x < inputCursor[BUILD_PARTITION].getAccessor().getTupleCount(); x++) {
+            /*int start = inputCursor[BUILD_PARTITION].getAccessor().getTupleStartOffset(x)
+                    + inputCursor[BUILD_PARTITION].getAccessor().getFieldSlotsLength()
+                    + inputCursor[BUILD_PARTITION].getAccessor().getFieldStartOffset(x,0);*/
+            int tileIdB = FlexibleJoinsUtil.getBucketId(inputCursor[BUILD_PARTITION].getAccessor(), x, 0);
+            int tileIdP = FlexibleJoinsUtil.getBucketId(inputCursor[BUILD_PARTITION].getAccessor(), x, 1);
+            /*AlgebricksConfig.ALGEBRICKS_LOGGER
+                    .info("\nFJ MATCH: ID: " + ctx.getJobletContext().getServiceContext().getNodeId()
+                            + " bucket ids: " + tileIdB + ", " + tileIdP);*/
+            System.out.println("build frame\t"+ctx.getJobletContext().getServiceContext().getNodeId()+"\t"+tileIdB+"\t"+tileIdP);
+            //int tupleId = inputCursor[BUILD_PARTITION].getTupleId();
             runFileStream.addToRunFile(inputCursor[BUILD_PARTITION].getAccessor(), x);
         }
     }
@@ -120,10 +137,22 @@ public class FlexibleJoiner {
 
     public void processProbeFrame(ByteBuffer buffer, IFrameWriter writer) throws HyracksDataException {
         inputCursor[PROBE_PARTITION].reset(buffer);
+
         while (buildHasNext() && inputCursor[PROBE_PARTITION].hasNext()) {
-            if (inputCursor[PROBE_PARTITION].hasNext() && tpComparator.compare(
-                    inputCursor[BUILD_PARTITION].getAccessor(), inputCursor[BUILD_PARTITION].getTupleId() + 1,
-                    inputCursor[PROBE_PARTITION].getAccessor(), inputCursor[PROBE_PARTITION].getTupleId() + 1) == 0) {
+            int bTID = inputCursor[BUILD_PARTITION].getTupleId();
+            int pTID = inputCursor[PROBE_PARTITION].getTupleId();
+            boolean res = tpComparator.compare(
+                    inputCursor[BUILD_PARTITION].getAccessor(),  bTID+ 1,
+                    inputCursor[PROBE_PARTITION].getAccessor(), pTID + 1) == 0;
+
+            int tileIdB = FlexibleJoinsUtil.getBucketId(inputCursor[BUILD_PARTITION].getAccessor(), bTID + 1, 1);
+            int tileIdP = FlexibleJoinsUtil.getBucketId(inputCursor[PROBE_PARTITION].getAccessor(), pTID + 1, 1);
+            /*AlgebricksConfig.ALGEBRICKS_LOGGER
+                    .info("\nFJ MATCH: ID: " + ctx.getJobletContext().getServiceContext().getNodeId()
+                            + " bucket ids: " + tileIdB + ", " + tileIdP);*/
+            System.out.println("probe frame\t"+ctx.getJobletContext().getServiceContext().getNodeId()+"\t"+tileIdB+"\t"+tileIdP);
+
+            if (inputCursor[PROBE_PARTITION].hasNext() && res) {
                 // Process probe side from stream
                 inputCursor[PROBE_PARTITION].next();
                 processProbeTuple(writer);

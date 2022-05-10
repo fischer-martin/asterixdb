@@ -43,7 +43,7 @@ public class AsterixJoinUtils {
         boolean intervalJoinChosen = IntervalJoinUtils.tryIntervalJoinAssignment(op, context, joinCondition, 0, 1);
         boolean spatialJOinChosen = false;
         if (!intervalJoinChosen) {
-            //spatialJOinChosen = SpatialJoinUtils.trySpatialJoinAssignment(op, context, joinCondition, 0, 1);
+            spatialJOinChosen = SpatialJoinUtils.trySpatialJoinAssignment(op, context, joinCondition, 0, 1);
         }
         if (!spatialJOinChosen && !intervalJoinChosen) {
             ApplyFlexibleJoinUtils.tryFlexibleJoin(op, context, joinCondition, 0, 1);
