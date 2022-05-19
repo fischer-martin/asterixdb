@@ -377,9 +377,9 @@ public class ApplyFlexibleJoinUtils {
                 new MutableObject<>(leftBucketIdVarPair.second), new MutableObject<>(rightBucketIdVarPair.second));
         //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
         //        keysLeftBranch, keysRightBranch, ));
-        //if (!useHashJoin)
+        if (!useHashJoin)
             //setHashJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
-            //setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
+            setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
 
         matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());

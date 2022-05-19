@@ -66,9 +66,12 @@ public class SpatialJoiner {
     protected final FrameTupleAppender resultAppender;
     protected final FrameTupleCursor[] inputCursor;
 
+    private int partition;
+
     public SpatialJoiner(IHyracksTaskContext ctx, int memorySize, ISpatialJoinUtil mjc, int[] buildKeys,
-            int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd) throws HyracksDataException {
+            int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd, int partition) throws HyracksDataException {
         this.mjc = mjc;
+        this.partition = partition;
 
         // Memory (probe buffer)
         if (memorySize < 5) {
@@ -108,7 +111,6 @@ public class SpatialJoiner {
     public void processBuildFrame(ByteBuffer buffer) throws HyracksDataException {
         inputCursor[BUILD_PARTITION].reset(buffer);
         for (int x = 0; x < inputCursor[BUILD_PARTITION].getAccessor().getTupleCount(); x++) {
-            int tileId = SpatialJoinUtil.getTileId(inputCursor[BUILD_PARTITION].getAccessor(), x, 1);
             runFileStream.addToRunFile(inputCursor[BUILD_PARTITION].getAccessor(), x);
         }
     }
@@ -125,6 +127,8 @@ public class SpatialJoiner {
                     inputCursor[BUILD_PARTITION].getTupleId() + 1, 1);
             int tileIdP = SpatialJoinUtil.getTileId(inputCursor[PROBE_PARTITION].getAccessor(),
                     inputCursor[PROBE_PARTITION].getTupleId() + 1, 1);
+            System.out.println("probe frame\t" + partition + "\t" + tileIdB
+                    + "\t" + tileIdP);
             if (inputCursor[PROBE_PARTITION].hasNext() && mjc.checkToLoadNextProbeTuple(
                     inputCursor[BUILD_PARTITION].getAccessor(), inputCursor[BUILD_PARTITION].getTupleId() + 1,
                     inputCursor[PROBE_PARTITION].getAccessor(), inputCursor[PROBE_PARTITION].getTupleId() + 1)) {
@@ -190,9 +194,12 @@ public class SpatialJoiner {
         int tileIdP = SpatialJoinUtil.getTileId(inputCursor[PROBE_PARTITION].getAccessor(),
                 inputCursor[PROBE_PARTITION].getTupleId() + 1, 1);
 
-        if (mjc.checkToSaveInMemory(inputCursor[BUILD_PARTITION].getAccessor(),
-                inputCursor[BUILD_PARTITION].getTupleId() + 1, inputCursor[PROBE_PARTITION].getAccessor(),
-                inputCursor[PROBE_PARTITION].getTupleId())) {
+        if (mjc.checkToSaveInMemory(
+                inputCursor[BUILD_PARTITION].getAccessor(),
+                inputCursor[BUILD_PARTITION].getTupleId() + 1,
+                inputCursor[PROBE_PARTITION].getAccessor(),
+                inputCursor[PROBE_PARTITION].getTupleId())
+        ) {
             if (!addToMemory(inputCursor[PROBE_PARTITION].getAccessor(), inputCursor[PROBE_PARTITION].getTupleId())) {
                 unfreezeAndClearMemory(writer);
                 if (!addToMemory(inputCursor[PROBE_PARTITION].getAccessor(),

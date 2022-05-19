@@ -111,7 +111,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                             new TaskId(getActivityId(), partition));
 
                     state.joiner = new FlexibleJoiner(ctx, tuplePairComparatorFactory.createTuplePairComparator(ctx),
-                            memoryForJoin, buildKeys, probeKeys, buildRd, probeRd);
+                            memoryForJoin, buildKeys, probeKeys, buildRd, probeRd, partition);
                 }
 
                 @Override
@@ -165,6 +165,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                     try {
                         state.joiner.processProbeClose(writer);
                     } finally {
+                        //System.out.println("f partition:"+partition);
                         writer.close();
                     }
                 }

@@ -109,9 +109,11 @@ public class PlaneSweepJoinOperatorDescriptor extends AbstractOperatorDescriptor
                     state = new JoinCacheTaskState(ctx.getJobletContext().getJobId(),
                             new TaskId(getActivityId(), partition));
 
+                    System.out.println("Partition: " + partition);
+
                     ISpatialJoinUtil imjc = imjcf.createSpatialJoinUtil(buildKeys, probeKeys, ctx, nPartitions);
 
-                    state.joiner = new SpatialJoiner(ctx, memoryForJoin, imjc, buildKeys, probeKeys, buildRd, probeRd);
+                    state.joiner = new SpatialJoiner(ctx, memoryForJoin, imjc, buildKeys, probeKeys, buildRd, probeRd, partition);
                 }
 
                 @Override

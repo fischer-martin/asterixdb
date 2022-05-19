@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.LinkedList;
 
+import org.apache.asterix.runtime.operators.joins.flexible.utils.FlexibleJoinUtil;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsSideTuple;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
@@ -69,8 +70,10 @@ public class FlexibleJoiner {
     private final ITuplePairComparator tpComparator;
     private final IHyracksTaskContext ctx;
 
+    private final int partition;
+
     public FlexibleJoiner(IHyracksTaskContext ctx, ITuplePairComparator tpComparator, int memorySize, int[] buildKeys,
-            int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd) throws HyracksDataException {
+            int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd, int partition) throws HyracksDataException {
 
         // Memory (probe buffer)
         if (memorySize < 5) {
@@ -79,6 +82,7 @@ public class FlexibleJoiner {
         }
         this.ctx = ctx;
         this.tpComparator = tpComparator;
+        this.partition = partition;
 
         inputCursor = new FrameTupleCursor[JOIN_PARTITIONS];
         inputCursor[BUILD_PARTITION] = new FrameTupleCursor(buildRd);
@@ -111,19 +115,8 @@ public class FlexibleJoiner {
 
     public void processBuildFrame(ByteBuffer buffer) throws HyracksDataException {
         inputCursor[BUILD_PARTITION].reset(buffer);
-        int lastBucketId = 0;
         for (int x = 0; x < inputCursor[BUILD_PARTITION].getAccessor().getTupleCount(); x++) {
-            int currBucketId = FlexibleJoinsUtil.getBucketId(inputCursor[BUILD_PARTITION].getAccessor(), x, 1);
-
-            System.out.println(
-                    "build frame\t" + ctx.getJobletContext().getServiceContext().getNodeId() + "\t" + currBucketId);
-
-            if (lastBucketId != currBucketId) {
-                lastBucketId = currBucketId;
-                bucketIdsMap.put(currBucketId, runFileStream.getTupleCount());
-            }
             runFileStream.addToRunFile(inputCursor[BUILD_PARTITION].getAccessor(), x);
-
         }
     }
 
@@ -134,38 +127,49 @@ public class FlexibleJoiner {
 
     public void processProbeFrame(ByteBuffer buffer, IFrameWriter writer) throws HyracksDataException {
         inputCursor[PROBE_PARTITION].reset(buffer);
+        int currBuildBucketId = 0;
+        int currProbeBucketId = 0;
 
-        while (buildHasNext() && inputCursor[PROBE_PARTITION].hasNext()) {
-            int bTID = inputCursor[BUILD_PARTITION].getTupleId();
-            int pTID = inputCursor[PROBE_PARTITION].getTupleId();
-            boolean res = tpComparator.compare(inputCursor[BUILD_PARTITION].getAccessor(), bTID + 1,
-                    inputCursor[PROBE_PARTITION].getAccessor(), pTID + 1) == 0;
+        int lastBuildBucketId = 0;
+        int lastProbeBucketId = 0;
 
-            int tileIdB = FlexibleJoinsUtil.getBucketId(inputCursor[BUILD_PARTITION].getAccessor(), bTID + 1, 1);
-            int tileIdP = FlexibleJoinsUtil.getBucketId(inputCursor[PROBE_PARTITION].getAccessor(), pTID + 1, 1);
-            /*AlgebricksConfig.ALGEBRICKS_LOGGER
-                    .info("\nFJ MATCH: ID: " + ctx.getJobletContext().getServiceContext().getNodeId()
-                            + " bucket ids: " + tileIdB + ", " + tileIdP);*/
-            System.out.println("probe frame\t" + ctx.getJobletContext().getServiceContext().getNodeId() + "\t" + tileIdB
-                    + "\t" + tileIdP);
+        boolean first = true;
+        boolean addToResults = false;
+        boolean matchResult = false;
+        IFrameTupleAccessor probeAccessor = inputCursor[PROBE_PARTITION].getAccessor();
+        IFrameTupleAccessor buildAccessor = inputCursor[BUILD_PARTITION].getAccessor();
+        int probeTupleCount = probeAccessor.getTupleCount();
+        int currBuildTupleIdx = 0;
+        while (buildHasNext()) {
+            currBuildTupleIdx = inputCursor[BUILD_PARTITION].getTupleId() + 1;
+            currBuildBucketId = FlexibleJoinsUtil.getBucketId(buildAccessor,currBuildTupleIdx,1);
 
-            if (inputCursor[PROBE_PARTITION].hasNext() && res) {
-                // Process probe side from stream
-                inputCursor[PROBE_PARTITION].next();
-                processProbeTuple(writer);
-            } else {
-                // Process build side from runfile
-                inputCursor[BUILD_PARTITION].next();
-                processBuildTuple(writer);
+            for(int currProbleTupleIdx = 0; currProbleTupleIdx < probeTupleCount; currProbleTupleIdx++) {
+                currProbeBucketId = FlexibleJoinsUtil.getBucketId(probeAccessor, currProbleTupleIdx,1);
+                //System.out.println("build: " + currBuildBucketId + "\tprobe:"+currProbeBucketId);
+
+                if(lastProbeBucketId != currProbeBucketId || lastBuildBucketId != currBuildBucketId) {
+                    matchResult = tpComparator.compare(buildAccessor, currBuildTupleIdx, probeAccessor, currProbleTupleIdx) == 0;
+                    lastProbeBucketId = currProbeBucketId;
+                    lastBuildBucketId = currBuildBucketId;
+                }
+
+                if(matchResult) {
+                    addToResult(buildAccessor, currBuildTupleIdx, probeAccessor, currProbleTupleIdx, writer);
+                }
             }
+            inputCursor[BUILD_PARTITION].next();
         }
     }
 
     public void processProbeClose(IFrameWriter writer) throws HyracksDataException {
-        while (buildHasNext() && memoryHasTuples()) {
-            // Process build side from runfile
+        while (buildHasNext()) {
+            int currBuildBucketId = FlexibleJoinsUtil.getBucketId(
+                    inputCursor[BUILD_PARTITION].getAccessor(),
+                    inputCursor[BUILD_PARTITION].getTupleId() + 1,
+                    1);
+            System.out.println("partition:" + partition + "\tprocessProbeClose currBuildBucketId = "+currBuildBucketId);
             inputCursor[BUILD_PARTITION].next();
-            processBuildTuple(writer);
         }
         resultAppender.write(writer, true);
         runFileStream.close();
@@ -246,18 +250,13 @@ public class FlexibleJoiner {
 
     private void addToResult(IFrameTupleAccessor buildAccessor, int buildTupleId, IFrameTupleAccessor probeAccessor,
             int probeTupleId, IFrameWriter writer) throws HyracksDataException {
+        //System.out.println("build tuple id: " + buildTupleId + "\tprobe tuple id:"+probeTupleId);
         FrameUtils.appendConcatToWriter(writer, resultAppender, buildAccessor, buildTupleId, probeAccessor,
                 probeTupleId);
     }
 
     private boolean memoryHasTuples() {
         return bufferManager.getNumTuples() > 0;
-    }
-
-    private boolean evaluatePredicate(int tIx1, int tIx2) {
-        return false;
-        //return ((predEvaluator == null) || predEvaluator.evaluate(accessorOuter, tIx1, accessorInner, tIx2));
-
     }
 
 }
