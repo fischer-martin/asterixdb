@@ -36,6 +36,7 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBina
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator.JoinKind;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.OrderOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.AbstractJoinPOperator;
 import org.apache.hyracks.algebricks.core.algebra.properties.BroadcastPartitioningProperty;
 import org.apache.hyracks.algebricks.core.algebra.properties.ILocalStructuralProperty;
@@ -43,6 +44,8 @@ import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningProper
 import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningRequirementsCoordinator;
 import org.apache.hyracks.algebricks.core.algebra.properties.IPhysicalPropertiesVector;
 import org.apache.hyracks.algebricks.core.algebra.properties.LocalGroupingProperty;
+import org.apache.hyracks.algebricks.core.algebra.properties.LocalOrderProperty;
+import org.apache.hyracks.algebricks.core.algebra.properties.OrderColumn;
 import org.apache.hyracks.algebricks.core.algebra.properties.PhysicalRequirements;
 import org.apache.hyracks.algebricks.core.algebra.properties.RandomPartitioningProperty;
 import org.apache.hyracks.algebricks.core.algebra.properties.StructuralPropertiesVector;
@@ -119,27 +122,18 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
     @Override
     public PhysicalRequirements getRequiredPropertiesForChildren(ILogicalOperator op,
             IPhysicalPropertiesVector reqdByParent, IOptimizationContext context) {
-        List<LogicalVariable> keysLeftBranchTileId = new ArrayList<>();
-        keysLeftBranchTileId.add(keysLeftBranch.get(0));
-        List<LogicalVariable> keysRightBranchTileId = new ArrayList<>();
-        keysRightBranchTileId.add(keysRightBranch.get(0));
-
-        IPartitioningProperty pp1 = new UnorderedPartitionedProperty(new ListSet<>(keysLeftBranchTileId),
-                context.getComputationNodeDomain());
-        IPartitioningProperty pp2 = new UnorderedPartitionedProperty(new ListSet<>(keysRightBranchTileId),
-                context.getComputationNodeDomain());
 
         List<ILocalStructuralProperty> localProperties1 = new ArrayList<>();
-        Set<LogicalVariable> orderColumns1 = new ListSet<LogicalVariable>();
-        orderColumns1.add(keysLeftBranch.get(0));
+        List<OrderColumn> orderColumns1 = new ArrayList<OrderColumn>();
+        orderColumns1.add(new OrderColumn(keysLeftBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
         //orderColumns1.add(new OrderColumn(keysLeftBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
-        localProperties1.add(new LocalGroupingProperty(orderColumns1));
+        localProperties1.add(new LocalOrderProperty(orderColumns1));
 
         List<ILocalStructuralProperty> localProperties2 = new ArrayList<>();
-        Set<LogicalVariable> orderColumns2 = new ListSet<LogicalVariable>();
-        orderColumns2.add(keysRightBranch.get(0));
+        List<OrderColumn> orderColumns2 = new ArrayList<OrderColumn>();
+        orderColumns2.add(new OrderColumn(keysRightBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
         //orderColumns2.add(new OrderColumn(keysRightBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
-        localProperties2.add(new LocalGroupingProperty(orderColumns2));
+        localProperties2.add(new LocalOrderProperty(orderColumns2));
 
         StructuralPropertiesVector[] pv = new StructuralPropertiesVector[2];
         //pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
