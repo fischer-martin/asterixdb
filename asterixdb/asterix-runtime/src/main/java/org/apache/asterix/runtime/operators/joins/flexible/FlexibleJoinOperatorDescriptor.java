@@ -147,7 +147,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                 IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
             return new AbstractUnaryInputUnaryOutputOperatorNodePushable() {
                 private JoinCacheTaskState state;
-
+                boolean failed = false;
                 @Override
                 public void open() throws HyracksDataException {
                     writer.open();
@@ -162,16 +162,32 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
 
                 @Override
                 public void close() throws HyracksDataException {
+                    if (failed) {
+                        try {
+                            state.joiner.closeCache();
+                        } finally {
+                            writer.close();
+                        }
+                        return;
+                    }
                     try {
-                        state.joiner.processProbeClose(writer);
+                        try {
+                            state.joiner.processProbeClose(writer);
+                        } finally {
+                            state.joiner.releaseMemory();
+                        }
+                    } catch (Exception e) {
+                        state.joiner.closeCache();
+                        writer.fail();
+                        throw e;
                     } finally {
-                        //System.out.println("f partition:"+partition);
                         writer.close();
                     }
                 }
 
                 @Override
                 public void fail() throws HyracksDataException {
+                    failed = true;
                     writer.fail();
                 }
             };

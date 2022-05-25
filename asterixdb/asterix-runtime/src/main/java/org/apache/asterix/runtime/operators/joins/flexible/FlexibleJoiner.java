@@ -305,6 +305,16 @@ public class FlexibleJoiner {
                 probeTupleId);
     }
 
+    public void closeCache() throws HyracksDataException {
+        if (runFileStream != null) {
+            runFileStream.close();
+        }
+    }
+
+    public void releaseMemory() throws HyracksDataException {
+        outerBufferMngr.reset();
+    }
+
 //    private boolean memoryHasTuples() {
 //        return bufferManager.getNumTuples() > 0;
 //    }
