@@ -18,8 +18,13 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible.utils.memory;
 
+import org.apache.asterix.dataflow.data.nontagged.Coordinate;
+import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
+import org.apache.asterix.runtime.operators.joins.flexible.Rectangle;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
+import org.apache.hyracks.api.exceptions.HyracksDataException;
 
 public class FlexibleJoinsUtil {
 
@@ -40,5 +45,19 @@ public class FlexibleJoinsUtil {
         int start = accessor.getTupleStartOffset(tupleId) + accessor.getFieldSlotsLength()
                 + accessor.getFieldStartOffset(tupleId, fieldId);
         return start;
+    }
+
+    public static Rectangle getRectangle(IFrameTupleAccessor accessor, int tupleId, int fieldId)
+            throws HyracksDataException {
+        int start = getFieldOffset(accessor, tupleId, fieldId);
+        double xmin = ADoubleSerializerDeserializer.getDouble(accessor.getBuffer().array(),
+                start + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.X));
+        double ymin = ADoubleSerializerDeserializer.getDouble(accessor.getBuffer().array(),
+                start + ARectangleSerializerDeserializer.getBottomLeftCoordinateOffset(Coordinate.Y));
+        double xmax = ADoubleSerializerDeserializer.getDouble(accessor.getBuffer().array(),
+                start + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.X));
+        double ymax = ADoubleSerializerDeserializer.getDouble(accessor.getBuffer().array(),
+                start + ARectangleSerializerDeserializer.getUpperRightCoordinateOffset(Coordinate.Y));
+        return new Rectangle(xmin, ymin,xmax, ymax);
     }
 }

@@ -81,20 +81,19 @@ public class OptimizedFlexibleJoinerSpatial {
     private final IHyracksTaskContext ctx;
 
     private final BufferInfo tempInfo = new BufferInfo(null, -1, -1);
-
-    private int counter = 0;
-
     private final int partition;
 
     private computeMBR computeMBROne = new computeMBR();
     private computeMBR computeMBRTwo = new computeMBR();
     private SpatialJoinConfiguration spatialJoinConfiguration;
 
-    private HashMap<Integer, ArrayList<Rectangle>> buildRectangles = new HashMap<>();
-    private HashMap<Integer, ArrayList<Rectangle>> probeRectangles = new HashMap<>();
+    private List<Integer> buildBucketIds = new ArrayList<>();
+    private List<Integer> probeBucketIds = new ArrayList<>();
 
-    private HashMap<Integer, ArrayList<Integer>> buildBucketIds = new HashMap<>();
-    private HashMap<Integer, ArrayList<Integer>> probeBucketIds = new HashMap<>();
+    private List<Rectangle> buildRectangles = new ArrayList<>();
+    private List<Rectangle> probeRectangles = new ArrayList<>();
+
+
     public OptimizedFlexibleJoinerSpatial(IHyracksTaskContext ctx, ITuplePairComparator tpComparator, int memorySize, int[] buildKeys,
                                           int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd, int partition) throws HyracksDataException {
 
@@ -193,20 +192,8 @@ public class OptimizedFlexibleJoinerSpatial {
             currBuildTupleIdx = inputCursor[BUILD_PARTITION].getTupleId() + 1;
             currBuildBucketId = FlexibleJoinsUtil.getBucketId(buildAccessor,currBuildTupleIdx,1);
             Rectangle aRectangle = FlexibleJoinsUtil.getRectangle(buildAccessor, currBuildTupleIdx, 0);
-            if(buildBucketIds.containsKey(currBuildBucketId%20))
-                buildBucketIds.get(currBuildBucketId%20).add(currBuildBucketId);
-            else {
-                ArrayList<Integer> newList = new ArrayList<>();
-                newList.add(currBuildBucketId);
-                buildBucketIds.put(currBuildBucketId%20, newList);
-            }
-            if(buildRectangles.containsKey(currBuildBucketId%20))
-                buildRectangles.get(currBuildBucketId%20).add(aRectangle);
-            else {
-                ArrayList<Rectangle> newList = new ArrayList<>();
-                newList.add(aRectangle);
-                buildRectangles.put(currBuildBucketId%20, newList);
-            }
+            buildBucketIds.add(currBuildBucketId);
+            buildRectangles.add(aRectangle);
 
             for (int i = 0; i < outerBufferFrameCount; i++) {
                 BufferInfo outerBufferInfo = outerBufferMngr.getFrame(i, tempInfo);
@@ -216,25 +203,12 @@ public class OptimizedFlexibleJoinerSpatial {
                 for(int currProbleTupleIdx = 0; currProbleTupleIdx < probeTupleCount; currProbleTupleIdx++) {
                     currProbeBucketId = FlexibleJoinsUtil.getBucketId(accessorOuter, currProbleTupleIdx,1);
                     Rectangle bRectangle = FlexibleJoinsUtil.getRectangle(accessorOuter, currProbleTupleIdx, 0);
+                    probeBucketIds.add(currProbeBucketId);
+                    probeRectangles.add(bRectangle);
 
-                    if(probeBucketIds.containsKey(currProbeBucketId%20))
-                        probeBucketIds.get(currProbeBucketId%20).add(currProbeBucketId);
-                    else {
-                        ArrayList<Integer> newList = new ArrayList<>();
-                        newList.add(currProbeBucketId);
-                        probeBucketIds.put(currProbeBucketId%20, newList);
-                    }
-                    if(buildRectangles.containsKey(currProbeBucketId%20))
-                        buildRectangles.get(currProbeBucketId%20).add(bRectangle);
-                    else {
-                        ArrayList<Rectangle> newList = new ArrayList<>();
-                        newList.add(bRectangle);
-                        buildRectangles.put(currProbeBucketId%20, newList);
-                    }
 
-                    computeMBRTwo.add(aRectangle);
+                    computeMBRTwo.add(bRectangle);
                     //System.out.println("build: " + currBuildBucketId + "\tprobe:"+currProbeBucketId);
-                    counter++;
                     if(lastProbeBucketId != currProbeBucketId || lastBuildBucketId != currBuildBucketId) {
                         if(!this.bucketIdsMap.containsKey(currBuildBucketId+","+currProbeBucketId)) {
                             this.bucketIdsMap.put(
@@ -264,33 +238,84 @@ public class OptimizedFlexibleJoinerSpatial {
 
         this.spatialJoinConfiguration = divide(this.computeMBROne, this.computeMBRTwo);
 
-        for(Map.Entry<Integer, ArrayList<Integer>> partition : buildBucketIds.entrySet()) {
+        HashMap<Integer, ArrayList<Rectangle>> buildRectanglesMap = new HashMap<>();
+        HashMap<Integer, ArrayList<Rectangle>> probeRectanglesMap = new HashMap<>();
+
+        HashMap<Integer, ArrayList<Integer>> buildBucketIdsMap = new HashMap<>();
+        HashMap<Integer, ArrayList<Integer>> probeBucketIdsMap = new HashMap<>();
+
+        for(int i = 0; i < buildBucketIds.size(); i++) {
+            Rectangle aRectangle = buildRectangles.get(i);
+            int[] id1 = assign1(aRectangle, this.spatialJoinConfiguration);
+            for(int bucket: id1) {
+                if (buildBucketIdsMap.containsKey(bucket % 20))
+                    buildBucketIdsMap.get(bucket % 20).add(bucket);
+                else {
+                    ArrayList<Integer> newList = new ArrayList<>();
+                    newList.add(bucket);
+                    buildBucketIdsMap.put(bucket % 20, newList);
+                }
+                if (buildRectanglesMap.containsKey(bucket % 20))
+                    buildRectanglesMap.get(bucket % 20).add(aRectangle);
+                else {
+                    ArrayList<Rectangle> newList = new ArrayList<>();
+                    newList.add(aRectangle);
+                    buildRectanglesMap.put(bucket % 20, newList);
+                }
+            }
+        }
+        for(int i = 0; i < probeBucketIds.size(); i++) {
+
+            Rectangle bRectangle = probeRectangles.get(i);
+            int[] id1 = assign1(bRectangle, this.spatialJoinConfiguration);
+            for(int currProbeBucketId: id1) {
+                if (probeBucketIdsMap.containsKey(currProbeBucketId % 20))
+                    probeBucketIdsMap.get(currProbeBucketId % 20).add(currProbeBucketId);
+                else {
+                    ArrayList<Integer> newList = new ArrayList<>();
+                    newList.add(currProbeBucketId);
+                    probeBucketIdsMap.put(currProbeBucketId % 20, newList);
+                }
+                if (probeRectanglesMap.containsKey(currProbeBucketId % 20))
+                    probeRectanglesMap.get(currProbeBucketId % 20).add(bRectangle);
+                else {
+                    ArrayList<Rectangle> newList = new ArrayList<>();
+                    newList.add(bRectangle);
+                    probeRectanglesMap.put(currProbeBucketId % 20, newList);
+                }
+            }
+        }
+
+        int counter = 0;
+
+        for(Map.Entry<Integer, ArrayList<Integer>> partition : buildBucketIdsMap.entrySet()) {
             Integer partitionId = partition.getKey();
             ArrayList<Integer> buildTileIds = partition.getValue();
-            ArrayList<Integer> probeTileIds = probeBucketIds.get(partitionId);
+            if(probeBucketIdsMap.containsKey(partitionId)) {
+                ArrayList<Integer> probeTileIds = probeBucketIdsMap.get(partitionId);
 
-            ArrayList<Rectangle> buildRectanglesa = buildRectangles.get(partitionId);
-            ArrayList<Rectangle> probeRectanglesa = probeRectangles.get(partitionId);
+                ArrayList<Rectangle> buildRectanglesa = buildRectanglesMap.get(partitionId);
+                ArrayList<Rectangle> probeRectanglesa = probeRectanglesMap.get(partitionId);
 
-            for(int i = 0; i < buildTileIds.size(); i++) {
-                for(int j = 0; j < probeTileIds.size(); j++) {
-                    Rectangle buildRectangle = buildRectanglesa.get(i);
-                    Rectangle probeRectangle = probeRectanglesa.get(j);
-                    int[] id1 = assign1(buildRectangle, this.spatialJoinConfiguration);
-                    int[] id2 = assign1(probeRectangle, this.spatialJoinConfiguration);
-                    int counter = 0;
-                    for(int x :id1) {
-                        for(int y: id2) {
+                for(int i = 0; i < buildTileIds.size(); i++) {
+                    for(int j = 0; j < probeTileIds.size(); j++) {
+                        int currBuildBucketId = buildTileIds.get(i);
+                        int currProbeBucketId = probeTileIds.get(j);
+                        Rectangle buildRectangle = buildRectanglesa.get(i);
+                        Rectangle probeRectangle = probeRectanglesa.get(j);
+
+                        if(currBuildBucketId==currProbeBucketId) {
                             counter++;
                         }
                     }
-                    //System.out
                 }
             }
 
 
 
         }
+
+        System.out.println("Partition"+partition+", counter:"+counter);
         /*for(int i = 0; i < buildBucketIds.size(); i++) {
             Rectangle buildRectangle = buildRectangles.get(i);
             assign1(buildRectangle, this.spatialJoinConfiguration);
@@ -313,7 +338,6 @@ public class OptimizedFlexibleJoinerSpatial {
         resultAppender.write(writer, true);
         runFileStream.close();
         runFileStream.removeRunFile();
-        System.out.println("join counter"+counter);
 
     }
 
@@ -399,7 +423,15 @@ public class OptimizedFlexibleJoinerSpatial {
 //    private boolean memoryHasTuples() {
 //        return bufferManager.getNumTuples() > 0;
 //    }
+    public boolean verify(Rectangle k1, Rectangle k2) {
+        double x1 = Math.max(k1.x1, k2.x1);
+        double y1 = Math.max(k1.y1, k2.y1);
 
+        double x2 = Math.min(k1.x2, k2.x2);
+        double y2 = Math.min(k1.y2, k2.y2);
+
+        return !(x1 > x2 || y1 > y2);
+    }
     public SpatialJoinConfiguration divide(computeMBR s1, computeMBR s2) {
         computeMBR c1 = (computeMBR) s1;
         computeMBR c2 = (computeMBR) s2;
@@ -448,6 +480,16 @@ public class OptimizedFlexibleJoinerSpatial {
         }
 
         return tiles.stream().mapToInt(i -> i).toArray();
+    }
+
+    public void closeCache() throws HyracksDataException {
+        if (runFileStream != null) {
+            runFileStream.close();
+        }
+    }
+
+    public void releaseMemory() throws HyracksDataException {
+        outerBufferMngr.reset();
     }
 
 }

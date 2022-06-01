@@ -79,7 +79,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
     }
 
     public static class JoinCacheTaskState extends AbstractStateObject {
-        private FlexibleJoiner joiner;
+        private OptimizedFlexibleJoinerSpatial joiner;
 
         private JoinCacheTaskState(JobId jobId, TaskId taskId) {
             super(jobId, taskId);
@@ -110,7 +110,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                     state = new JoinCacheTaskState(ctx.getJobletContext().getJobId(),
                             new TaskId(getActivityId(), partition));
 
-                    state.joiner = new FlexibleJoiner(ctx, tuplePairComparatorFactory.createTuplePairComparator(ctx),
+                    state.joiner = new OptimizedFlexibleJoinerSpatial(ctx, tuplePairComparatorFactory.createTuplePairComparator(ctx),
                             memoryForJoin, buildKeys, probeKeys, buildRd, probeRd, partition);
                 }
 
