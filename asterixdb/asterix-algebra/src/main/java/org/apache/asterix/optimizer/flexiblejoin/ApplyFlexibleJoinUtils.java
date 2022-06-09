@@ -347,14 +347,14 @@ public class ApplyFlexibleJoinUtils {
         Function matchFunction = metadataProvider.lookupUserDefinedFunction(matchFunctionSignature);
         FunctionInfo MatchFunctionInfo;
 
-        boolean useHashJoin = false;
-        if (matchFunction == null) {
+        /*if (matchFunction == null) {
             MatchFunctionInfo = BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.EQ);
-            useHashJoin = true;
         } else {
             MatchFunctionInfo =
                     ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider, matchFunction, parameters);
-        }
+        }*/
+
+        MatchFunctionInfo = BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.EQ);
 
         ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(MatchFunctionInfo,
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
@@ -377,9 +377,8 @@ public class ApplyFlexibleJoinUtils {
                 new MutableObject<>(leftBucketIdVarPair.second), new MutableObject<>(rightBucketIdVarPair.second));
         //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
         //        keysLeftBranch, keysRightBranch, ));
-        if (!useHashJoin)
-            //setHashJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
-            setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
+
+        setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
 
         matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());
@@ -723,7 +722,7 @@ public class ApplyFlexibleJoinUtils {
             List<LogicalVariable> keysRightBranch, IOptimizationContext context) throws AlgebricksException {
         op.setPhysicalOperator(new FlexibleJoinPOperator(op.getJoinKind(),
                 AbstractJoinPOperator.JoinPartitioningType.PAIRWISE, keysLeftBranch, keysRightBranch,
-                context.getPhysicalOptimizationConfig().getMaxFramesForJoin()));
+                context.getPhysicalOptimizationConfig().getMaxFramesForJoin(), context.getPhysicalOptimizationConfig().getFudgeFactor()));
         op.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(op);
     }

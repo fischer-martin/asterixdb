@@ -21,21 +21,7 @@ package org.apache.asterix.external.cartilage.util;
 import java.io.DataInputStream;
 import java.util.List;
 
-import org.apache.asterix.dataflow.data.nontagged.serde.ABooleanSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADateSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADateTimeSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADayTimeDurationSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADurationSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AFloatSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AGeometrySerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AInt16SerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AInt64SerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AInt8SerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.*;
 import org.apache.asterix.external.cartilage.base.types.Interval;
 import org.apache.asterix.external.cartilage.base.types.Rectangle;
 import org.apache.asterix.om.base.ABoolean;
@@ -105,6 +91,9 @@ public class ParameterTypeResolver {
                 case STRING:
                     parametersArray[i] = ((AString) p).getStringValue();
                     break;
+                case OBJECT:
+                    parametersArray[i] = p;
+                    break;
             }
         }
         return parametersArray;
@@ -170,6 +159,11 @@ public class ParameterTypeResolver {
                 returnObject = new Rectangle(minX1, maxX1, minY1, maxY1);
                 break;
             }
+            case OBJECT:
+                returnObject = AObjectSerializerDeserializer.INSTANCE.deserialize(dataInputStream);
+                break;
+            case ANY:
+                returnObject = dataInputStream;
         }
         return returnObject;
     }

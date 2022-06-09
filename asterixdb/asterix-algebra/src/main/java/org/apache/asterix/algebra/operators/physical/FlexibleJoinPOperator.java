@@ -32,6 +32,7 @@ import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import org.apache.hyracks.algebricks.core.algebra.base.PhysicalOperatorTag;
 import org.apache.hyracks.algebricks.core.algebra.expressions.IExpressionRuntimeProvider;
+import org.apache.hyracks.algebricks.core.algebra.expressions.IVariableTypeEnvironment;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator.JoinKind;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
@@ -55,8 +56,7 @@ import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenHelper;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.algebricks.runtime.evaluators.TuplePairEvaluatorFactory;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
-import org.apache.hyracks.api.dataflow.value.ITuplePairComparatorFactory;
-import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
+import org.apache.hyracks.api.dataflow.value.*;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 
 /**
@@ -68,13 +68,15 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
     private final List<LogicalVariable> keysRightBranch;
 
     private final int memSizeInFrames;
+    private final double fudgeFactor;
 
     public FlexibleJoinPOperator(JoinKind kind, JoinPartitioningType partitioningType,
-            List<LogicalVariable> keysLeftBranch, List<LogicalVariable> keysRightBranch, int memSizeInFrames) {
+            List<LogicalVariable> keysLeftBranch, List<LogicalVariable> keysRightBranch, int memSizeInFrames, double fudgeFactor) {
         super(kind, partitioningType);
         this.keysLeftBranch = keysLeftBranch;
         this.keysRightBranch = keysRightBranch;
         this.memSizeInFrames = memSizeInFrames;
+        this.fudgeFactor = fudgeFactor;
     }
 
     public List<LogicalVariable> getKeysLeftBranch() {
@@ -123,6 +125,15 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
     public PhysicalRequirements getRequiredPropertiesForChildren(ILogicalOperator op,
             IPhysicalPropertiesVector reqdByParent, IOptimizationContext context) {
 
+        List<LogicalVariable> keysLeftBranchTileId = new ArrayList<>();
+        keysLeftBranchTileId.add(keysLeftBranch.get(0));
+        List<LogicalVariable> keysRightBranchTileId = new ArrayList<>();
+        keysRightBranchTileId.add(keysRightBranch.get(0));
+        IPartitioningProperty pp1 = new UnorderedPartitionedProperty(new ListSet<>(keysLeftBranchTileId),
+                context.getComputationNodeDomain());
+        IPartitioningProperty pp2 = new UnorderedPartitionedProperty(new ListSet<>(keysRightBranchTileId),
+                context.getComputationNodeDomain());
+
         List<ILocalStructuralProperty> localProperties1 = new ArrayList<>();
         List<OrderColumn> orderColumns1 = new ArrayList<OrderColumn>();
         orderColumns1.add(new OrderColumn(keysLeftBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
@@ -136,12 +147,12 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         localProperties2.add(new LocalOrderProperty(orderColumns2));
 
         StructuralPropertiesVector[] pv = new StructuralPropertiesVector[2];
-        //pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
-        pv[0] = new StructuralPropertiesVector(new RandomPartitioningProperty(context.getComputationNodeDomain()),
-                localProperties1);
-        //pv[1] = new StructuralPropertiesVector(pp2, localProperties2);
-        pv[1] = new StructuralPropertiesVector(new BroadcastPartitioningProperty(context.getComputationNodeDomain()),
-                localProperties2);
+        pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
+        //pv[0] = new StructuralPropertiesVector(new RandomPartitioningProperty(context.getComputationNodeDomain()),
+        //        localProperties1);
+        pv[1] = new StructuralPropertiesVector(pp2, localProperties2);
+        //pv[1] = new StructuralPropertiesVector(new BroadcastPartitioningProperty(context.getComputationNodeDomain()),
+        //        localProperties2);
 
         return new PhysicalRequirements(pv, IPartitioningRequirementsCoordinator.NO_COORDINATION);
     }
@@ -165,11 +176,25 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         IExpressionRuntimeProvider expressionRuntimeProvider = context.getExpressionRuntimeProvider();
         IScalarEvaluatorFactory cond = expressionRuntimeProvider.createEvaluatorFactory(join.getCondition().getValue(),
                 context.getTypeEnvironment(op), conditionInputSchemas, context);
+
         ITuplePairComparatorFactory comparatorFactory =
                 new TuplePairEvaluatorFactory(cond, false, context.getBinaryBooleanInspectorFactory());
+        ITuplePairComparatorFactory reverseComparatorFactory =
+                new TuplePairEvaluatorFactory(cond, true, context.getBinaryBooleanInspectorFactory());
+
+        IVariableTypeEnvironment env = context.getTypeEnvironment(op);
+        IBinaryHashFunctionFamily[] leftHashFunFamilies =
+                JobGenHelper.variablesToBinaryHashFunctionFamilies(keysLeftBranch, env, context);
+        IBinaryHashFunctionFamily[] rightHashFunFamilies =
+                JobGenHelper.variablesToBinaryHashFunctionFamilies(keysRightBranch, env, context);
+
+        IPredicateEvaluatorFactoryProvider predEvaluatorFactoryProvider =
+                context.getPredicateEvaluatorFactoryProvider();
+        IPredicateEvaluatorFactory predEvaluatorFactory = predEvaluatorFactoryProvider == null ? null
+                : predEvaluatorFactoryProvider.getPredicateEvaluatorFactory(keysBuild, keysProbe);
 
         IOperatorDescriptor opDesc = new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe,
-                recordDescriptor, comparatorFactory);
+                recordDescriptor, comparatorFactory, reverseComparatorFactory, leftHashFunFamilies, rightHashFunFamilies, predEvaluatorFactory, fudgeFactor);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
 
         ILogicalOperator src1 = op.getInputs().get(0).getValue();
