@@ -658,7 +658,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                         rPartbuff.reset();
                         try {
                             while (pReader.nextFrame(rPartbuff)) {
-                                joiner.join(rPartbuff.getBuffer(), writer);
+                                joiner.join(rPartbuff.getBuffer(), writer, partition);
                                 rPartbuff.reset();
                             }
                             joiner.completeJoin(writer);

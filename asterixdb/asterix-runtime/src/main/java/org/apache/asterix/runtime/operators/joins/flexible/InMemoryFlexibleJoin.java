@@ -18,6 +18,7 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible;
 
+import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.comm.IFrameWriter;
 import org.apache.hyracks.api.comm.VSizeFrame;
@@ -37,8 +38,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.DataOutput;
+import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class InMemoryFlexibleJoin {
@@ -58,6 +61,10 @@ public class InMemoryFlexibleJoin {
     // To release frames
     private final ISimpleFrameBufferManager bufferManager;
     private final boolean isTableCapacityNotZero;
+
+    private int probeCounter = 0;
+
+    private HashMap<Integer, ArrayList<Integer>> binMap;
 
     private static final Logger LOGGER = LogManager.getLogger();
 
@@ -89,6 +96,7 @@ public class InMemoryFlexibleJoin {
         this.tupleAccessor = new TupleInFrameListAccessor(rDBuild, buffers);
         this.bufferManager = bufferManager;
         this.isTableCapacityNotZero = table.getTableSize() != 0;
+        this.binMap = new HashMap<>();
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("InMemoryHashJoin has been created for a table size of " + table.getTableSize()
                     + " for Thread ID " + Thread.currentThread().getId() + ".");
@@ -107,6 +115,9 @@ public class InMemoryFlexibleJoin {
             int entry = tpcBuild.partition(accessorBuild, i, table.getTableSize());
             storedTuplePointer.reset(bIndex, i);
             // If an insertion fails, then tries to insert the same tuple pointer again after compacting the table.
+            int bId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
+            //System.out.println(bId+"\t"+pId);
+            //System.out.println("entry:"+entry+"\t"+bId);
             if (!table.insert(entry, storedTuplePointer)) {
                 if (!compactTableAndInsertAgain(entry, storedTuplePointer)) {
                     throw HyracksDataException.create(ErrorCode.ILLEGAL_STATE,
@@ -151,29 +162,66 @@ public class InMemoryFlexibleJoin {
      */
     void join(int tid, IFrameWriter writer) throws HyracksDataException {
         if (isTableCapacityNotZero) {
-            int entry = tpcProbe.partition(accessorProbe, tid, table.getTableSize());
-            int tupleCount = table.getTupleCount(entry);
-            for (int i = 0; i < tupleCount; i++) {
-                table.getTuplePointer(entry, i, storedTuplePointer);
-                int bIndex = storedTuplePointer.getFrameIndex();
-                int tIndex = storedTuplePointer.getTupleIndex();
-                accessorBuild.reset(buffers.get(bIndex));
-                int c = tpComparator.compare(accessorProbe, tid, accessorBuild, tIndex);
-                if (c == 0) {
-                    boolean predEval = evaluatePredicate(tid, tIndex);
-                    if (predEval) {
-                        System.out.println("tid:"+tid);
-                        appendToResult(tid, tIndex, writer);
+            int entry = tpcBuild.partition(accessorProbe, tid, table.getTableSize());
+            ArrayList<Integer> entryList;
+
+            if(binMap.containsKey(entry)) {
+                entryList = binMap.get(entry);
+            } else {
+                entryList = new ArrayList<>();
+                for(int i = 0; i < table.getTableSize(); i++) {
+                    entryList.add(i);
+                }
+
+            }
+            ArrayList<Integer> toRemove = new ArrayList<>();
+            for(int currentEntryIdx = 0; currentEntryIdx < entryList.size(); currentEntryIdx++) {
+                int currentEntry = entryList.get(currentEntryIdx);
+                int tupleCount = table.getTupleCount(currentEntry);
+                if(tupleCount == 0) {
+                    toRemove.add(currentEntry);
+                    continue;
+                }
+                boolean foundOne = false;
+                for (int i = 0; i < tupleCount; i++) {
+                    table.getTuplePointer(currentEntry, i, storedTuplePointer);
+                    int bIndex = storedTuplePointer.getFrameIndex();
+                    int tIndex = storedTuplePointer.getTupleIndex();
+                    accessorBuild.reset(buffers.get(bIndex));
+                    int c = tpComparator.compare(accessorProbe, tid, accessorBuild, tIndex);
+                    int bId = FlexibleJoinsUtil.getBucketId(accessorBuild, tIndex, 1);
+                    int pId = FlexibleJoinsUtil.getBucketId(accessorProbe, tid, 1);
+                    //System.out.println(bId+"\t"+pId);
+                    //System.out.println("entry:"+entry+"\t"+bId+"\t"+pId);
+                    if (c == 0) {
+                        boolean predEval = evaluatePredicate(tid, tIndex);
+                        //System.out.println("True:"+bId+"\t"+pId);
+                        if (predEval) {
+                            //System.out.println("tid:"+tid);
+                            foundOne = true;
+                            if(currentEntry != entry) System.out.println("Entry:"+entry+"\tcurrentEntry:"+currentEntry);
+                            appendToResult(tid, tIndex, writer);
+                        }
                     }
                 }
+                if(!foundOne) {
+                    //System.out.println("Entry:"+entry+"\tcurrentEntry:"+currentEntry);
+                    toRemove.add(currentEntry);
+                }
+
             }
+            entryList.removeAll(toRemove);
+            toRemove.clear();
+            binMap.putIfAbsent(entry, entryList);
         }
     }
 
-    public void join(ByteBuffer buffer, IFrameWriter writer) throws HyracksDataException {
+    public void join(ByteBuffer buffer, IFrameWriter writer, int partition) throws HyracksDataException {
         accessorProbe.reset(buffer);
         int tupleCount0 = accessorProbe.getTupleCount();
         for (int i = 0; i < tupleCount0; ++i) {
+            int buid = FlexibleJoinsUtil.getBucketId(accessorProbe, i, 1);
+            //System.out.println("Partition:"+partition+"\t"+"pid:"+buid);
             join(i, writer);
         }
     }
@@ -202,8 +250,7 @@ public class InMemoryFlexibleJoin {
     }
 
     public void closeTable() throws HyracksDataException {
-        System.out.println(table.printInfo());
-
+        //System.out.println(table.printInfo());
         table.close();
     }
 

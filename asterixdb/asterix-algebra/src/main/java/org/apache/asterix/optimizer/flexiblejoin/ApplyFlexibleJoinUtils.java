@@ -336,25 +336,25 @@ public class ApplyFlexibleJoinUtils {
 
         List<LogicalVariable> keysLeftBranch = new ArrayList<>();
         keysLeftBranch.add(leftBucketIdVar);
-        keysLeftBranch.add(leftInputVar);
+        //keysLeftBranch.add(leftInputVar);
 
         List<LogicalVariable> keysRightBranch = new ArrayList<>();
         keysRightBranch.add(rightBucketIdVar);
-        keysRightBranch.add(rightInputVar);
+        //keysRightBranch.add(rightInputVar);
 
         String matchFunctionName = functionName + "_fj_match";
         FunctionSignature matchFunctionSignature = new FunctionSignature(dataverseName, matchFunctionName, 2);
         Function matchFunction = metadataProvider.lookupUserDefinedFunction(matchFunctionSignature);
         FunctionInfo MatchFunctionInfo;
 
-        /*if (matchFunction == null) {
+        if (matchFunction == null) {
             MatchFunctionInfo = BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.EQ);
         } else {
             MatchFunctionInfo =
                     ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider, matchFunction, parameters);
-        }*/
+        }
 
-        MatchFunctionInfo = BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.EQ);
+        //MatchFunctionInfo = BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.EQ);
 
         ScalarFunctionCallExpression match = new ScalarFunctionCallExpression(MatchFunctionInfo,
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
