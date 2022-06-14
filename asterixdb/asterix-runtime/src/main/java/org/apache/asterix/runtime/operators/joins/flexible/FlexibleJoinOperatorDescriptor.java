@@ -205,7 +205,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                     state.memForJoin = memoryForJoin - 2;
                     state.numOfPartitions = getNumberOfPartitions(state.memForJoin, -1, fudgeFactor, nPartitions);
 
-                    state.joiner = new OptimizedFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, partition, probeHpc, buildHpc, BUILD_REL, PROBE_REL, predEvaluator);
+                    state.joiner = new OptimizedFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, partition, probeHpc, buildHpc, PROBE_REL, BUILD_REL, predEvaluator);
 
                     state.joiner.initBuild();
                 }
@@ -461,7 +461,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                     int n = getNumberOfPartitions(state.memForJoin, tableSize, fudgeFactor, nPartitions);
                     recursiveFlexibleJoin = new OptimizedFlexibleJoiner(ctx, state.memForJoin, buildRd, probeRd, n, probeHpc, buildHpc, PROBE_REL, BUILD_REL, predEvaluator); //checked-confirmed
 
-                    recursiveFlexibleJoin.setIsReversed(isReversed);
+                    recursiveFlexibleJoin. setIsReversed(isReversed);
                     try {
                         buildSideReader.open();
                         try {
@@ -621,7 +621,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                             new DeallocatableFramePool(ctx, state.memForJoin * ctx.getInitialFrameSize());
                     ISimpleFrameBufferManager bufferManager = new FramePoolBackedFrameBufferManager(framePool);
 
-                    ISerializableTable table = new SerializableHashTable(tabSize, ctx, bufferManager);
+                    SerializableHashTable table = new SerializableHashTable(tabSize, ctx, bufferManager);
                     InMemoryFlexibleJoin joiner = new InMemoryFlexibleJoin(ctx, new FrameTupleAccessor(probeRDesc),
                             hpcRepProbe, new FrameTupleAccessor(buildRDesc), buildRDesc, hpcRepBuild,
                             table, predEvaluator, isReversed, bufferManager);

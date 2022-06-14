@@ -19,6 +19,8 @@
 package org.apache.asterix.runtime.operators.joins.flexible;
 
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.comm.IFrameWriter;
 import org.apache.hyracks.api.comm.VSizeFrame;
@@ -33,6 +35,7 @@ import org.apache.hyracks.dataflow.common.comm.util.FrameUtils;
 import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.TupleInFrameListAccessor;
 import org.apache.hyracks.dataflow.std.structures.ISerializableTable;
+import org.apache.hyracks.dataflow.std.structures.SerializableHashTable;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -42,6 +45,8 @@ import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 
 public class InMemoryFlexibleJoin {
@@ -53,7 +58,7 @@ public class InMemoryFlexibleJoin {
     private final ITuplePartitionComputer tpcProbe;
     private final FrameTupleAppender appender;
     private ITuplePairComparator tpComparator;
-    private final ISerializableTable table;
+    private final SerializableHashTable table;
     private final TuplePointer storedTuplePointer;
     private final boolean reverseOutputOrder; //Should we reverse the order of tuples, we are writing in output
     private final IPredicateEvaluator predEvaluator;
@@ -71,7 +76,7 @@ public class InMemoryFlexibleJoin {
     public InMemoryFlexibleJoin(IHyracksFrameMgrContext ctx, FrameTupleAccessor accessorProbe,
                                 ITuplePartitionComputer tpcProbe, FrameTupleAccessor accessorBuild, RecordDescriptor rDBuild,
                                 ITuplePartitionComputer tpcBuild,
-                                ISerializableTable table, IPredicateEvaluator predEval, ISimpleFrameBufferManager bufferManager)
+                                SerializableHashTable table, IPredicateEvaluator predEval, ISimpleFrameBufferManager bufferManager)
             throws HyracksDataException {
         this(ctx, accessorProbe, tpcProbe, accessorBuild, rDBuild, tpcBuild, table,
                 predEval, false, bufferManager);
@@ -80,7 +85,7 @@ public class InMemoryFlexibleJoin {
     public InMemoryFlexibleJoin(IHyracksFrameMgrContext ctx, FrameTupleAccessor accessorProbe,
                                 ITuplePartitionComputer tpcProbe, FrameTupleAccessor accessorBuild, RecordDescriptor rDBuild,
                                 ITuplePartitionComputer tpcBuild,
-                                ISerializableTable table, IPredicateEvaluator predEval, boolean reverse,
+                                SerializableHashTable table, IPredicateEvaluator predEval, boolean reverse,
                                 ISimpleFrameBufferManager bufferManager) throws HyracksDataException {
         this.table = table;
         storedTuplePointer = new TuplePointer();
@@ -115,7 +120,7 @@ public class InMemoryFlexibleJoin {
             int entry = tpcBuild.partition(accessorBuild, i, table.getTableSize());
             storedTuplePointer.reset(bIndex, i);
             // If an insertion fails, then tries to insert the same tuple pointer again after compacting the table.
-            int bId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
+            //int bId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
             //System.out.println(bId+"\t"+pId);
             //System.out.println("entry:"+entry+"\t"+bId);
             if (!table.insert(entry, storedTuplePointer)) {
@@ -162,57 +167,44 @@ public class InMemoryFlexibleJoin {
      */
     void join(int tid, IFrameWriter writer) throws HyracksDataException {
         if (isTableCapacityNotZero) {
-            int entry = tpcBuild.partition(accessorProbe, tid, table.getTableSize());
-            ArrayList<Integer> entryList;
+            //int entry = tpcBuild.partition(accessorProbe, tid, table.getTableSize());
+            int pId = FlexibleJoinsUtil.getBucketId(accessorProbe, tid, 1);
+            //if(tpComparator.equals(Comp))
 
-            if(binMap.containsKey(entry)) {
-                entryList = binMap.get(entry);
-            } else {
-                entryList = new ArrayList<>();
-                for(int i = 0; i < table.getTableSize(); i++) {
-                    entryList.add(i);
-                }
+            //int[] entrySet = ArrayUtils.toPrimitive(table.getKeys().toArray());
+            //ArrayList<Integer> entryList;
 
-            }
-            ArrayList<Integer> toRemove = new ArrayList<>();
-            for(int currentEntryIdx = 0; currentEntryIdx < entryList.size(); currentEntryIdx++) {
-                int currentEntry = entryList.get(currentEntryIdx);
+            for (int currentEntry : table.getKeys()) {
                 int tupleCount = table.getTupleCount(currentEntry);
-                if(tupleCount == 0) {
-                    toRemove.add(currentEntry);
-                    continue;
-                }
-                boolean foundOne = false;
+
                 for (int i = 0; i < tupleCount; i++) {
                     table.getTuplePointer(currentEntry, i, storedTuplePointer);
                     int bIndex = storedTuplePointer.getFrameIndex();
                     int tIndex = storedTuplePointer.getTupleIndex();
                     accessorBuild.reset(buffers.get(bIndex));
                     int c = tpComparator.compare(accessorProbe, tid, accessorBuild, tIndex);
-                    int bId = FlexibleJoinsUtil.getBucketId(accessorBuild, tIndex, 1);
-                    int pId = FlexibleJoinsUtil.getBucketId(accessorProbe, tid, 1);
+                    //int bId = FlexibleJoinsUtil.getBucketId(accessorBuild, tIndex, 1);
+
                     //System.out.println(bId+"\t"+pId);
                     //System.out.println("entry:"+entry+"\t"+bId+"\t"+pId);
                     if (c == 0) {
                         boolean predEval = evaluatePredicate(tid, tIndex);
                         //System.out.println("True:"+bId+"\t"+pId);
                         if (predEval) {
-                            //System.out.println("tid:"+tid);
-                            foundOne = true;
-                            if(currentEntry != entry) System.out.println("Entry:"+entry+"\tcurrentEntry:"+currentEntry);
+                            //if(currentEntry != entry) System.out.println("Entry:"+entry+"\tcurrentEntry:"+currentEntry);
                             appendToResult(tid, tIndex, writer);
                         }
                     }
                 }
-                if(!foundOne) {
+                /*if(!foundOne) {
                     //System.out.println("Entry:"+entry+"\tcurrentEntry:"+currentEntry);
-                    toRemove.add(currentEntry);
-                }
+                    //toRemove.add(currentEntry);
+                }*/
 
             }
-            entryList.removeAll(toRemove);
-            toRemove.clear();
-            binMap.putIfAbsent(entry, entryList);
+            //entryList.removeAll(toRemove);
+            //toRemove.clear();
+            //binMap.putIfAbsent(entry, entryList);
         }
     }
 

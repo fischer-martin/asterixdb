@@ -148,7 +148,7 @@ public class OptimizedFlexibleJoiner {
                 .createFreeSlotPolicy(EnumFreeSlotPolicy.LAST_FIT, outerBufferMngrMemBudgetInFrames));
 
         // Run File and frame cache (build buffer)
-        runFileStream = new RunFileStream(ctx, "fj-build");
+        runFileStream = new RunFileStream(ctx, "ofj-build");
         runFilePointer = new RunFilePointer();
         runFileStream.createRunFileWriting();
         runFileStream.startRunFileWriting();
@@ -204,6 +204,7 @@ public class OptimizedFlexibleJoiner {
     }
 
     private void processTupleBuildPhase(int tid, int pid) throws HyracksDataException {
+
         // insertTuple prevents the tuple to acquire a number of frames that is > the frame limit
         while (!bufferManager.insertTuple(pid, accessorBuild, tid, tempPtr)) {
             int recordSize = VPartitionTupleBufferManager.calculateActualSize(null, accessorBuild.getTupleLength(tid));
@@ -244,7 +245,7 @@ public class OptimizedFlexibleJoiner {
         // and tries to bring back as many spilled partitions as possible if there is free space.
         int inMemTupCount = makeSpaceForHashTableAndBringBackSpilledPartitions();
 
-        ISerializableTable table = new SerializableHashTable(inMemTupCount, ctx, bufferManagerForHashTable);
+        SerializableHashTable table = new SerializableHashTable(inMemTupCount, ctx, bufferManagerForHashTable);
         this.inMemJoiner = new InMemoryFlexibleJoin(ctx, new FrameTupleAccessor(probeRd), probeHpc,
                 new FrameTupleAccessor(buildRd), buildRd, buildHpc, table, predEvaluator,
                 isReversed, bufferManagerForHashTable);

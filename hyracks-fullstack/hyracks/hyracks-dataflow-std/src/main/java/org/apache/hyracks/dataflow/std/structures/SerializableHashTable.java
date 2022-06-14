@@ -19,6 +19,7 @@
 package org.apache.hyracks.dataflow.std.structures;
 
 import java.nio.ByteBuffer;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -38,6 +39,7 @@ public class SerializableHashTable extends SimpleSerializableHashTable {
     protected double garbageCollectionThreshold;
     protected int wastedIntSpaceCount = 0;
     protected ISimpleFrameBufferManager bufferManager;
+    protected HashSet<Integer> keys = new HashSet<>();
 
     public SerializableHashTable(int tableSize, final IHyracksFrameMgrContext ctx,
             ISimpleFrameBufferManager bufferManager) throws HyracksDataException {
@@ -59,6 +61,16 @@ public class SerializableHashTable extends SimpleSerializableHashTable {
             currentOffsetInEachFrameList.add(0);
         }
         this.garbageCollectionThreshold = garbageCollectionThreshold;
+    }
+
+    @Override
+    public boolean insert(int entry, TuplePointer pointer) throws HyracksDataException {
+        keys.add(entry);
+        return super.insert(entry, pointer);
+    }
+
+    public HashSet<Integer> getKeys() {
+        return keys;
     }
 
     @Override
