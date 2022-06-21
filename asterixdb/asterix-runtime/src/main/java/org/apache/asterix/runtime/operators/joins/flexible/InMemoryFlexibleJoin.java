@@ -183,18 +183,21 @@ public class InMemoryFlexibleJoin {
                     int tIndex = storedTuplePointer.getTupleIndex();
                     accessorBuild.reset(buffers.get(bIndex));
                     int c = tpComparator.compare(accessorProbe, tid, accessorBuild, tIndex);
-                    //int bId = FlexibleJoinsUtil.getBucketId(accessorBuild, tIndex, 1);
-
+                    int bId = FlexibleJoinsUtil.getBucketId(accessorBuild, tIndex, 1);
+                    System.out.println("entry:"+currentEntry+"\t"+bId);
                     //System.out.println(bId+"\t"+pId);
                     //System.out.println("entry:"+entry+"\t"+bId+"\t"+pId);
-                    if (c == 0) {
+                    /*if (c == 0) {
                         boolean predEval = evaluatePredicate(tid, tIndex);
                         //System.out.println("True:"+bId+"\t"+pId);
                         if (predEval) {
                             //if(currentEntry != entry) System.out.println("Entry:"+entry+"\tcurrentEntry:"+currentEntry);
                             appendToResult(tid, tIndex, writer);
                         }
-                    }
+                    } else {
+                        System.out.println("Break");
+                        break;
+                    }*/
                 }
                 /*if(!foundOne) {
                     //System.out.println("Entry:"+entry+"\tcurrentEntry:"+currentEntry);

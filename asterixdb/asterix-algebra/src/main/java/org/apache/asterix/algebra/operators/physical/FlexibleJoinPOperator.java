@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.asterix.runtime.operators.joins.flexible.FlexibleJoinOperatorDescriptor;
+import org.apache.asterix.runtime.operators.joins.flexible.FlexibleJoinOperatorDescriptorT;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.ListSet;
 import org.apache.hyracks.algebricks.core.algebra.base.IHyracksJobBuilder;
@@ -193,10 +194,13 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         IPredicateEvaluatorFactory predEvaluatorFactory = predEvaluatorFactoryProvider == null ? null
                 : predEvaluatorFactoryProvider.getPredicateEvaluatorFactory(keysBuild, keysProbe);
 
-        IOperatorDescriptor opDesc = new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe,
+        /*IOperatorDescriptor opDesc = new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe,
                 recordDescriptor, comparatorFactory, reverseComparatorFactory, leftHashFunFamilies, rightHashFunFamilies, predEvaluatorFactory, fudgeFactor);
-        contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
+        contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);*/
 
+        IOperatorDescriptor opDesc = new FlexibleJoinOperatorDescriptorT(spec, memSizeInFrames, keysBuild, keysProbe,
+                recordDescriptor, comparatorFactory);
+        contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
         ILogicalOperator src1 = op.getInputs().get(0).getValue();
         builder.contributeGraphEdge(src1, 0, op, 0);
         ILogicalOperator src2 = op.getInputs().get(1).getValue();

@@ -45,11 +45,18 @@ import org.apache.hyracks.dataflow.std.buffermanager.BufferInfo;
 import org.apache.hyracks.dataflow.std.buffermanager.DeallocatableFramePool;
 import org.apache.hyracks.dataflow.std.buffermanager.EnumFreeSlotPolicy;
 import org.apache.hyracks.dataflow.std.buffermanager.FrameFreeSlotPolicyFactory;
+import org.apache.hyracks.dataflow.std.buffermanager.FramePoolBackedFrameBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.IDeallocatableFramePool;
 import org.apache.hyracks.dataflow.std.buffermanager.IDeletableTupleBufferManager;
+import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
+import org.apache.hyracks.dataflow.std.buffermanager.PreferToSpillFullyOccupiedFramePolicy;
+import org.apache.hyracks.dataflow.std.buffermanager.VPartitionTupleBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.VariableDeletableTupleMemoryManager;
 import org.apache.hyracks.dataflow.std.buffermanager.VariableFrameMemoryManager;
 import org.apache.hyracks.dataflow.std.buffermanager.VariableFramePool;
+import org.apache.hyracks.dataflow.std.structures.KeyPair;
+import org.apache.hyracks.dataflow.std.structures.SerializableHashTable;
+import org.apache.hyracks.dataflow.std.structures.SerializableHashTableForKeyPair;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 
 public class FlexibleJoiner {
@@ -78,6 +85,8 @@ public class FlexibleJoiner {
     protected final FrameTupleAppender resultAppender;
     protected final FrameTupleCursor[] inputCursor;
 
+    private ISimpleFrameBufferManager bufferManagerForHashTable;
+
     private final ITuplePairComparator tpComparator;
     private final IHyracksTaskContext ctx;
 
@@ -86,6 +95,9 @@ public class FlexibleJoiner {
     private int counter = 0;
 
     private final int partition;
+
+    private SerializableHashTableForKeyPair table;
+    private int buildTupleCounter = 0;
 
     public FlexibleJoiner(IHyracksTaskContext ctx, ITuplePairComparator tpComparator, int memorySize, int[] buildKeys,
             int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd, int partition) throws HyracksDataException {
@@ -109,16 +121,15 @@ public class FlexibleJoiner {
         inputBuffer[BUILD_PARTITION] = new VSizeFrame(ctx);
         inputBuffer[PROBE_PARTITION] = new VSizeFrame(ctx);
 
-        //Two frames are used for the runfile stream, and one frame for each input (2 outputs).
-//        framePool = new DeallocatableFramePool(ctx, (memorySize - 4) * ctx.getInitialFrameSize());
-//        bufferManager = new VariableDeletableTupleMemoryManager(framePool, probeRd);
-//        memoryCursor = new TuplePointerCursor(bufferManager.createTuplePointerAccessor());
+        IDeallocatableFramePool framePool =
+                new DeallocatableFramePool(ctx, memorySize * ctx.getInitialFrameSize());
+        bufferManagerForHashTable = new FramePoolBackedFrameBufferManager(framePool);
 
 
         int outerBufferMngrMemBudgetInFrames = memorySize - 4;
         int outerBufferMngrMemBudgetInBytes = ctx.getInitialFrameSize() * outerBufferMngrMemBudgetInFrames;
         this.outerBufferMngr = new VariableFrameMemoryManager(
-                new VariableFramePool(ctx, outerBufferMngrMemBudgetInBytes), FrameFreeSlotPolicyFactory
+                framePool, FrameFreeSlotPolicyFactory
                 .createFreeSlotPolicy(EnumFreeSlotPolicy.LAST_FIT, outerBufferMngrMemBudgetInFrames));
 
         // Run File and frame cache (build buffer)
@@ -137,14 +148,19 @@ public class FlexibleJoiner {
         this.resultAppender = new FrameTupleAppender(new VSizeFrame(ctx));
     }
 
+
     public void processBuildFrame(ByteBuffer buffer) throws HyracksDataException {
         inputCursor[BUILD_PARTITION].reset(buffer);
+        buildTupleCounter += inputCursor[BUILD_PARTITION].getAccessor().getTupleCount();
         for (int x = 0; x < inputCursor[BUILD_PARTITION].getAccessor().getTupleCount(); x++) {
             runFileStream.addToRunFile(inputCursor[BUILD_PARTITION].getAccessor(), x);
         }
     }
 
     public void processBuildClose() throws HyracksDataException {
+
+        table = new SerializableHashTableForKeyPair(buildTupleCounter, ctx, bufferManagerForHashTable);
+
         runFileStream.flushRunFile();
         runFileStream.startReadingRunFile(inputCursor[BUILD_PARTITION]);
 
@@ -194,13 +210,12 @@ public class FlexibleJoiner {
                     //System.out.println("build: " + currBuildBucketId + "\tprobe:"+currProbeBucketId);
                 counter++;
                 if(lastProbeBucketId != currProbeBucketId || lastBuildBucketId != currBuildBucketId) {
-                    if(!this.bucketIdsMap.containsKey(currBuildBucketId+","+currProbeBucketId)) {
-                        this.bucketIdsMap.put(
-                                currBuildBucketId+","+currProbeBucketId ,
+                    if(!this.table.getResult(new KeyPair(currBuildBucketId, currProbeBucketId))) {
+                        this.table.insert(new KeyPair(currBuildBucketId, currProbeBucketId),
                                 (tpComparator.compare(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx) == 0)
                         );
                     }
-                    matchResult = this.bucketIdsMap.get(currBuildBucketId+","+currProbeBucketId);
+                    matchResult = this.table.getResult(new KeyPair(currBuildBucketId, currProbeBucketId));
 
                     lastProbeBucketId = currProbeBucketId;
                     lastBuildBucketId = currBuildBucketId;
