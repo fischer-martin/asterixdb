@@ -160,7 +160,7 @@ public class ParameterTypeResolver {
                 break;
             }
             case OBJECT:
-                returnObject = AObjectSerializerDeserializer.INSTANCE.deserialize(dataInputStream);
+                returnObject = dataInputStream;
                 break;
             case ANY:
                 returnObject = dataInputStream;
