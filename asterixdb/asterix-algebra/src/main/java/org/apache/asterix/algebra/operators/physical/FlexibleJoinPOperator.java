@@ -148,12 +148,12 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         localProperties2.add(new LocalOrderProperty(orderColumns2));
 
         StructuralPropertiesVector[] pv = new StructuralPropertiesVector[2];
-        //pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
-        pv[0] = new StructuralPropertiesVector(new RandomPartitioningProperty(context.getComputationNodeDomain()),
-               localProperties1);
-        //pv[1] = new StructuralPropertiesVector(pp2, localProperties2);
-        pv[1] = new StructuralPropertiesVector(new BroadcastPartitioningProperty(context.getComputationNodeDomain()),
-                localProperties2);
+        pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
+        //pv[0] = new StructuralPropertiesVector(new RandomPartitioningProperty(context.getComputationNodeDomain()),
+        //        localProperties1);
+        pv[1] = new StructuralPropertiesVector(pp2, localProperties2);
+        //pv[1] = new StructuralPropertiesVector(new BroadcastPartitioningProperty(context.getComputationNodeDomain()),
+        //        localProperties2);
 
         return new PhysicalRequirements(pv, IPartitioningRequirementsCoordinator.NO_COORDINATION);
     }

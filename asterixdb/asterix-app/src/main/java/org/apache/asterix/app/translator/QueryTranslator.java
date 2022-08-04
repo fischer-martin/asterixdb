@@ -2935,7 +2935,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             List<List<Triple<DataverseName, String, String>>> dependencies =
                     FunctionUtil.getExternalFunctionDependencies(depTypes);
 
-            Pair<JobSpecification, GetLibraryOperatorDescriptor> javaLibraryJobSpec =
+            /*Pair<JobSpecification, GetLibraryOperatorDescriptor> javaLibraryJobSpec =
                     ExternalLibraryJobUtils.getJavaLibraryJobSpec(dataverseName, libraryName, metadataProvider);
             runJob(appCtx.getHcc(), javaLibraryJobSpec.first);
             JavaLibrary javaLibrary = GetLibraryOperatorDescriptor.javaLibrary;
@@ -2959,9 +2959,13 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         break;
                 }
             }
-            /*boolean implementsMatch = !clazz.getDeclaredMethod("match").isDefault();
+            boolean implementsMatch = !clazz.getDeclaredMethod("match").isDefault();
             boolean implementsAssignTwo = !clazz.getDeclaredMethod("assign2").isDefault();
             boolean implementsSummaryTwo = !clazz.getDeclaredMethod("createSummarizer2").isDefault();*/
+
+            boolean implementsMatch = true;
+            boolean implementsAssignTwo = true;
+            boolean implementsSummaryTwo = true;
             //Create caller function
             function = new Function(functionSignature, paramNames, paramTypes, returnTypeSignature, null,
                     FunctionKind.FJ_CALLER.toString(), library.getLanguage(), libraryDataverseName, libraryName,

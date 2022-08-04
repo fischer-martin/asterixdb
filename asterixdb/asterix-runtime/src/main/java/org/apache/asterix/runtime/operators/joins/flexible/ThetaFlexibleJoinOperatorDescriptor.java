@@ -16,10 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.runtime.operators.joins.flexible;
-
-import java.nio.ByteBuffer;
-import java.util.BitSet;
+/*package org.apache.asterix.runtime.operators.joins.flexible;
 
 import org.apache.hyracks.api.comm.IFrame;
 import org.apache.hyracks.api.comm.VSizeFrame;
@@ -29,13 +26,18 @@ import org.apache.hyracks.api.dataflow.IActivity;
 import org.apache.hyracks.api.dataflow.IActivityGraphBuilder;
 import org.apache.hyracks.api.dataflow.IOperatorNodePushable;
 import org.apache.hyracks.api.dataflow.TaskId;
-import org.apache.hyracks.api.dataflow.value.*;
+import org.apache.hyracks.api.dataflow.value.IBinaryHashFunctionFamily;
+import org.apache.hyracks.api.dataflow.value.IPredicateEvaluator;
+import org.apache.hyracks.api.dataflow.value.IPredicateEvaluatorFactory;
+import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparatorFactory;
+import org.apache.hyracks.api.dataflow.value.ITuplePartitionComputer;
+import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 import org.apache.hyracks.api.job.JobId;
-import org.apache.hyracks.dataflow.common.comm.io.ArrayTupleBuilder;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
-import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 import org.apache.hyracks.dataflow.common.comm.util.FrameUtils;
 import org.apache.hyracks.dataflow.common.data.partition.FieldHashPartitionComputerFamily;
 import org.apache.hyracks.dataflow.common.io.RunFileReader;
@@ -49,17 +51,20 @@ import org.apache.hyracks.dataflow.std.buffermanager.FramePoolBackedFrameBufferM
 import org.apache.hyracks.dataflow.std.buffermanager.IDeallocatableFramePool;
 import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
 import org.apache.hyracks.dataflow.std.join.NestedLoopJoin;
-import org.apache.hyracks.dataflow.std.structures.ISerializableTable;
 import org.apache.hyracks.dataflow.std.structures.SerializableHashTable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
+import java.nio.ByteBuffer;
+import java.util.BitSet;
+
+public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
 
     /**
      * Use a random seed to avoid hash collision with the hash exchange operator.
      * See https://issues.apache.org/jira/browse/ASTERIXDB-2783 for more details.
      */
+/*
     private static final int INIT_SEED = 982028031;
 
     private static final double NLJ_SWITCH_THRESHOLD = 0.8;
@@ -83,16 +88,16 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
     private final IBinaryHashFunctionFamily[] buildHashFunctionFactories;
 
     private final ITuplePairComparatorFactory tuplePairComparatorFactoryProbe2Build; //For HHJ & NLJ in probe
-    private final ITuplePairComparatorFactory tuplePairComparatorFactoryBuild2Probe; //For HHJ & NLJ in probe
+    private final ITuplePairComparatorFactory atuplePairComparatorFactoryBuild2Probe; //For HHJ & NLJ in probe
 
     private final double fudgeFactor;
 
-    public FlexibleJoinOperatorDescriptor(IOperatorDescriptorRegistry spec, int memoryForJoin, int[] buildKeys,
-            int[] probeKeys, RecordDescriptor recordDescriptor,
-            ITuplePairComparatorFactory tupPaircomparatorFactory01,ITuplePairComparatorFactory tupPaircomparatorFactory10,
-                                          IBinaryHashFunctionFamily[] propHashFunctionFactories,
-                                          IBinaryHashFunctionFamily[] buildHashFunctionFactories,
-                                          IPredicateEvaluatorFactory predEvaluatorFactory, double fudgeFactor) {
+    public ThetaFlexibleJoinOperatorDescriptor(IOperatorDescriptorRegistry spec, int memoryForJoin, int[] buildKeys,
+                                               int[] probeKeys, RecordDescriptor recordDescriptor,
+                                               ITuplePairComparatorFactory tupPaircomparatorFactory01, ITuplePairComparatorFactory tupPaircomparatorFactory10,
+                                               IBinaryHashFunctionFamily[] propHashFunctionFactories,
+                                               IBinaryHashFunctionFamily[] buildHashFunctionFactories,
+                                               IPredicateEvaluatorFactory predEvaluatorFactory, double fudgeFactor) {
         super(spec, 2, 1);
 
         this.predEvaluatorFactory = predEvaluatorFactory;
@@ -108,30 +113,6 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
         this.tuplePairComparatorFactoryBuild2Probe = tupPaircomparatorFactory10;
 
         this.fudgeFactor = fudgeFactor;
-    }
-
-    //memorySize is the memory for join (we have already excluded the 2 buffers for in/out)
-    private static int getNumberOfPartitions(int memorySize, int buildSize, double factor, int nPartitions)
-            throws HyracksDataException {
-        if (memorySize <= 2) {
-            throw new HyracksDataException("Not enough memory is available for Hybrid Hash Join.");
-        }
-        int minimumNumberOfPartitions = Math.min(20, memorySize);
-        if (buildSize < 0 || memorySize > buildSize * factor) {
-
-            return minimumNumberOfPartitions;
-        }
-        // Two frames are already excluded from the memorySize for taking the input and output into account. That
-        // makes the denominator in the following formula to be different than the denominator in original Hybrid Hash
-        // Join which is memorySize - 1. This formula gives the total number of partitions, the spilled partitions
-        // and the memory-resident partition ( + 1 in formula is for taking the memory-resident partition into account).
-        int numberOfPartitions = (int) (Math.ceil((buildSize * factor / nPartitions - memorySize) / (memorySize))) + 1;
-        numberOfPartitions = Math.max(minimumNumberOfPartitions, numberOfPartitions);
-        if (numberOfPartitions > memorySize) { // Considers applying Grace Hash Join instead of Hybrid Hash Join.
-            numberOfPartitions = (int) Math.ceil(Math.sqrt(buildSize * factor / nPartitions));
-            return Math.max(2, Math.min(numberOfPartitions, memorySize));
-        }
-        return numberOfPartitions;
     }
 
     @Override
@@ -152,10 +133,9 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
     }
 
     public static class JoinCacheTaskState extends AbstractStateObject {
-        private OptimizedFlexibleJoiner joiner;
+        private ThetaFlexibleJoiner joiner;
 
         private int memForJoin;
-        private int numOfPartitions;
 
         private JoinCacheTaskState(JobId jobId, TaskId taskId) {
             super(jobId, taskId);
@@ -203,9 +183,8 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                             new TaskId(getActivityId(), partition));
 
                     state.memForJoin = memoryForJoin - 2;
-                    state.numOfPartitions = getNumberOfPartitions(state.memForJoin, -1, fudgeFactor, nPartitions);
 
-                    state.joiner = new OptimizedFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, partition, probeHpc, buildHpc, PROBE_REL, BUILD_REL, predEvaluator);
+                    state.joiner = new ThetaFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, partition, probeHpc, buildHpc, PROBE_REL, BUILD_REL, predEvaluator);
 
                     state.joiner.initBuild();
                 }
@@ -228,8 +207,8 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                             state.joiner.clearBuildTempFiles();
                         }
                     }
-//                    state.joiner.processBuildClose();
-//                    ctx.setStateObject(state);
+                    state.joiner.processBuildClose();
+                    ctx.setStateObject(state);
                 }
 
                 @Override
@@ -454,11 +433,10 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                                                  RunFileReader buildSideReader, final int level, final long beforeMax, ITuplePairComparator comp)
                         throws HyracksDataException {
 
-                    boolean isReversed = probeKeys == FlexibleJoinOperatorDescriptor.this.buildKeys
-                            && buildKeys == FlexibleJoinOperatorDescriptor.this.probeKeys;
+                    boolean isReversed = probeKeys == ThetaFlexibleJoinOperatorDescriptor.this.buildKeys
+                            && buildKeys == ThetaFlexibleJoinOperatorDescriptor.this.probeKeys;
 
                     OptimizedFlexibleJoiner recursiveFlexibleJoin;
-                    int n = getNumberOfPartitions(state.memForJoin, tableSize, fudgeFactor, nPartitions);
                     recursiveFlexibleJoin = new OptimizedFlexibleJoiner(ctx, state.memForJoin, buildRd, probeRd, n, probeHpc, buildHpc, PROBE_REL, BUILD_REL, predEvaluator); //checked-confirmed
 
                     recursiveFlexibleJoin. setIsReversed(isReversed);
@@ -615,8 +593,8 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                                                 RecordDescriptor probeRDesc, ITuplePartitionComputer hpcRepBuild,
                                                 ITuplePartitionComputer hpcRepProbe, RunFileReader bReader, RunFileReader pReader,
                                                 ITuplePairComparator comp) throws HyracksDataException {
-                    boolean isReversed = pKeys == FlexibleJoinOperatorDescriptor.this.buildKeys
-                            && bKeys == FlexibleJoinOperatorDescriptor.this.probeKeys;
+                    boolean isReversed = pKeys == ThetaFlexibleJoinOperatorDescriptor.this.buildKeys
+                            && bKeys == ThetaFlexibleJoinOperatorDescriptor.this.probeKeys;
                     IDeallocatableFramePool framePool =
                             new DeallocatableFramePool(ctx, state.memForJoin * ctx.getInitialFrameSize());
                     ISimpleFrameBufferManager bufferManager = new FramePoolBackedFrameBufferManager(framePool);
@@ -658,7 +636,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                         rPartbuff.reset();
                         try {
                             while (pReader.nextFrame(rPartbuff)) {
-                                //joiner.join(rPartbuff.getBuffer(), writer);
+                                joiner.join(rPartbuff.getBuffer(), writer, partition);
                                 rPartbuff.reset();
                             }
                             joiner.completeJoin(writer);
@@ -687,3 +665,4 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
         }
     }
 }
+*/

@@ -40,10 +40,10 @@ import java.util.List;
  * So, do not use this in production and use SerializableHashTable class instead
  * since that should be managed by a buffer manager.
  */
-public class SimpleSerializableHashTableForKeyPair implements ISerializableTableForKeyPair {
+public class SimpleSerializableHashTableForBuckets implements ISerializableTable {
 
     // unit size: int
-    protected static final int BYTE_SIZE = 1;
+    protected static final int INT_SIZE = 4;
     // Initial entry slot size
     protected static final int INIT_ENTRY_SIZE = 4;
     protected static final int INVALID_VALUE = 0xFFFFFFFF;
@@ -52,7 +52,7 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
     // Header frame array
     protected IntSerDeBuffer[] headers;
     // Content frame list
-    protected List<BoolSerDeBuffer> contents = new ArrayList<>();
+    protected List<IntSerDeBuffer> contents = new ArrayList<>();
     protected List<Integer> currentOffsetInEachFrameList = new ArrayList<>();
     protected int frameCapacity;
     protected int currentLargestFrameNumber = 0;
@@ -64,16 +64,16 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
     protected int frameSize;
     protected IHyracksFrameMgrContext ctx;
 
-    public SimpleSerializableHashTableForKeyPair(int tableSize, final IHyracksFrameMgrContext ctx) throws HyracksDataException {
+    public SimpleSerializableHashTableForBuckets(int tableSize, final IHyracksFrameMgrContext ctx) throws HyracksDataException {
         this(tableSize, ctx, true);
     }
 
-    public SimpleSerializableHashTableForKeyPair(int tableSize, final IHyracksFrameMgrContext ctx, boolean frameInitRequired)
+    public SimpleSerializableHashTableForBuckets(int tableSize, final IHyracksFrameMgrContext ctx, boolean frameInitRequired)
             throws HyracksDataException {
         this.ctx = ctx;
         frameSize = ctx.getInitialFrameSize();
-        int residual = tableSize * BYTE_SIZE * 2 % frameSize == 0 ? 0 : 1;
-        int headerSize = tableSize * BYTE_SIZE * 2 / frameSize + residual;
+        int residual = tableSize * INT_SIZE * 3 % frameSize == 0 ? 0 : 1;
+        int headerSize = tableSize * INT_SIZE * 3 / frameSize + residual;
         headers = new IntSerDeBuffer[headerSize];
         this.tableSize = tableSize;
         if (frameInitRequired) {
@@ -81,7 +81,7 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
             if (newFrame == null) {
                 throw new HyracksDataException("Can't initialize the Hash Table. Please assign more memory.");
             }
-            BoolSerDeBuffer frame = new BoolSerDeBuffer(newFrame);
+            IntSerDeBuffer frame = new IntSerDeBuffer(newFrame);
             frameCapacity = frame.capacity();
             contents.add(frame);
             currentOffsetInEachFrameList.add(0);
@@ -98,10 +98,9 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
     }
 
     @Override
-    public boolean insert(KeyPair entry, boolean value) throws HyracksDataException {
-
-        int headerFrameIndex = getHeaderFrameIndex(entry.hashCode());
-        int offsetInHeaderFrame = 0;
+    public boolean insert(int entry, TuplePointer pointer) throws HyracksDataException {
+        int headerFrameIndex = getHeaderFrameIndex(entry);
+        int offsetInHeaderFrame = getHeaderFrameOffset(entry);
         IntSerDeBuffer headerFrame = headers[headerFrameIndex];
         if (headerFrame == null) {
             ByteBuffer newFrame = getFrame(frameSize);
@@ -111,8 +110,19 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
             headerFrame = new IntSerDeBuffer(newFrame);
             headers[headerFrameIndex] = headerFrame;
         }
-        //int contentFrameIndex = headerFrame.getInt(offsetInHeaderFrame);
-        boolean result = insertNewEntry(headerFrame, offsetInHeaderFrame, INIT_ENTRY_SIZE, value);
+        int contentFrameIndex = headerFrame.getInt(offsetInHeaderFrame);
+        boolean result;
+        if (contentFrameIndex < 0) {
+            // Since the initial value of index and offset is -1, this means that the slot for
+            // this entry is not created yet. So, create the entry slot and insert first tuple into that slot.
+            // OR, the previous slot becomes full and the newly double-sized slot is about to be created.
+            result = insertNewEntry(headerFrame, offsetInHeaderFrame, INIT_ENTRY_SIZE, pointer);
+        } else {
+            // The entry slot already exists. Insert non-first tuple into the entry slot
+            int offsetInContentFrame = headerFrame.getInt(offsetInHeaderFrame + 1);
+            result = insertNonFirstTuple(headerFrame, offsetInHeaderFrame, contentFrameIndex, offsetInContentFrame,
+                    pointer);
+        }
 
         if (result) {
             tupleCount++;
@@ -123,28 +133,63 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
 
     @Override
     /**
+     * Reset the slot information for the entry. The connection (pointer) between header frame and
+     * content frame will be also lost. Specifically, we reset the number of used count in the slot as -1
+     * so that the space could be reclaimed.
+     */
+    public void delete(int entry) {
+        int headerFrameIndex = getHeaderFrameIndex(entry);
+        int offsetInHeaderFrame = getHeaderFrameOffset(entry);
+        IntSerDeBuffer header = headers[headerFrameIndex];
+        if (header != null) {
+            int contentFrameIndex = header.getInt(offsetInHeaderFrame);
+            int offsetInContentFrame = header.getInt(offsetInHeaderFrame + 1);
+            if (contentFrameIndex >= 0) {
+                IntSerDeBuffer frame = contents.get(contentFrameIndex);
+                int entrySlotCapacity = frame.getInt(offsetInContentFrame);
+                int entryUsedItems = frame.getInt(offsetInContentFrame + 1);
+                // Set used count as -1 in the slot so that the slot space could be reclaimed.
+                frame.writeInvalidVal(offsetInContentFrame + 1, 1);
+                // Also reset the header (frmaeIdx, offset) to content frame pointer.
+                header.writeInvalidVal(offsetInHeaderFrame, 2);
+                tupleCount = tupleCount - entryUsedItems;
+                increaseWastedSpaceCount((entrySlotCapacity + 1) * 2);
+            }
+        }
+    }
+
+    @Override
+    /**
      * For the given integer value, get the n-th (n = offsetInSlot) tuple pointer in the corresponding slot.
      */
-    public boolean getResult(KeyPair entry) {
-        int headerFrameIndex = getHeaderFrameIndex(entry.hashCode());
-        int offsetInHeaderFrame = 0;
+    public boolean getTuplePointer(int entry, int offsetInSlot, TuplePointer dataPointer) {
+        int headerFrameIndex = getHeaderFrameIndex(entry);
+        int offsetInHeaderFrame = getHeaderFrameOffset(entry);
         IntSerDeBuffer header = headers[headerFrameIndex];
         if (header == null) {
+            dataPointer.reset(INVALID_VALUE, INVALID_VALUE);
             return false;
         }
         int contentFrameIndex = header.getInt(offsetInHeaderFrame);
         int offsetInContentFrame = header.getInt(offsetInHeaderFrame + 1);
         if (contentFrameIndex < 0) {
+            dataPointer.reset(INVALID_VALUE, INVALID_VALUE);
             return false;
         }
-        BoolSerDeBuffer frame = contents.get(contentFrameIndex);
-        int startOffsetInContentFrame = offsetInContentFrame;
+        IntSerDeBuffer frame = contents.get(contentFrameIndex);
+        int entryUsedCountInSlot = frame.getInt(offsetInContentFrame + 1);
+        if (offsetInSlot > entryUsedCountInSlot - 1) {
+            dataPointer.reset(INVALID_VALUE, INVALID_VALUE);
+            return false;
+        }
+        int startOffsetInContentFrame = offsetInContentFrame + 2 + offsetInSlot * 2;
         while (startOffsetInContentFrame >= frameCapacity) {
             ++contentFrameIndex;
             startOffsetInContentFrame -= frameCapacity;
         }
         frame = contents.get(contentFrameIndex);
-        return frame.getBool(startOffsetInContentFrame);
+        dataPointer.reset(frame.getInt(startOffsetInContentFrame), frame.getInt(startOffsetInContentFrame + 1));
+        return true;
     }
 
     @Override
@@ -171,6 +216,31 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
     }
 
     @Override
+    public int getTupleCount() {
+        return tupleCount;
+    }
+
+    @Override
+    /**
+     * Returns the tuple count in the slot for the given entry.
+     */
+    public int getTupleCount(int entry) {
+        int headerFrameIndex = getHeaderFrameIndex(entry);
+        int offsetInHeaderFrame = getHeaderFrameOffset(entry);
+        IntSerDeBuffer headerFrame = headers[headerFrameIndex];
+        if (headerFrame != null) {
+            int contentFrameIndex = headerFrame.getInt(offsetInHeaderFrame);
+            int offsetInContentFrame = headerFrame.getInt(offsetInHeaderFrame + 1);
+            if (contentFrameIndex >= 0) {
+                IntSerDeBuffer frame = contents.get(contentFrameIndex);
+                int entryUsedCountInSlot = frame.getInt(offsetInContentFrame + 1);
+                return entryUsedCountInSlot;
+            }
+        }
+        return 0;
+    }
+
+    @Override
     public void close() {
         int nFrames = contents.size();
         for (int i = 0; i < headers.length; i++) {
@@ -185,15 +255,15 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
     }
 
     protected boolean insertNewEntry(IntSerDeBuffer header, int offsetInHeaderFrame, int entryCapacity,
-                                     boolean value) throws HyracksDataException {
-        BoolSerDeBuffer lastContentFrame = contents.get(currentLargestFrameNumber);
+            TuplePointer pointer) throws HyracksDataException {
+        IntSerDeBuffer lastContentFrame = contents.get(currentLargestFrameNumber);
         int lastOffsetInCurrentFrame = currentOffsetInEachFrameList.get(currentLargestFrameNumber);
         int requiredIntCapacity = entryCapacity * 2;
         int currentFrameNumber = currentLargestFrameNumber;
         boolean currentFrameNumberChanged = false;
 
         if (lastOffsetInCurrentFrame + requiredIntCapacity >= frameCapacity) {
-            BoolSerDeBuffer newContentFrame;
+            IntSerDeBuffer newContentFrame;
             // At least we need to have the mata-data (slot capacity and used count) and
             // one tuplePointer in the same frame (4 INT_SIZE).
             // So, if there is not enough space for this, we just move on to the next page.
@@ -210,7 +280,7 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
                     if (newFrame == null) {
                         return false;
                     }
-                    newContentFrame = new BoolSerDeBuffer(newFrame);
+                    newContentFrame = new IntSerDeBuffer(newFrame);
                     currentLargestFrameNumber++;
                     contents.add(newContentFrame);
                     currentOffsetInEachFrameList.add(0);
@@ -230,9 +300,15 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
         header.writeInt(offsetInHeaderFrame, currentFrameNumber);
         header.writeInt(offsetInHeaderFrame + 1, lastOffsetInCurrentFrame);
 
+        // sets the entry & its slot.
+        // 1. slot capacity
+        lastContentFrame.writeInt(lastOffsetInCurrentFrame, entryCapacity - 1);
+        // 2. used count in the slot
+        lastContentFrame.writeInt(lastOffsetInCurrentFrame + 1, 1);
         // 3. initial entry in the slot
-        lastContentFrame.writeBool(lastOffsetInCurrentFrame, value);
-        int newLastOffsetInContentFrame = lastOffsetInCurrentFrame + 1;
+        lastContentFrame.writeInt(lastOffsetInCurrentFrame + 2, pointer.getFrameIndex());
+        lastContentFrame.writeInt(lastOffsetInCurrentFrame + 3, pointer.getTupleIndex());
+        int newLastOffsetInContentFrame = lastOffsetInCurrentFrame + entryCapacity * 2;
         newLastOffsetInContentFrame =
                 newLastOffsetInContentFrame < frameCapacity ? newLastOffsetInContentFrame : frameCapacity - 1;
         currentOffsetInEachFrameList.set(currentFrameNumber, newLastOffsetInContentFrame);
@@ -249,18 +325,99 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
         return true;
     }
 
+    protected boolean insertNonFirstTuple(IntSerDeBuffer header, int offsetInHeaderFrame, int contentFrameIndex,
+            int offsetInContentFrame, TuplePointer pointer) throws HyracksDataException {
+        int frameIndex = contentFrameIndex;
+        IntSerDeBuffer contentFrame = contents.get(frameIndex);
+        int entrySlotCapacity = contentFrame.getInt(offsetInContentFrame);
+        int entryUsedCountInSlot = contentFrame.getInt(offsetInContentFrame + 1);
+        boolean frameIndexChanged = false;
+        if (entryUsedCountInSlot < entrySlotCapacity) {
+            // The slot has at least one space to accommodate this tuple pointer.
+            // Increase the used count by 1.
+            contentFrame.writeInt(offsetInContentFrame + 1, entryUsedCountInSlot + 1);
+            // Calculates the first empty spot in the slot.
+            // +2: (capacity, # of used entry count)
+            // *2: each tuplePointer's occupation (frame index + offset in that frame)
+            int startOffsetInContentFrame = offsetInContentFrame + 2 + entryUsedCountInSlot * 2;
+            while (startOffsetInContentFrame >= frameCapacity) {
+                ++frameIndex;
+                startOffsetInContentFrame -= frameCapacity;
+                frameIndexChanged = true;
+            }
+            // We don't have to read content frame again if the frame index has not been changed.
+            if (frameIndexChanged) {
+                contentFrame = contents.get(frameIndex);
+            }
+            contentFrame.writeInt(startOffsetInContentFrame, pointer.getFrameIndex());
+            contentFrame.writeInt(startOffsetInContentFrame + 1, pointer.getTupleIndex());
+        } else {
+            // There is no enough space in this slot. We need to increase the slot size and
+            // migrate the current entries in it.
+
+            // New capacity: double the original capacity
+            int capacity = (entrySlotCapacity + 1) * 2;
+
+            // Temporarily sets the header (frameIdx, offset) as (-1,-1) for the slot.
+            header.writeInvalidVal(offsetInHeaderFrame, 2);
+            // Marks the old slot as obsolete - set the used count as -1 so that its space can be reclaimed
+            // when a garbage collection is executed.
+            contentFrame.writeInvalidVal(offsetInContentFrame + 1, 1);
+
+            // Gets the location of the initial entry.
+            int fIndex = contentFrame.getInt(offsetInContentFrame + 2);
+            int tIndex = contentFrame.getInt(offsetInContentFrame + 3);
+            tempTuplePointer.reset(fIndex, tIndex);
+            // Creates a new double-sized slot for the current entries and
+            // migrates the initial entry in the slot to the new slot.
+            if (!this.insertNewEntry(header, offsetInHeaderFrame, capacity, tempTuplePointer)) {
+                // Reverses the effect of change.
+                header.writeInt(offsetInHeaderFrame, contentFrameIndex);
+                header.writeInt(offsetInHeaderFrame + 1, offsetInContentFrame);
+                contentFrame.writeInt(offsetInContentFrame + 1, entryUsedCountInSlot);
+                return false;
+            }
+
+            int newFrameIndex = header.getInt(offsetInHeaderFrame);
+            int newTupleIndex = header.getInt(offsetInHeaderFrame + 1);
+
+            // Migrates the existing entries (from 2nd to the last).
+            for (int i = 1; i < entryUsedCountInSlot; i++) {
+                int startOffsetInContentFrame = offsetInContentFrame + 2 + i * 2;
+                int startFrameIndex = frameIndex;
+                while (startOffsetInContentFrame >= frameCapacity) {
+                    ++startFrameIndex;
+                    startOffsetInContentFrame -= frameCapacity;
+                }
+                contentFrame = contents.get(startFrameIndex);
+                fIndex = contentFrame.getInt(startOffsetInContentFrame);
+                tIndex = contentFrame.getInt(startOffsetInContentFrame + 1);
+                tempTuplePointer.reset(fIndex, tIndex);
+                if (!insertNonFirstTuple(header, offsetInHeaderFrame, newFrameIndex, newTupleIndex, tempTuplePointer)) {
+                    return false;
+                }
+            }
+            // Now, inserts the new entry that caused an overflow to the old bucket.
+            if (!insertNonFirstTuple(header, offsetInHeaderFrame, newFrameIndex, newTupleIndex, pointer)) {
+                return false;
+            }
+            increaseWastedSpaceCount(capacity);
+        }
+        return true;
+    }
+
     protected int getHeaderFrameIndex(int entry) {
-        int frameIndex = (entry % tableSize) * 2 / frameCapacity;
+        int frameIndex = entry * 2 / frameCapacity;
         return frameIndex;
     }
 
     protected int getHeaderFrameOffset(int entry) {
-        int offset = (entry % tableSize) * 2 % frameCapacity;
+        int offset = entry * 2 % frameCapacity;
         return offset;
     }
 
     public static int getUnitSize() {
-        return BYTE_SIZE;
+        return INT_SIZE;
     }
 
     public static int getNumberOfEntryInSlot() {
@@ -329,47 +486,6 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
         return -1;
     }
 
-    static class BoolSerDeBuffer {
-
-        ByteBuffer byteBuffer;
-        byte[] bytes;
-
-        public BoolSerDeBuffer(ByteBuffer byteBuffer) {
-            this.byteBuffer = byteBuffer;
-            this.bytes = byteBuffer.array();
-            resetFrame();
-        }
-
-        public boolean getBool(int pos) {
-            return bytes[pos] != 0;
-        }
-
-        public void writeBool(int pos, boolean value) {
-            bytes[pos] = (byte) (value?1:0);
-        }
-
-        public void writeInvalidVal(int intPos, int intRange) {
-            Arrays.fill(bytes, intPos, intRange, INVALID_BYTE_VALUE);
-        }
-
-        public int capacity() {
-            return bytes.length;
-        }
-
-        public int getByteCapacity() {
-            return bytes.length;
-        }
-
-        public ByteBuffer getByteBuffer() {
-            return byteBuffer;
-        }
-
-        public void resetFrame() {
-            Arrays.fill(bytes, INVALID_BYTE_VALUE);
-        }
-
-    }
-
     static class IntSerDeBuffer {
 
         ByteBuffer byteBuffer;
@@ -397,7 +513,7 @@ public class SimpleSerializableHashTableForKeyPair implements ISerializableTable
 
         public void writeInvalidVal(int intPos, int intRange) {
             int offset = intPos * 4;
-            Arrays.fill(bytes, offset, offset + BYTE_SIZE * intRange, INVALID_BYTE_VALUE);
+            Arrays.fill(bytes, offset, offset + INT_SIZE * intRange, INVALID_BYTE_VALUE);
         }
 
         public int capacity() {

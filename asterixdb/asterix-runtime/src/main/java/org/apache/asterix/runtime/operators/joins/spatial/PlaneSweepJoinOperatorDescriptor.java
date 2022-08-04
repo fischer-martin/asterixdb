@@ -113,7 +113,7 @@ public class PlaneSweepJoinOperatorDescriptor extends AbstractOperatorDescriptor
 
                     ISpatialJoinUtil imjc = imjcf.createSpatialJoinUtil(buildKeys, probeKeys, ctx, nPartitions);
 
-                    state.joiner = new SpatialJoiner(ctx, memoryForJoin, imjc, buildKeys, probeKeys, buildRd, probeRd, partition);
+                    state.joiner = new SpatialJoiner(ctx, memoryForJoin, imjc, buildKeys, probeKeys, buildRd, probeRd);
                 }
 
                 @Override

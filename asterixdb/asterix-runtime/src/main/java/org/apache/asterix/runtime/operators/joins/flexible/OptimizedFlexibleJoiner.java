@@ -195,8 +195,6 @@ public class OptimizedFlexibleJoiner {
         int tupleCount = accessorBuild.getTupleCount();
         for (int i = 0; i < tupleCount; ++i) {
             int pid = buildHpc.partition(accessorBuild, i, numOfPartitions);
-            int buid = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
-            System.out.println("Partition:"+partition+"\t"+"bid:"+buid);
             processTupleBuildPhase(i, pid);
             buildPSizeInTups[pid]++;
         }
@@ -559,7 +557,7 @@ public class OptimizedFlexibleJoiner {
         int tupleCount = accessorProbe.getTupleCount();
 
         if (isBuildRelAllInMemory()) {
-            inMemJoiner.join(buffer, writer, partition);
+            //inMemJoiner.join(buffer, writer);
             return;
         }
         inMemJoiner.resetAccessorProbe(accessorProbe);

@@ -22,13 +22,11 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.LinkedList;
 
-import org.apache.asterix.runtime.operators.joins.flexible.utils.FlexibleJoinUtil;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsSideTuple;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFilePointer;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
-import org.apache.asterix.runtime.operators.joins.interval.utils.memory.TuplePointerCursor;
 import org.apache.hyracks.api.comm.IFrame;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.comm.IFrameWriter;
@@ -36,7 +34,6 @@ import org.apache.hyracks.api.comm.VSizeFrame;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
-import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
@@ -47,16 +44,10 @@ import org.apache.hyracks.dataflow.std.buffermanager.EnumFreeSlotPolicy;
 import org.apache.hyracks.dataflow.std.buffermanager.FrameFreeSlotPolicyFactory;
 import org.apache.hyracks.dataflow.std.buffermanager.FramePoolBackedFrameBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.IDeallocatableFramePool;
-import org.apache.hyracks.dataflow.std.buffermanager.IDeletableTupleBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
-import org.apache.hyracks.dataflow.std.buffermanager.PreferToSpillFullyOccupiedFramePolicy;
-import org.apache.hyracks.dataflow.std.buffermanager.VPartitionTupleBufferManager;
-import org.apache.hyracks.dataflow.std.buffermanager.VariableDeletableTupleMemoryManager;
 import org.apache.hyracks.dataflow.std.buffermanager.VariableFrameMemoryManager;
-import org.apache.hyracks.dataflow.std.buffermanager.VariableFramePool;
 import org.apache.hyracks.dataflow.std.structures.KeyPair;
-import org.apache.hyracks.dataflow.std.structures.SerializableHashTable;
-import org.apache.hyracks.dataflow.std.structures.SerializableHashTableForKeyPair;
+import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 
 public class FlexibleJoiner {
@@ -96,7 +87,7 @@ public class FlexibleJoiner {
 
     private final int partition;
 
-    private SerializableHashTableForKeyPair table;
+    private SerializableBucketIdList table;
     private int buildTupleCounter = 0;
 
     public FlexibleJoiner(IHyracksTaskContext ctx, ITuplePairComparator tpComparator, int memorySize, int[] buildKeys,
@@ -159,7 +150,7 @@ public class FlexibleJoiner {
 
     public void processBuildClose() throws HyracksDataException {
 
-        table = new SerializableHashTableForKeyPair(buildTupleCounter, ctx, bufferManagerForHashTable);
+        table = new SerializableBucketIdList(buildTupleCounter, ctx, bufferManagerForHashTable);
 
         runFileStream.flushRunFile();
         runFileStream.startReadingRunFile(inputCursor[BUILD_PARTITION]);
@@ -210,12 +201,12 @@ public class FlexibleJoiner {
                     //System.out.println("build: " + currBuildBucketId + "\tprobe:"+currProbeBucketId);
                 counter++;
                 if(lastProbeBucketId != currProbeBucketId || lastBuildBucketId != currBuildBucketId) {
-                    if(!this.table.getResult(new KeyPair(currBuildBucketId, currProbeBucketId))) {
+                    /*if(!this.table.getResult(new KeyPair(currBuildBucketId, currProbeBucketId))) {
                         this.table.insert(new KeyPair(currBuildBucketId, currProbeBucketId),
                                 (tpComparator.compare(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx) == 0)
                         );
                     }
-                    matchResult = this.table.getResult(new KeyPair(currBuildBucketId, currProbeBucketId));
+                    matchResult = this.table.getResult(new KeyPair(currBuildBucketId, currProbeBucketId));*/
 
                     lastProbeBucketId = currProbeBucketId;
                     lastBuildBucketId = currBuildBucketId;

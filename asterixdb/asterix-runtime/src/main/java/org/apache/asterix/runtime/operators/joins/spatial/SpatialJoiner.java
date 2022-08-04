@@ -26,7 +26,6 @@ import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileP
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.TuplePointerCursor;
 import org.apache.asterix.runtime.operators.joins.spatial.utils.ISpatialJoinUtil;
-import org.apache.asterix.runtime.operators.joins.spatial.utils.memory.SpatialJoinUtil;
 import org.apache.asterix.runtime.operators.joins.spatial.utils.memory.SpatialSideTuple;
 import org.apache.hyracks.api.comm.IFrame;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
@@ -66,12 +65,9 @@ public class SpatialJoiner {
     protected final FrameTupleAppender resultAppender;
     protected final FrameTupleCursor[] inputCursor;
 
-    private int partition;
-
     public SpatialJoiner(IHyracksTaskContext ctx, int memorySize, ISpatialJoinUtil mjc, int[] buildKeys,
-            int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd, int partition) throws HyracksDataException {
+                         int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd) throws HyracksDataException {
         this.mjc = mjc;
-        this.partition = partition;
 
         // Memory (probe buffer)
         if (memorySize < 5) {
@@ -123,12 +119,6 @@ public class SpatialJoiner {
     public void processProbeFrame(ByteBuffer buffer, IFrameWriter writer) throws HyracksDataException {
         inputCursor[PROBE_PARTITION].reset(buffer);
         while (buildHasNext() && inputCursor[PROBE_PARTITION].hasNext()) {
-            int tileIdB = SpatialJoinUtil.getTileId(inputCursor[BUILD_PARTITION].getAccessor(),
-                    inputCursor[BUILD_PARTITION].getTupleId() + 1, 1);
-            int tileIdP = SpatialJoinUtil.getTileId(inputCursor[PROBE_PARTITION].getAccessor(),
-                    inputCursor[PROBE_PARTITION].getTupleId() + 1, 1);
-            System.out.println("probe frame\t" + partition + "\t" + tileIdB
-                    + "\t" + tileIdP);
             if (inputCursor[PROBE_PARTITION].hasNext() && mjc.checkToLoadNextProbeTuple(
                     inputCursor[BUILD_PARTITION].getAccessor(), inputCursor[BUILD_PARTITION].getTupleId() + 1,
                     inputCursor[PROBE_PARTITION].getAccessor(), inputCursor[PROBE_PARTITION].getTupleId() + 1)) {
@@ -164,8 +154,6 @@ public class SpatialJoiner {
     }
 
     private void processBuildTuple(IFrameWriter writer) throws HyracksDataException {
-        int tileIdB = SpatialJoinUtil.getTileId(inputCursor[BUILD_PARTITION].getAccessor(),
-                inputCursor[BUILD_PARTITION].getTupleId() + 1, 1);
         // Check against memory
         if (memoryHasTuples()) {
             memoryCursor.reset(memoryBuffer.iterator());
@@ -191,15 +179,9 @@ public class SpatialJoiner {
     private void processProbeTuple(IFrameWriter writer) throws HyracksDataException {
         // append to memory
         // BUILD Cursor is guaranteed to have next
-        int tileIdP = SpatialJoinUtil.getTileId(inputCursor[PROBE_PARTITION].getAccessor(),
-                inputCursor[PROBE_PARTITION].getTupleId() + 1, 1);
-
-        if (mjc.checkToSaveInMemory(
-                inputCursor[BUILD_PARTITION].getAccessor(),
-                inputCursor[BUILD_PARTITION].getTupleId() + 1,
-                inputCursor[PROBE_PARTITION].getAccessor(),
-                inputCursor[PROBE_PARTITION].getTupleId())
-        ) {
+        if (mjc.checkToSaveInMemory(inputCursor[BUILD_PARTITION].getAccessor(),
+                inputCursor[BUILD_PARTITION].getTupleId() + 1, inputCursor[PROBE_PARTITION].getAccessor(),
+                inputCursor[PROBE_PARTITION].getTupleId())) {
             if (!addToMemory(inputCursor[PROBE_PARTITION].getAccessor(), inputCursor[PROBE_PARTITION].getTupleId())) {
                 unfreezeAndClearMemory(writer);
                 if (!addToMemory(inputCursor[PROBE_PARTITION].getAccessor(),
@@ -235,7 +217,7 @@ public class SpatialJoiner {
     }
 
     private void addToResult(IFrameTupleAccessor buildAccessor, int buildTupleId, IFrameTupleAccessor probeAccessor,
-            int probeTupleId, IFrameWriter writer) throws HyracksDataException {
+                             int probeTupleId, IFrameWriter writer) throws HyracksDataException {
         FrameUtils.appendConcatToWriter(writer, resultAppender, buildAccessor, buildTupleId, probeAccessor,
                 probeTupleId);
     }

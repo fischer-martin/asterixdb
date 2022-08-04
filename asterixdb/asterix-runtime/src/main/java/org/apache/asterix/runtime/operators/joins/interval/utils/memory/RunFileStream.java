@@ -31,6 +31,7 @@ import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 import org.apache.hyracks.dataflow.common.io.RunFileReader;
 import org.apache.hyracks.dataflow.common.io.RunFileWriter;
+import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 
 public class RunFileStream {
 
@@ -121,6 +122,18 @@ public class RunFileStream {
             runFileAppender.append(cursor.getAccessor(), cursor.getTupleId());
         }
         totalTupleCount++;
+    }
+
+    public void addToRunFile(IFrameTupleAccessor accessor, int tupleId, TuplePointer tuplePointer) throws HyracksDataException {
+        if (!runFileAppender.append(accessor, tupleId)) {
+            runFileAppender.write(runFileWriter, true);
+            writeCount++;
+            runFileAppender.append(accessor, tupleId);
+        }
+        totalTupleCount++;
+
+        tuplePointer.reset((int) -writeCount, runFileAppender.getBuffer().arrayOffset());
+
     }
 
     public void startReadingRunFile(FrameTupleCursor cursor) throws HyracksDataException {
