@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.ATypeTag;
+import org.apache.asterix.om.types.IAType;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -32,8 +33,8 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 public class GlobalSummaryTwoAggregateFunction extends AbstractSummaryTwoAggregateFunction {
 
     public GlobalSummaryTwoAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
-            SourceLocation sourceLoc, IExternalFunctionInfo finfo) throws HyracksDataException {
-        super(args, context, sourceLoc, finfo);
+            SourceLocation sourceLoc, IExternalFunctionInfo finfo, IAType aggFieldType) throws HyracksDataException {
+        super(args, context, sourceLoc, finfo, aggFieldType);
     }
 
     // Called for each incoming tuple

@@ -36,6 +36,8 @@ import org.apache.asterix.om.base.AMutableInt32;
 import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
+import org.apache.asterix.om.pointables.PointableAllocator;
+import org.apache.asterix.om.pointables.base.IVisitablePointable;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
@@ -58,6 +60,9 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescriptor
         implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 1L;
+
+    IAType keyType;
+    IAType configType;
 
     private final IExternalFunctionInfo finfo;
 
@@ -83,6 +88,7 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                 return new IUnnestingEvaluator() {
                     private final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
                     private int[] buckets;
+                    private PointableAllocator pointableAllocator = new PointableAllocator();
                     private final IPointable inputArg0 = new VoidPointable();
                     private final IPointable inputArg1 = new VoidPointable();
                     private final IScalarEvaluator eval0 = args[0].createScalarEvaluator(ctx);
@@ -130,7 +136,18 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                         ByteArrayInputStream inStream =
                                 new ByteArrayInputStream(inputArg0.getByteArray(), offset0 + 1, len - 1);
                         DataInputStream dataIn = new DataInputStream(inStream);
-                        buckets = flexibleJoin.assign1(getKeyObject(dataIn, tag0), configuration);
+                        if (tag0 == ATypeTag.OBJECT) {
+                            IVisitablePointable obj = pointableAllocator.allocateFieldValue(keyType);
+                            eval0.evaluate(tuple, obj);
+                            // I suppose that this is a typo and we should actually call assign2() instead of assign1()
+                            //buckets = flexibleJoin.assign1(obj, configuration);
+                            buckets = flexibleJoin.assign2(obj, configuration);
+                        } else {
+                            // I suppose that this is a typo and we should actually call assign2() instead of assign1()
+                            //buckets = flexibleJoin.assign1(getKeyObject(dataIn, tag0), configuration);
+                            buckets = flexibleJoin.assign2(getKeyObject(dataIn, tag0), configuration);
+                        }
+
                         pos = 0;
                     }
 
@@ -159,6 +176,14 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
 
     @Override
     public IAType[] getArgumentTypes() {
-        return new IAType[0];
+        IAType[] types = {keyType, configType};
+
+        return types;
+    }
+
+    @Override
+    public void setImmutableStates(Object... types) {
+        keyType = (IAType) types[0];
+        configType = (IAType) types[1];
     }
 }

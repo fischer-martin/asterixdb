@@ -35,9 +35,12 @@ import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ANull;
 import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
+import org.apache.asterix.om.pointables.PointableAllocator;
+import org.apache.asterix.om.pointables.base.IVisitablePointable;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
+import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.runtime.aggregates.std.AbstractAggregateFunction;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
 import org.apache.commons.lang3.SerializationUtils;
@@ -62,6 +65,8 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
     private Summary summary;
 
     protected ATypeTag typeTag;
+    private IAType aggFieldType;
+    private PointableAllocator pointableAllocator = new PointableAllocator();
     private IExternalFunctionInfo finfo;
 
     private ClassLoader classLoader;
@@ -71,10 +76,11 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ANULL);
 
     public AbstractSummaryOneAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
-            SourceLocation sourceLoc, IExternalFunctionInfo finfo) throws HyracksDataException {
+            SourceLocation sourceLoc, IExternalFunctionInfo finfo, IAType aggFieldType) throws HyracksDataException {
         super(sourceLoc);
         this.eval = args[0].createScalarEvaluator(context);
         this.context = context;
+        this.aggFieldType = aggFieldType;
         this.finfo = finfo;
 
         classLoader = getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, context);
@@ -110,6 +116,10 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
 
         if (typeTag == ATypeTag.NULL || typeTag == ATypeTag.MISSING) {
             processNull(typeTag);
+        } else if (typeTag == ATypeTag.OBJECT) {
+            IVisitablePointable obj = pointableAllocator.allocateFieldValue(aggFieldType);
+            eval.evaluate(tuple, obj);
+            summary.add(obj);
         } else {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len - 1);
             DataInputStream dataIn = new DataInputStream(inStream);

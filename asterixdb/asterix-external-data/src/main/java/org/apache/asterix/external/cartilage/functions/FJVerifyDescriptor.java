@@ -38,6 +38,8 @@ import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
+import org.apache.asterix.om.pointables.PointableAllocator;
+import org.apache.asterix.om.pointables.base.IVisitablePointable;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
@@ -57,6 +59,13 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
 public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 2L;
+
+    private IAType bucket1Type;
+    private IAType key1Type;
+    private IAType bucket2Type;
+    private IAType key2Type;
+    private IAType configType;
+
     private final IExternalFunctionInfo finfo;
 
     public FJVerifyDescriptor(IExternalFunctionInfo finfo) {
@@ -83,6 +92,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                     private Configuration configuration = null;
 
                     private final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
+                    private PointableAllocator pointableAllocator = new PointableAllocator();
                     private final IPointable inputArg0 = new VoidPointable();
                     private final IPointable inputArg1 = new VoidPointable();
                     private final IPointable inputArg2 = new VoidPointable();
@@ -159,8 +169,21 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             ByteArrayInputStream inStream3 = new ByteArrayInputStream(bytes3, offset3 + 1, len3 - 1);
                             DataInputStream dataIn3 = new DataInputStream(inStream3);
 
-                            res = flexibleJoin.verify(bucketID0, getKeyObject(dataIn1, tag1), bucketID1,
-                                    getKeyObject(dataIn3, tag3), configuration) ? ABoolean.TRUE : ABoolean.FALSE;
+                            Object key1Obj;
+                            Object key2Obj;
+                            if (tag1 == ATypeTag.OBJECT) {
+                                key1Obj = pointableAllocator.allocateFieldValue(key1Type);
+                                eval1.evaluate(tuple, (IVisitablePointable) key1Obj);
+                            } else
+                                key1Obj = getKeyObject(dataIn1, tag1);
+                            if (tag3 == ATypeTag.OBJECT) {
+                                key2Obj = pointableAllocator.allocateFieldValue(key2Type);
+                                eval3.evaluate(tuple, (IVisitablePointable) key2Obj);
+                            } else
+                                key2Obj = getKeyObject(dataIn3, tag3);
+
+                            res = flexibleJoin.verify(bucketID0, key1Obj, bucketID1, key2Obj, configuration)
+                                    ? ABoolean.TRUE : ABoolean.FALSE;
 
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -182,6 +205,18 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
     @Override
     public IAType[] getArgumentTypes() {
-        return new IAType[0];
+        IAType[] types = {bucket1Type, key1Type, bucket2Type, key2Type, configType};
+
+        return types;
     }
+
+    @Override
+    public void setImmutableStates(Object... types) {
+        bucket1Type = (IAType) types[0];
+        key1Type = (IAType) types[1];
+        bucket2Type = (IAType) types[2];
+        key2Type = (IAType) types[3];
+        configType = (IAType) types[4];
+    }
+
 }

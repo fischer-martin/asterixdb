@@ -159,9 +159,6 @@ public class ParameterTypeResolver {
                 returnObject = new Rectangle(minX1, maxX1, minY1, maxY1);
                 break;
             }
-            case OBJECT:
-                returnObject = dataInputStream;
-                break;
             case ANY:
                 returnObject = dataInputStream;
         }
