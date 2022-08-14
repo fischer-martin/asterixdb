@@ -61,8 +61,8 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
         implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 1L;
 
-    IAType keyType;
-    IAType configType;
+    private IAType keyType;
+    private IAType configType;
 
     private final IExternalFunctionInfo finfo;
 
