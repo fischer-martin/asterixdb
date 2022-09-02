@@ -21,7 +21,9 @@ package org.apache.asterix.runtime.evaluators.common;
 import java.util.List;
 
 import org.apache.asterix.om.pointables.base.IVisitablePointable;
+import org.apache.asterix.runtime.evaluators.visitors.JSONTreeSizeVisitor;
 import org.apache.asterix.runtime.evaluators.visitors.JSONTreeVisitor;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
@@ -37,6 +39,7 @@ import it.unimi.dsi.fastutil.ints.IntIntPair;
 
 public class JSONTreeTransformator {
     private final JSONTreeVisitor jTreeVisitor = new JSONTreeVisitor();
+    private final JSONTreeSizeVisitor jTreeSizeVisitor = new JSONTreeSizeVisitor();
 
     public JSONTreeTransformator() {
     }
@@ -47,6 +50,12 @@ public class JSONTreeTransformator {
         pointable.accept(jTreeVisitor, arg);
 
         return arg.getLeft();
+    }
+
+    public int calculateTreeSize(IVisitablePointable pointable, MutableInt nodeCounter) throws HyracksDataException {
+        pointable.accept(jTreeSizeVisitor, nodeCounter);
+
+        return nodeCounter.intValue();
     }
 
     public void reset() {

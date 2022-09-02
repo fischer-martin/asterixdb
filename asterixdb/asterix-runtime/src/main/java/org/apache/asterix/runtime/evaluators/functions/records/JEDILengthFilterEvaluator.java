@@ -34,7 +34,7 @@ import org.apache.asterix.om.util.container.ListObjectPool;
 import org.apache.asterix.runtime.evaluators.common.JSONCostModel;
 import org.apache.asterix.runtime.evaluators.common.JSONTreeTransformator;
 import org.apache.asterix.runtime.evaluators.common.Node;
-import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.mutable.MutableInt;import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
@@ -61,10 +61,8 @@ public class JEDILengthFilterEvaluator implements IScalarEvaluator {
 
     private final IVisitablePointable pointableLeft;
     private final IVisitablePointable pointableRight;
-    private final IObjectPool<List<Node>, ATypeTag> listAllocator;
 
-    MutablePair<List<Node>, IntIntPair> transArg = new MutablePair<>();
-    IntIntPair transCnt = new IntIntMutablePair(0, 0);
+    private final MutableInt nodeCounter = new MutableInt();
     private final JSONTreeTransformator treeTransformator = new JSONTreeTransformator();
     private final JSONCostModel cm = new JSONCostModel(1, 1, 1); // Unit cost model (each operation has cost 1).
 
@@ -75,52 +73,38 @@ public class JEDILengthFilterEvaluator implements IScalarEvaluator {
         secondStringEval = args[1].createScalarEvaluator(context);
         pointableLeft = allocator.allocateFieldValue(type1);
         pointableRight = allocator.allocateFieldValue(type2);
-        listAllocator = new ListObjectPool<>(new ArrayListFactory<Node>());
         this.sourceLoc = sourceLoc;
     }
 
     @Override
     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
         resultStorage.reset();
-        treeTransformator.reset();
-        listAllocator.reset();
         firstStringEval.evaluate(tuple, pointableLeft);
         secondStringEval.evaluate(tuple, pointableRight);
 
-        // TODO: custom visitor that only counts a tree's size instead of actually constructing the tree
+        // count tree sizes
+        nodeCounter.setValue(0);
+        int t1Size = treeTransformator.calculateTreeSize(pointableLeft, nodeCounter);
 
-        // Convert the given data items into JSON trees.
-        List<Node> postToNode1 = listAllocator.allocate(null);
-        postToNode1.clear();
-        transArg.setLeft(postToNode1);
-        transCnt.first(0);
-        transCnt.second(0);
-        transArg.setRight(transCnt);
-        postToNode1 = treeTransformator.toTree(pointableLeft, transArg);
+        nodeCounter.setValue(0);
+        int t2Size = treeTransformator.calculateTreeSize(pointableRight, nodeCounter);
 
-        List<Node> postToNode2 = listAllocator.allocate(null);
-        postToNode2.clear();
-        transArg.setLeft(postToNode2);
-        transCnt.first(0);
-        transCnt.second(0);
-        transArg.setRight(transCnt);
-        postToNode2 = treeTransformator.toTree(pointableRight, transArg);
-
-        writeResult(jediLengthFilter(postToNode1.size(), postToNode2.size()));
+        writeResult(jediLengthFilter(t1Size, t2Size));
         result.set(resultStorage);
     }
 
-    protected void writeResult(double length_filter) throws HyracksDataException {
-        aDouble.setValue(length_filter);
+    protected void writeResult(double lengthFilter) throws HyracksDataException {
+        aDouble.setValue(lengthFilter);
         doubleSerde.serialize(aDouble, out);
     }
 
-    private double jediLengthFilter(double t1_size, double t2_size) {
-        //return Math.abs(t1_size - t2_size); // for unit cost model
+    private double jediLengthFilter(double t1Size, double t2Size) {
+        //return Math.abs(t1Size - t2Size); // for unit cost model
         // only works if the deletion/insertion costs are constants and don't get computed for a specific node
-        if (t1_size >= t2_size) {
-            return (t1_size - t2_size) * cm.del(null);
-        } else
-            return (t2_size - t1_size) * cm.ins(null);
+        if (t1Size >= t2Size) {
+            return (t1Size - t2Size) * cm.del(null);
+        } else {
+            return (t2Size - t1Size) * cm.ins(null);
+        }
     }
 }
