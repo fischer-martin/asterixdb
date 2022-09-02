@@ -1094,6 +1094,8 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "edit-distance-contains", 3);
 
     public static final FunctionIdentifier JEDI = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "jedi", 2);
+    public static final FunctionIdentifier JEDI_LEN_FILTER =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "jedi-length-filter", 2);
 
     // full-text
     public static final FunctionIdentifier FULLTEXT_CONTAINS =
@@ -2276,6 +2278,7 @@ public class BuiltinFunctions {
 
         // JSON similarity
         addFunction(JEDI, ADoubleTypeComputer.INSTANCE, true);
+        addFunction(JEDI_LEN_FILTER, ADoubleTypeComputer.INSTANCE, true);
 
         // Full-text function
         addFunction(FULLTEXT_CONTAINS, FullTextContainsResultTypeComputer.INSTANCE, true);
