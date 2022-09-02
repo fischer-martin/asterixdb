@@ -1093,6 +1093,8 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier EDIT_DISTANCE_CONTAINS =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "edit-distance-contains", 3);
 
+    public static final FunctionIdentifier JEDI = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "jedi", 2);
+
     // full-text
     public static final FunctionIdentifier FULLTEXT_CONTAINS =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "ftcontains", 3);
@@ -2271,6 +2273,9 @@ public class BuiltinFunctions {
         addPrivateFunction(SIMILARITY_JACCARD_SORTED_CHECK, OrderedListOfAnyTypeComputer.INSTANCE, true);
         addPrivateFunction(SIMILARITY_JACCARD_PREFIX, AFloatTypeComputer.INSTANCE, true);
         addPrivateFunction(SIMILARITY_JACCARD_PREFIX_CHECK, OrderedListOfAnyTypeComputer.INSTANCE, true);
+
+        // JSON similarity
+        addFunction(JEDI, ADoubleTypeComputer.INSTANCE, true);
 
         // Full-text function
         addFunction(FULLTEXT_CONTAINS, FullTextContainsResultTypeComputer.INSTANCE, true);

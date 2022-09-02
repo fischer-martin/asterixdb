@@ -15143,6 +15143,13 @@
       </compilation-unit>
     </test-case>
   </test-group>
+  <test-group name="json-similarity">
+    <test-case FilePath="json-similarity">
+      <compilation-unit name="jedi">
+        <output-dir compare="Text">jedi</output-dir>
+      </compilation-unit>
+    </test-case>
+  </test-group>
   <test-group name="composite-key">
     <test-case FilePath="composite-key">
       <compilation-unit name="query-ASTERIXDB-920">

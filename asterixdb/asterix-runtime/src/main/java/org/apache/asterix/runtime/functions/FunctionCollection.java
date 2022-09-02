@@ -530,6 +530,7 @@ import org.apache.asterix.runtime.evaluators.functions.records.FieldAccessByName
 import org.apache.asterix.runtime.evaluators.functions.records.FieldAccessNestedDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.GetRecordFieldValueDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.GetRecordFieldsDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.records.JEDIDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.PairsDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.RecordAddDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.RecordAddFieldsDescriptor;
@@ -1151,6 +1152,9 @@ public final class FunctionCollection implements IFunctionCollection {
         fc.add(AIntervalStartFromDateConstructorDescriptor.FACTORY);
         fc.add(AIntervalStartFromDateTimeConstructorDescriptor.FACTORY);
         fc.add(AIntervalStartFromTimeConstructorDescriptor.FACTORY);
+
+        // JSON
+        fc.add(JEDIDescriptor.FACTORY);
 
         // Spatial
         fc.add(CreatePointDescriptor.FACTORY);
