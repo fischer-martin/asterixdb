@@ -85,7 +85,7 @@ public class Node {
         this.subtreeSize = subtreeSize;
     }
 
-    public List<Integer> getChildren() {
+    public IntList getChildren() {
         return children;
     }
 
@@ -93,7 +93,7 @@ public class Node {
         this.children.add(child);
     }
 
-    public List<Integer> getSas() {
+    public IntList getSas() {
         return sas;
     }
 

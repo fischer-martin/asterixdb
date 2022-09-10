@@ -170,7 +170,7 @@ public class JEDIEvaluator implements IScalarEvaluator {
         for (int i = 1; i <= sizeT1; ++i) {
             forestDistanceMatrix[i][0] = 0.0;
             for (int k = 1; k <= t1.get(i - 1).getChildren().size(); ++k) {
-                forestDistanceMatrix[i][0] += treeDistanceMatrix[t1.get(i - 1).getChildren().get(k - 1) + 1][0];
+                forestDistanceMatrix[i][0] += treeDistanceMatrix[t1.get(i - 1).getChildren().getInt(k - 1) + 1][0];
             }
             treeDistanceMatrix[i][0] = forestDistanceMatrix[i][0] + cm.del(t1.get(i - 1));
         }
@@ -178,7 +178,7 @@ public class JEDIEvaluator implements IScalarEvaluator {
         for (int j = 1; j <= sizeT2; ++j) {
             forestDistanceMatrix[0][j] = 0.0;
             for (int k = 1; k <= t2.get(j - 1).getChildren().size(); ++k) {
-                forestDistanceMatrix[0][j] += treeDistanceMatrix[0][t2.get(j - 1).getChildren().get(k - 1) + 1];
+                forestDistanceMatrix[0][j] += treeDistanceMatrix[0][t2.get(j - 1).getChildren().getInt(k - 1) + 1];
             }
             treeDistanceMatrix[0][j] = forestDistanceMatrix[0][j] + cm.ins(t2.get(j - 1));
         }
@@ -214,7 +214,7 @@ public class JEDIEvaluator implements IScalarEvaluator {
         if (t1.get(i - 1).getType() == 2 && t2.get(j - 1).getType() == 2) {
             // Keys have exactly one child, therefore, [0] always works.
             forestRenameCost =
-                    treeDistanceMatrix[t1.get(i - 1).getChildren().get(0) + 1][t2.get(j - 1).getChildren().get(0) + 1];
+                    treeDistanceMatrix[t1.get(i - 1).getChildren().getInt(0) + 1][t2.get(j - 1).getChildren().getInt(0) + 1];
         }
         // Literals are leaves and hence have no subforest. Mapping their subforests has cost 0.
         else if (t1.get(i - 1).getType() == 1 && t2.get(j - 1).getType() == 1) {
@@ -235,11 +235,11 @@ public class JEDIEvaluator implements IScalarEvaluator {
                     editDistanceMatrix[0][0] = 0.0;
                     for (int s = 1; s <= t1.get(i - 1).getChildren().size(); ++s) {
                         editDistanceMatrix[s][0] = editDistanceMatrix[s - 1][0]
-                                + treeDistanceMatrix[t1.get(i - 1).getChildren().get(s - 1) + 1][0];
+                                + treeDistanceMatrix[t1.get(i - 1).getChildren().getInt(s - 1) + 1][0];
                     }
                     for (int t = 1; t <= t2.get(j - 1).getChildren().size(); ++t) {
                         editDistanceMatrix[0][t] = editDistanceMatrix[0][t - 1]
-                                + treeDistanceMatrix[0][t2.get(j - 1).getChildren().get(t - 1) + 1];
+                                + treeDistanceMatrix[0][t2.get(j - 1).getChildren().getInt(t - 1) + 1];
                     }
 
                     for (int s = 1; s <= t1.get(i - 1).getChildren().size(); ++s) {
@@ -248,13 +248,13 @@ public class JEDIEvaluator implements IScalarEvaluator {
                                     Math.min(
                                             Math.min(
                                                     editDistanceMatrix[s][t - 1] + treeDistanceMatrix[0][t2.get(j - 1)
-                                                            .getChildren().get(t - 1) + 1],
+                                                            .getChildren().getInt(t - 1) + 1],
                                                     editDistanceMatrix[s - 1][t]
-                                                            + treeDistanceMatrix[t1.get(i - 1).getChildren().get(s - 1)
+                                                            + treeDistanceMatrix[t1.get(i - 1).getChildren().getInt(s - 1)
                                                                     + 1][0]),
                                             editDistanceMatrix[s - 1][t - 1]
-                                                    + treeDistanceMatrix[t1.get(i - 1).getChildren().get(s - 1) + 1][t2
-                                                            .get(j - 1).getChildren().get(t - 1) + 1]);
+                                                    + treeDistanceMatrix[t1.get(i - 1).getChildren().getInt(s - 1) + 1][t2
+                                                            .get(j - 1).getChildren().getInt(t - 1) + 1]);
                         }
                     }
                     // Assign string edit distance costs for subtree mapping cost.
@@ -277,23 +277,23 @@ public class JEDIEvaluator implements IScalarEvaluator {
                                 if (s <= t1.get(i - 1).getChildren().size()) {
                                     if (t <= t2.get(j - 1).getChildren().size()) {
                                         hungarianMatrix[s - 1][t - 1] =
-                                                treeDistanceMatrix[t1.get(i - 1).getChildren().get(s - 1) + 1][t2
-                                                        .get(j - 1).getChildren().get(t - 1) + 1];
+                                                treeDistanceMatrix[t1.get(i - 1).getChildren().getInt(s - 1) + 1][t2
+                                                        .get(j - 1).getChildren().getInt(t - 1) + 1];
                                         hungarianAlgo.costMatrix[s - 1][t - 1] =
-                                                treeDistanceMatrix[t1.get(i - 1).getChildren().get(s - 1) + 1][t2
-                                                        .get(j - 1).getChildren().get(t - 1) + 1];
+                                                treeDistanceMatrix[t1.get(i - 1).getChildren().getInt(s - 1) + 1][t2
+                                                        .get(j - 1).getChildren().getInt(t - 1) + 1];
                                     } else {
                                         hungarianMatrix[s - 1][t - 1] =
-                                                treeDistanceMatrix[t1.get(i - 1).getChildren().get(s - 1) + 1][0];
+                                                treeDistanceMatrix[t1.get(i - 1).getChildren().getInt(s - 1) + 1][0];
                                         hungarianAlgo.costMatrix[s - 1][t - 1] =
-                                                treeDistanceMatrix[t1.get(i - 1).getChildren().get(s - 1) + 1][0];
+                                                treeDistanceMatrix[t1.get(i - 1).getChildren().getInt(s - 1) + 1][0];
                                     }
                                 } else {
                                     if (t <= t2.get(j - 1).getChildren().size()) {
                                         hungarianMatrix[s - 1][t - 1] =
-                                                treeDistanceMatrix[0][t2.get(j - 1).getChildren().get(t - 1) + 1];
+                                                treeDistanceMatrix[0][t2.get(j - 1).getChildren().getInt(t - 1) + 1];
                                         hungarianAlgo.costMatrix[s - 1][t - 1] =
-                                                treeDistanceMatrix[0][t2.get(j - 1).getChildren().get(t - 1) + 1];
+                                                treeDistanceMatrix[0][t2.get(j - 1).getChildren().getInt(t - 1) + 1];
                                     } else {
                                         hungarianMatrix[s - 1][t - 1] = 0.0;
                                         hungarianAlgo.costMatrix[s - 1][t - 1] = 0.0;
@@ -343,11 +343,11 @@ public class JEDIEvaluator implements IScalarEvaluator {
             treeInsertCost = Double.POSITIVE_INFINITY;
             for (int t = 1; t <= t2.get(j - 1).getChildren().size(); ++t) {
                 forestInsertCost =
-                        Math.min(forestInsertCost, (forestDistanceMatrix[i][t2.get(j - 1).getChildren().get(t - 1) + 1]
-                                - forestDistanceMatrix[0][t2.get(j - 1).getChildren().get(t - 1) + 1]));
+                        Math.min(forestInsertCost, (forestDistanceMatrix[i][t2.get(j - 1).getChildren().getInt(t - 1) + 1]
+                                - forestDistanceMatrix[0][t2.get(j - 1).getChildren().getInt(t - 1) + 1]));
                 treeInsertCost =
-                        Math.min(treeInsertCost, (treeDistanceMatrix[i][t2.get(j - 1).getChildren().get(t - 1) + 1]
-                                - treeDistanceMatrix[0][t2.get(j - 1).getChildren().get(t - 1) + 1]));
+                        Math.min(treeInsertCost, (treeDistanceMatrix[i][t2.get(j - 1).getChildren().getInt(t - 1) + 1]
+                                - treeDistanceMatrix[0][t2.get(j - 1).getChildren().getInt(t - 1) + 1]));
             }
         } else { // In case node j in t2 has no children, delete the subtree of node i in t1.
             forestInsertCost = forestDistanceMatrix[i][0];
@@ -365,11 +365,11 @@ public class JEDIEvaluator implements IScalarEvaluator {
             treeDeleteCost = Double.POSITIVE_INFINITY;
             for (int s = 1; s <= t1.get(i - 1).getChildren().size(); ++s) {
                 forestDeleteCost =
-                        Math.min(forestDeleteCost, (forestDistanceMatrix[t1.get(i - 1).getChildren().get(s - 1) + 1][j]
-                                - forestDistanceMatrix[t1.get(i - 1).getChildren().get(s - 1) + 1][0]));
+                        Math.min(forestDeleteCost, (forestDistanceMatrix[t1.get(i - 1).getChildren().getInt(s - 1) + 1][j]
+                                - forestDistanceMatrix[t1.get(i - 1).getChildren().getInt(s - 1) + 1][0]));
                 treeDeleteCost =
-                        Math.min(treeDeleteCost, (treeDistanceMatrix[t1.get(i - 1).getChildren().get(s - 1) + 1][j]
-                                - treeDistanceMatrix[t1.get(i - 1).getChildren().get(s - 1) + 1][0]));
+                        Math.min(treeDeleteCost, (treeDistanceMatrix[t1.get(i - 1).getChildren().getInt(s - 1) + 1][j]
+                                - treeDistanceMatrix[t1.get(i - 1).getChildren().getInt(s - 1) + 1][0]));
             }
         } else { // In case node i in t1 has no children, delete the subtree of node j in t2.
             forestDeleteCost = forestDistanceMatrix[0][j];
@@ -386,8 +386,8 @@ public class JEDIEvaluator implements IScalarEvaluator {
         if (!t1.get(i - 1).getChildren().isEmpty() || !t2.get(j - 1).getChildren().isEmpty()) {
             k = Math.abs(t1.get(i - 1).getChildren().size() - t2.get(j - 1).getChildren().size());
             if (k == 0) {
-                aggregateSizeLB += Math.abs(t1.get(i - 1).getSas().get(t1.get(i - 1).getChildren().size() - 1)
-                        - t2.get(j - 1).getSas().get(t2.get(j - 1).getChildren().size() - 1));
+                aggregateSizeLB += Math.abs(t1.get(i - 1).getSas().getInt(t1.get(i - 1).getChildren().size() - 1)
+                        - t2.get(j - 1).getSas().getInt(t2.get(j - 1).getChildren().size() - 1));
             } else {
                 // Node i in T1 has less or an equal number of children than node j in T2.
                 if (t1.get(i - 1).getChildren().size() <= t2.get(j - 1).getChildren().size()) {
@@ -401,11 +401,11 @@ public class JEDIEvaluator implements IScalarEvaluator {
     }
 
     private double getSizeDiff(List<Node> t1, List<Node> t2, double aggregateSizeLB, int k, int i, int j) {
-        aggregateSizeLB += t2.get(j - 1).getSas().get(k - 1);
+        aggregateSizeLB += t2.get(j - 1).getSas().getInt(k - 1);
         if (!t1.get(i - 1).getChildren().isEmpty()) {
-            aggregateSizeLB += Math.abs(t1.get(i - 1).getSas().get(t1.get(i - 1).getChildren().size() - 1)
-                    - t2.get(j - 1).getSas().get(t2.get(j - 1).getChildren().size() - 1)
-                    + t2.get(j - 1).getSas().get(k - 1));
+            aggregateSizeLB += Math.abs(t1.get(i - 1).getSas().getInt(t1.get(i - 1).getChildren().size() - 1)
+                    - t2.get(j - 1).getSas().getInt(t2.get(j - 1).getChildren().size() - 1)
+                    + t2.get(j - 1).getSas().getInt(k - 1));
         }
         return aggregateSizeLB;
     }
