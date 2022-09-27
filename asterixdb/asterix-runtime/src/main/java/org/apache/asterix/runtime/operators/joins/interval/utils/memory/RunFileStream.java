@@ -21,6 +21,7 @@ package org.apache.asterix.runtime.operators.joins.interval.utils.memory;
 import java.nio.ByteBuffer;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.hyracks.api.comm.FixedSizeFrame;
 import org.apache.hyracks.api.comm.IFrame;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.comm.IFrameTupleAppender;
@@ -28,6 +29,7 @@ import org.apache.hyracks.api.comm.VSizeFrame;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
+import org.apache.hyracks.dataflow.common.comm.io.FixedSizeFrameTupleAppender;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 import org.apache.hyracks.dataflow.common.io.RunFileReader;
 import org.apache.hyracks.dataflow.common.io.RunFileWriter;
@@ -123,16 +125,18 @@ public class RunFileStream {
         }
         totalTupleCount++;
     }
-
+    //Set the tuple pointer as it shows the location on disk
     public void addToRunFile(IFrameTupleAccessor accessor, int tupleId, TuplePointer tuplePointer) throws HyracksDataException {
+        int offset = ((FrameTupleAppender) runFileAppender).getTupleDataEndOffset();
         if (!runFileAppender.append(accessor, tupleId)) {
             runFileAppender.write(runFileWriter, true);
+            offset = ((FrameTupleAppender) runFileAppender).getTupleDataEndOffset();
             writeCount++;
             runFileAppender.append(accessor, tupleId);
         }
         totalTupleCount++;
 
-        tuplePointer.reset((int) -writeCount, runFileAppender.getBuffer().arrayOffset());
+        tuplePointer.reset((int) -(writeCount+1), offset);
 
     }
 

@@ -23,7 +23,6 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
 
 import java.nio.ByteBuffer;
-import java.util.HashSet;
 
 public class SerializableBucketIdList extends SimpleSerializableBucketIdList {
 
@@ -33,7 +32,7 @@ public class SerializableBucketIdList extends SimpleSerializableBucketIdList {
 
     public SerializableBucketIdList(int tableSize, final IHyracksFrameMgrContext ctx,
                                     ISimpleFrameBufferManager bufferManager) throws HyracksDataException {
-        super(tableSize, ctx);
+        super(tableSize, ctx, false);
         this.bufferManager = bufferManager;
         if (tableSize > 0) {
             ByteBuffer newFrame = getFrame(frameSize);
@@ -43,7 +42,7 @@ public class SerializableBucketIdList extends SimpleSerializableBucketIdList {
             IntSerDeBuffer frame = new IntSerDeBuffer(newFrame);
             frameCapacity = frame.capacity();
             contents.add(frame);
-            currentOffsetInEachFrameList.add(0);
+            numberOfBucketsInEachFrame.add(0);
         }
     }
 
@@ -69,8 +68,7 @@ public class SerializableBucketIdList extends SimpleSerializableBucketIdList {
             bufferManager.releaseFrame(contents.get(i).getByteBuffer());
         }
         contents.clear();
-        currentOffsetInEachFrameList.clear();
-        tupleCount = 0;
+        bucketCount = 0;
         currentByteSize = 0;
         currentLargestFrameNumber = 0;
     }

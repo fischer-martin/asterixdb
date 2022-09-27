@@ -125,4 +125,8 @@ public class AbstractFrameAppender implements IFrameAppender {
             throw HyracksDataException.create(new InterruptedException());
         }
     }
+
+    public int getTupleDataEndOffset() {
+        return tupleDataEndOffset;
+    }
 }

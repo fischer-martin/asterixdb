@@ -16,59 +16,47 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/*package org.apache.asterix.runtime.operators.joins.flexible;
+package org.apache.asterix.runtime.operators.joins.flexible;
 
+import it.unimi.dsi.fastutil.Hash;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsSideTuple;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFilePointer;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.TuplePointerCursor;
-import org.apache.hyracks.api.comm.IFrame;
+import org.apache.hyracks.algebricks.core.algebra.properties.LocalGroupingProperty;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.comm.IFrameWriter;
 import org.apache.hyracks.api.comm.VSizeFrame;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.value.IPredicateEvaluator;
 import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
-import org.apache.hyracks.api.dataflow.value.ITuplePartitionComputer;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.api.io.FileReference;
-import org.apache.hyracks.api.util.CleanupUtils;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 import org.apache.hyracks.dataflow.common.comm.util.FrameUtils;
-import org.apache.hyracks.dataflow.common.io.RunFileReader;
-import org.apache.hyracks.dataflow.common.io.RunFileWriter;
 import org.apache.hyracks.dataflow.std.buffermanager.BucketBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.BufferInfo;
 import org.apache.hyracks.dataflow.std.buffermanager.DeallocatableFramePool;
-import org.apache.hyracks.dataflow.std.buffermanager.EnumFreeSlotPolicy;
-import org.apache.hyracks.dataflow.std.buffermanager.FrameFreeSlotPolicyFactory;
 import org.apache.hyracks.dataflow.std.buffermanager.FramePoolBackedFrameBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.IDeallocatableFramePool;
-import org.apache.hyracks.dataflow.std.buffermanager.IPartitionedTupleBufferManager;
+import org.apache.hyracks.dataflow.std.buffermanager.IDeletableTupleBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
-import org.apache.hyracks.dataflow.std.buffermanager.PreferToSpillFullyOccupiedFramePolicy;
-import org.apache.hyracks.dataflow.std.buffermanager.VPartitionTupleBufferManager;
-import org.apache.hyracks.dataflow.std.buffermanager.VariableDeletableTupleMemoryManager;
-import org.apache.hyracks.dataflow.std.buffermanager.VariableFrameMemoryManager;
-import org.apache.hyracks.dataflow.std.buffermanager.VariableFramePool;
+import org.apache.hyracks.dataflow.std.buffermanager.ITuplePointerAccessor;
+import org.apache.hyracks.dataflow.std.sort.util.DeletableFrameTupleAppender;
+import org.apache.hyracks.dataflow.std.sort.util.IAppendDeletableFrameTupleAccessor;
 import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
-import org.apache.hyracks.dataflow.std.structures.SerializableHashTable;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
-import java.util.LinkedList;
 
 public class ThetaFlexibleJoiner {
-
-    private final VariableFrameMemoryManager outerBufferMngr;
 
     private final FrameTupleAccessor accessorOuter;
 
@@ -97,24 +85,21 @@ public class ThetaFlexibleJoiner {
 
     private ISimpleFrameBufferManager bufferManagerForHashTable;
     private BucketBufferManager bufferManager;
-    private final TuplePointerCursor memoryCursor;
+    private ITuplePointerAccessor memoryAccessor;
 
-    private int[] buildPSizeInTups;
+
+
     private final FrameTupleAccessor accessorBuild;
     private final FrameTupleAccessor accessorProbe;
-    private final ITuplePartitionComputer buildHpc;
-    private final ITuplePartitionComputer probeHpc;
     private final TuplePointer tempPtr = new TuplePointer();
+
+    private ITuplePairComparator tpComparator;
 
     // Used for special probe BigObject which can not be held into the Join memory
     private FrameTupleAppender bigFrameAppender;
 
     private final String buildRelName;
     private final String probeRelName;
-
-    private IFrame reloadBuffer;
-
-    private InMemoryFlexibleJoin inMemJoiner; //Used for joining resident partitions
 
     private final RecordDescriptor buildRd;
     private final RecordDescriptor probeRd;
@@ -131,13 +116,28 @@ public class ThetaFlexibleJoiner {
     private Integer currentBucketId;
     private boolean newBucket;
 
+    private boolean memoryOpen;
+    private int latestBucketInMemory;
+    private Integer previousLatestBucketInMemory;
+
+    protected int numberOfBuckets = 0;
+
+    protected boolean spilled;
+
+    protected long numRecordsFromBuild;
+
 
 
     //private final FlexibleJoin flexibleJoin;
 
-    public ThetaFlexibleJoiner(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd, RecordDescriptor probeRd,
-                               ITuplePartitionComputer probeHpc, ITuplePartitionComputer buildHpc, String probeRelName, String buildRelName,
-                               IPredicateEvaluator predEval, int nBuckets) throws HyracksDataException {
+    public ThetaFlexibleJoiner(IHyracksTaskContext ctx,
+                               int memorySize,
+                               RecordDescriptor buildRd,
+                               RecordDescriptor probeRd,
+                               String probeRelName,
+                               String buildRelName,
+                               IPredicateEvaluator predEval,
+                               int nBuckets) throws HyracksDataException {
 
         // Memory (probe buffer)
         if (memorySize < 5) {
@@ -173,8 +173,6 @@ public class ThetaFlexibleJoiner {
         this.accessorBuild = new FrameTupleAccessor(buildRd);
         this.accessorProbe = new FrameTupleAccessor(probeRd);
 
-        this.buildHpc = buildHpc;
-        this.probeHpc = probeHpc;
 
         this.buildRelName = buildRelName;
         this.probeRelName = probeRelName;
@@ -187,8 +185,13 @@ public class ThetaFlexibleJoiner {
 
         table = new SerializableBucketIdList(nBuckets, ctx, bufferManagerForHashTable);
 
-        bufferManager = new BucketBufferManager(framePool,accessorBuild);
-        //memoryCursor = new TuplePointerCursor(bufferManager.createTuplePointerAccessor());
+        this.bufferManager = new BucketBufferManager(framePool, buildRd);
+        this.memoryAccessor = bufferManager.createTuplePointerAccessor();
+
+        this.memoryOpen = true;
+        this.spilled = false;
+        this.numRecordsFromBuild = 0;
+
 
 
     }
@@ -196,321 +199,324 @@ public class ThetaFlexibleJoiner {
     public void build(ByteBuffer buffer) throws HyracksDataException {
         accessorBuild.reset(buffer);
         int tupleCount = accessorBuild.getTupleCount();
+        numRecordsFromBuild += tupleCount;
         tempPtr.reset(-1, -1);
         for (int i = 0; i < tupleCount; ++i) {
-
             int bucketId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
-
-            if(currentBucketId == null || !currentBucketId.equals(bucketId)) {
-                newBucket = true;
-                currentBucketId = bucketId;
+            //Check if we have a new bucket
+            if (currentBucketId == null || !currentBucketId.equals(bucketId)) {
+                if(table.getBuildTuplePointer(bucketId) == null) {
+                    newBucket = true;
+                    currentBucketId = bucketId;
+                    isCurrentBucketSpilled = false;
+                } else {
+                    newBucket = false;
+                }
             } else {
                 newBucket = false;
             }
-
-            if(isCurrentBucketSpilled || table.getTuplePointer(bucketId).getFrameIndex() < 0) {
+            // If the current bucket is spilled or memory is closed
+            if (isCurrentBucketSpilled || !memoryOpen) {
+                // Write the record to disk
                 runFileStreamForBuild.addToRunFile(accessorBuild, i, tempPtr);
             } else {
-                if(!bufferManager.insertTuple(accessorBuild, i, tempPtr)) {
-                    //spill
-                    if(!bufferManager.insertTuple(accessorBuild, i, tempPtr)) {
-                        throw HyracksDataException.create(ErrorCode.INSUFFICIENT_MEMORY);
+                // If the memory does not accept the new record
+                if (!bufferManager.insertTuple(accessorBuild, i, tempPtr)) {
+                    // If this is the first record of the bucket
+                    if(newBucket) {
+                        //if we cannot insert a new bucket we close memory
+                        memoryOpen = false;
+                        //write record to disk directly and set the tuple pointer accordingly
+                        runFileStreamForBuild.addToRunFile(accessorBuild, i, tempPtr);
+                    } else {
+                        //
+                        // System.out.println("Bucket "+ bucketId+" is spilled!");
+                        TuplePointer tuplePointerForspilledBucket = table.getBuildTuplePointer(bucketId);
+                        //spill current bucket to disk
+                        tempPtr.reset(spillStartingFrom(tuplePointerForspilledBucket));
+                        //spill the rest of the records for this bucket
+                        isCurrentBucketSpilled = true;
+                        //change the bucket table to show the bucket is on disk
+                        table.updateBuildBucket(bucketId, tempPtr);
                     }
+                } else if(newBucket) {
+                    previousLatestBucketInMemory = latestBucketInMemory;
+                    latestBucketInMemory = bucketId;
                 }
+
             }
-            if(newBucket) {
-                if(!table.insert(bucketId, tempPtr)) {
-                    //spill
-                    if(!table.insert(bucketId, tempPtr)) {
-                        throw HyracksDataException.create(ErrorCode.INSUFFICIENT_MEMORY);
+            //insert new bucket to the bucket table
+            if (newBucket) {
+                numberOfBuckets++;
+                if (!table.insert(bucketId, tempPtr, new TuplePointer())) {
+                    //if there is not enough space for the new entry
+                    if(!memoryOpen) {
+                        //Memory is closed which means we already wrote the new bucket to disk
+                        //We do not need to spill current bucket but only the latest bucket written to memory
+                        latestBucketInMemory = table.lastBucket();
+                        //System.out.println("Bucket "+ latestBucketInMemory+" is spilled!");
+                        TuplePointer spilledBucketTuplePointer = new TuplePointer();
+                        //table.printInfo();
+                        spilledBucketTuplePointer.reset(spillStartingFrom(table.getBuildTuplePointer(latestBucketInMemory)));
+                        //set the disk location for spilled bucket
+                        table.updateBuildBucket(latestBucketInMemory, spilledBucketTuplePointer);
+                        //re-open the memory since we might have enough space for future buckets
+                        memoryOpen = true;
+
+                    } else {
+                        previousLatestBucketInMemory = table.lastBucket();
+                        tempPtr.reset(spillStartingFrom(tempPtr));
+                        System.out.println("new Bucket "+ bucketId+" is spilled!");
+                        //here we know we inserted only one record for this bucket to memory
+                        // and the latest bucket is the current bucket
+                        //1.we first need to spill the previous latest bucket to disk
+                        TuplePointer spilledBucketTuplePointer = new TuplePointer();
+
+                        //System.out.println("prev Bucket "+ previousLatestBucketInMemory+" is spilled!");
+                        //table.printInfo();
+                        spilledBucketTuplePointer.reset(spillStartingFrom(table.getBuildTuplePointer(previousLatestBucketInMemory)));
+                        //2.then we need to change its tuple pointer
+                        table.updateBuildBucket(previousLatestBucketInMemory, spilledBucketTuplePointer);
+                        previousLatestBucketInMemory = null;
+                        //3.next we spill current bucket to disk and change the tempPtr to show the location on disk
+                        //tempPtr.reset(spillStartingFrom(tempPtr));
+                    }
+                    // re-try to insert new bucket to bucket table
+                    while (!table.insert(bucketId, tempPtr, new TuplePointer())) {
+                        latestBucketInMemory = table.lastBucket();
+                        System.out.println("Bucket aaa "+ latestBucketInMemory+" is spilled!");
+                        TuplePointer spilledBucketTuplePointer = new TuplePointer();
+                        //table.printInfo();
+                        spilledBucketTuplePointer.reset(spillStartingFrom(table.getBuildTuplePointer(latestBucketInMemory)));
+                        //set the disk location for spilled bucket
+                        table.updateBuildBucket(latestBucketInMemory, spilledBucketTuplePointer);
+                        //table.printInfo();
+                        //re-open the memory since we might have enough space for future buckets
+                        memoryOpen = true;
                     }
                 }
             }
         }
+    }
 
+    public void clearBuild() throws HyracksDataException {
+        runFileStreamForBuild.removeRunFile();
+    }
+    public void clearProbe() throws HyracksDataException {
+        runFileStreamForProbe.removeRunFile();
     }
 
     public void closeBuild() throws HyracksDataException {
+        //System.out.println("Number of records from build side: " + numRecordsFromBuild);
+        //table.printInfo();
         runFileStreamForBuild.flushRunFile();
         runFileStreamForBuild.startReadingRunFile(inputCursor[BUILD_PARTITION]);
     }
 
-    private void spillBucket(int bucketId) throws HyracksDataException {
-        int frameIndex = table.getTuplePointer(bucketId).getFrameIndex();
-        while(frameIndex < bufferManager.getTuplePointerAccessor())
-        bufferManager.getFrame(frameIndex, tempInfo);
-        tempInfo.getBuffer().position(tempInfo.getStartOffset());
-        tempInfo.getBuffer().limit(tempInfo.getStartOffset() + tempInfo.getLength());
-        accessorBuild.reset(tempInfo.getBuffer());
+    private TuplePointer spillStartingFrom(TuplePointer tuplePointer) throws HyracksDataException {
+        //spill the records from the memory starting from the given tuple pointer
+        //return a tuple pointer that shows the starting location on disk
+        //Starting from the tuple pointer, read records from memory
+        TuplePointer returnTuplePointer = new TuplePointer();
+        int fIndex = tuplePointer.getFrameIndex();
+        int tIndex = tuplePointer.getTupleIndex();
+        boolean firstFrame = true;
+        //IAppendDeletableFrameTupleAccessor frameTupleAccessor = new DeletableFrameTupleAppender(buildRd);
+        //ITuplePointerAccessor tupleAccessor = bufferManager.createTuplePointerAccessor();
+        /*memoryAccessor.reset(tuplePointer);
+        for(int i = 0; i < memoryAccessor.getTupleCount(); i++) {
+            if(i == 0) {
+                runFileStreamForBuild.addToRunFile(memoryAccessor, i, returnTuplePointer);
+            }
+            else {
+                runFileStreamForBuild.addToRunFile(memoryAccessor, i);
+            }
 
-
-    }
-        memoryCursor.reset(bufferManager.iterator());
-        while (memoryCursor.hasNext()) {
-            memoryCursor.next();
-    }
-
-    private void flushBigObjectToDisk(int pid, FrameTupleAccessor accessor, int i, RunFileWriter[] runFileWriters,
-                                      String refName) throws HyracksDataException {
-        if (bigFrameAppender == null) {
-            bigFrameAppender = new FrameTupleAppender(new VSizeFrame(ctx));
+        }*/
+        FrameTupleAccessor frameTupleAccessor = new FrameTupleAccessor(buildRd);
+        while(fIndex < bufferManager.getNumberOfFrames()) {
+            bufferManager.getFrame(fIndex, tempInfo);
+            tempInfo.getBuffer().position(tempInfo.getStartOffset());
+            tempInfo.getBuffer().limit(tempInfo.getStartOffset() + tempInfo.getLength());
+            frameTupleAccessor.reset(tempInfo.getBuffer());
+            int i = firstFrame?tIndex:0;
+            while (i < frameTupleAccessor.getTupleCount()) {
+                if(firstFrame) {
+                    runFileStreamForBuild.addToRunFile(frameTupleAccessor,i, returnTuplePointer);
+                    firstFrame = false;
+                }
+                else {
+                    runFileStreamForBuild.addToRunFile(frameTupleAccessor,i);
+                }
+                i++;
+            }
+            fIndex++;
         }
+        bufferManager.removeBucket(tuplePointer);
+        /*tupleAccessor.reset(tuplePointer);
+        for(int i = 0; i < tupleAccessor.getTupleCount(); i++) {
+            bufferManager.deleteTuple();
 
-        RunFileWriter runFileWriter = getSpillWriterOrCreateNewOneIfNotExist(runFileWriters, refName, pid);
-        if (!bigFrameAppender.append(accessor, i)) {
 
-            throw new HyracksDataException("The given tuple is too big");
-        }
-        bigFrameAppender.write(runFileWriter, true);
+        }*/
+        //bufferManager.reOrganizeFrames();
+        return returnTuplePointer;
     }
-
-    private RunFileWriter getSpillWriterOrCreateNewOneIfNotExist(RunFileWriter[] runFileWriters, String refName,
-                                                                 int pid) throws HyracksDataException {
-        RunFileWriter writer = runFileWriters[pid];
-        if (writer == null) {
-            FileReference file = ctx.createManagedWorkspaceFile(refName);
-            writer = new RunFileWriter(file, ctx.getIoManager());
-            writer.open();
-            runFileWriters[pid] = writer;
-        }
-        return writer;
-    }
-
-//    public void processBuildFrame(ByteBuffer buffer) throws HyracksDataException {
-//        inputCursor[BUILD_PARTITION].reset(buffer);
-//        for (int x = 0; x < inputCursor[BUILD_PARTITION].getAccessor().getTupleCount(); x++) {
-//
-//            runFileStream.addToRunFile(inputCursor[BUILD_PARTITION].getAccessor(), x);
-//        }
-//    }
-
-//    public void processBuildClose() throws HyracksDataException {
-//        runFileStream.flushRunFile();
-//        runFileStream.startReadingRunFile(inputCursor[BUILD_PARTITION]);
-//
-//    }
 
     public void initProbe(ITuplePairComparator comparator) {
-        probePSizeInTups = new int[numOfPartitions];
-        inMemJoiner.setComparator(comparator);
-        bufferManager.setConstrain(VPartitionTupleBufferManager.NO_CONSTRAIN);
+        this.tpComparator = comparator;
     }
-
+    private byte[] intToByteArray(int value) {
+        return new byte[] {
+                (byte)(value >>> 24),
+                (byte)(value >>> 16),
+                (byte)(value >>> 8),
+                (byte)value};
+    }
     public void probe(ByteBuffer buffer, IFrameWriter writer) throws HyracksDataException {
         accessorProbe.reset(buffer);
         int tupleCount = accessorProbe.getTupleCount();
-
-        if (isBuildRelAllInMemory()) {
-            inMemJoiner.join(buffer, writer, partition);
-            return;
-        }
-        inMemJoiner.resetAccessorProbe(accessorProbe);
+        Integer currentBucket = null;
+        boolean newBucket;
+        IFrameTupleAccessor iFrameTupleAccessor;
+        IFrameTupleAccessor dumpTupleAccessorForBucket1 = new FrameTupleAccessor(new RecordDescriptor(Arrays.copyOfRange(buildRd.getFields(),0,1), Arrays.copyOfRange(buildRd.getTypeTraits(),0,1)));
+        //ITuplePointerAccessor memoryAccessor = bufferManager.createTuplePointerAccessor();
+        BitSet bucketTest = new BitSet(numberOfBuckets);
+        int accessorIndex = 0;
+        // for each record from S
         for (int i = 0; i < tupleCount; ++i) {
-            int pid = probeHpc.partition(accessorProbe, i, numOfPartitions);
+            int probeBucketId = FlexibleJoinsUtil.getBucketId(accessorProbe, i, 1);
 
-            if (buildPSizeInTups[pid] > 0) { //Tuple has potential match from previous phase
-                if (spilledStatus.get(pid)) { //pid is Spilled
-                    processTupleProbePhase(i, pid);
-                } else { //pid is Resident
-                    inMemJoiner.join(i, writer);
-                }
-                probePSizeInTups[pid]++;
-            }
-        }
-    }
-
-    private void processTupleProbePhase(int tupleId, int pid) throws HyracksDataException {
-
-        if (!bufferManager.insertTuple(pid, accessorProbe, tupleId, tempPtr)) {
-            int recordSize =
-                    VPartitionTupleBufferManager.calculateActualSize(null, accessorProbe.getTupleLength(tupleId));
-            // If the partition is at least half-full and insertion fails, that partition is preferred to get
-            // spilled, otherwise the biggest partition gets chosen as the victim.
-            boolean modestCase = recordSize <= (ctx.getInitialFrameSize() / 2);
-            int victim = (modestCase && bufferManager.getNumTuples(pid) > 0) ? pid
-                    : spillPolicy.findSpilledPartitionWithMaxMemoryUsage();
-            // This method is called for the spilled partitions, so we know that this tuple is going to get written to
-            // disk, sooner or later. As such, we try to reduce the number of writes that happens. So if the record is
-            // larger than the size of the victim partition, we just flush it to the disk, otherwise we spill the
-            // victim and this time insertion should be successful.
-            //TODO:(More optimization) There might be a case where the leftover memory in the last frame of the
-            // current partition + free memory in buffer manager + memory from the victim would be sufficient to hold
-            // the record.
-            if (victim >= 0 && bufferManager.getPhysicalSize(victim) >= recordSize) {
-                RunFileWriter runFileWriter =
-                        getSpillWriterOrCreateNewOneIfNotExist(probeRFWriters, probeRelName, victim);
-                bufferManager.flushPartition(victim, runFileWriter);
-                bufferManager.clearPartition(victim);
-                if (!bufferManager.insertTuple(pid, accessorProbe, tupleId, tempPtr)) {
-                    // This should not happen if the size calculations are correct, just not to let the query fail.
-                    flushBigObjectToDisk(pid, accessorProbe, tupleId, probeRFWriters, probeRelName);
+            if(currentBucket == null || !currentBucket.equals(probeBucketId)) {
+                TuplePointer tuplePointerTester = table.getProbeTuplePointer(probeBucketId);
+                if(tuplePointerTester == null || tuplePointerTester.getTupleIndex() == -1) {
+                    currentBucket = probeBucketId;
+                    newBucket = true;
+                    bucketTest.clear();
+                } else {
+                    newBucket = false;
                 }
             } else {
-                flushBigObjectToDisk(pid, accessorProbe, tupleId, probeRFWriters, probeRelName);
+                newBucket = false;
             }
+            boolean writtenToDisk = false;
+            int numberOfBuckets = table.getNumEntries();
+            // Iterate over the buckets from bucket table
+            HashMap<Integer, Integer> bCounter = new HashMap<>();
+            for(int bucketIndex = 0; bucketIndex < numberOfBuckets; bucketIndex++) {
+                int[] bucketInfo = table.getEntry(bucketIndex);
+                if(bucketInfo[2] == -1) continue;
+                if(bucketInfo[1] > -1) {
+                    memoryAccessor.reset(new TuplePointer(bucketInfo[1], bucketInfo[2]));
+                    iFrameTupleAccessor = memoryAccessor;
+                    accessorIndex = bucketInfo[2];
+                } else {
+                    dumpTupleAccessorForBucket1.reset(ByteBuffer.wrap(intToByteArray(bucketInfo[0])));
+                    iFrameTupleAccessor = dumpTupleAccessorForBucket1;
+                    if(writtenToDisk) continue;
+                }
+                // if buckets are matching
+                //TODO Here we are not able to reach the data from memory if the bucket is already spilled
+                if(bucketTest.get(bucketIndex) || this.tpComparator.compare(iFrameTupleAccessor, accessorIndex, accessorProbe, i) < 1) {
+                    bucketTest.set(bucketIndex);
+                    // check the tuple pointer of the build side
+                    if(bucketInfo[1] > -1) {
+                        // if the bucket is in memory join the records
+                        int tupleCounter = bucketInfo[2];
+                        int frameCounter = bucketInfo[1];
+                        boolean finished = false;
+                        boolean first = true;
+                        while(frameCounter < bufferManager.getNumberOfFrames()) {
+                            if(!first) {
+                                tupleCounter = 0;
+                            }
+                            while(tupleCounter < memoryAccessor.getTupleCount()) {
+                                first = false;
+                                memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
+                                int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, 1);
+
+                                if(bucketReadFromMem != bucketInfo[0]) {
+                                    finished = true;
+                                    break;
+                                }
+                                addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
+                                //if(bCounter.containsKey(bucketReadFromMem)) bCounter.put(bucketReadFromMem, bCounter.get(bucketReadFromMem) + 1);
+                                //else bCounter.put(bucketReadFromMem, 1);
+                                tupleCounter++;
+
+                            }
+                            if(finished) break;
+                            frameCounter++;
+                        }
+                        //System.out.println("bCounter\n");
+                        //bCounter.forEach((key, value) -> System.out.println(key + " " + value));
+
+
+                    } else if(!writtenToDisk) {
+                        //Set spilled to true to complete join using the records from disk
+                        spilled = true;
+
+                        writtenToDisk = true;
+                        // if the bucket is on disk, write the bucket from probe side to disk
+                        TuplePointer tuplePointerForProbeDiskFile = new TuplePointer();
+                        runFileStreamForProbe.addToRunFile(accessorProbe, i, tuplePointerForProbeDiskFile);
+                        if(newBucket) {
+                            // set the tuple pointer for probe side as it locates it on disk
+                            if(!table.updateProbeBucket(probeBucketId, tuplePointerForProbeDiskFile)) {
+                                table.insert(probeBucketId, new TuplePointer(), tuplePointerForProbeDiskFile);
+                            }
+                        }
+                    }
+                }
+
+            }
+
         }
+
     }
 
     public void completeProbe(IFrameWriter writer) throws HyracksDataException {
         //We do NOT join the spilled partitions here, that decision is made at the descriptor level
         //(which join technique to use)
-        inMemJoiner.completeJoin(writer);
+        //table.printInfo();
+        if(spilled) {
+            runFileStreamForProbe.flushRunFile();
+            //runFileStreamForProbe.startReadingRunFile(inputCursor[BUILD_PARTITION]);
+        }
+
+        resultAppender.write(writer, true);
     }
 
     public void releaseResource() throws HyracksDataException {
-        inMemJoiner.closeTable();
-        closeAllSpilledPartitions(probeRFWriters, probeRelName);
         bufferManager.close();
-        inMemJoiner = null;
         bufferManager = null;
         bufferManagerForHashTable = null;
-    }
-
-    private boolean isBuildRelAllInMemory() {
-        return spilledStatus.nextSetBit(0) < 0;
-    }
-
-    public BitSet getPartitionStatus() {
-        return spilledStatus;
-    }
-    public RunFileReader getBuildRFReader(int pid) throws HyracksDataException {
-        return buildRFWriters[pid] == null ? null : buildRFWriters[pid].createDeleteOnCloseReader();
-    }
-
-    public int getBuildPartitionSizeInTup(int pid) {
-        return buildPSizeInTups[pid];
-    }
-
-    public RunFileReader getProbeRFReader(int pid) throws HyracksDataException {
-        return probeRFWriters[pid] == null ? null : probeRFWriters[pid].createDeleteOnCloseReader();
-    }
-
-    public int getProbePartitionSizeInTup(int pid) {
-        return probePSizeInTups[pid];
-    }
-
-    public void setIsReversed(boolean b) {
-        this.isReversed = b;
-    }
-
-    public int getMaxBuildPartitionSize() {
-        return getMaxPartitionSize(buildPSizeInTups);
-    }
-
-    public int getMaxProbePartitionSize() {
-        return getMaxPartitionSize(probePSizeInTups);
-    }
-
-    private int getMaxPartitionSize(int[] partitions) {
-        int max = partitions[0];
-        for (int i = 1; i < partitions.length; i++) {
-            if (partitions[i] > max) {
-                max = partitions[i];
-            }
-        }
-        return max;
-    }
-//    public void processProbeFrame(ByteBuffer buffer, IFrameWriter writer) throws HyracksDataException {
-//        accessorOuter.reset(buffer);
-//        if (accessorOuter.getTupleCount() <= 0) {
-//            return;
-//        }
-//        if (outerBufferMngr.insertFrame(buffer) < 0) {
-//            join(writer);
-//            outerBufferMngr.reset();
-//            if (outerBufferMngr.insertFrame(buffer) < 0) {
-//                throw new HyracksDataException("The given outer frame of size:" + buffer.capacity()
-//                        + " is too big to cache in the buffer. Please choose a larger buffer memory size");
-//            }
-//        }
-//    }
-
-//    public void join(IFrameWriter writer) throws HyracksDataException {
-//        int outerBufferFrameCount = outerBufferMngr.getNumFrames();
-//        if (outerBufferFrameCount == 0) {
-//            return;
-//        }
-//        int currBuildBucketId = 0;
-//        int currProbeBucketId = 0;
-//
-//        int lastBuildBucketId = -1;
-//        int lastProbeBucketId = -1;
-//
-//        boolean first = true;
-//        boolean addToResults = false;
-//        boolean matchResult = false;
-//        IFrameTupleAccessor buildAccessor = inputCursor[BUILD_PARTITION].getAccessor();
-//        int currBuildTupleIdx = 0;
-//        while (buildHasNext()) {
-//            currBuildTupleIdx = inputCursor[BUILD_PARTITION].getTupleId() + 1;
-//            currBuildBucketId = FlexibleJoinsUtil.getBucketId(buildAccessor,currBuildTupleIdx,1);
-//            for (int i = 0; i < outerBufferFrameCount; i++) {
-//                BufferInfo outerBufferInfo = outerBufferMngr.getFrame(i, tempInfo);
-//                accessorOuter.reset(outerBufferInfo.getBuffer(), outerBufferInfo.getStartOffset(),
-//                        outerBufferInfo.getLength());
-//                int probeTupleCount = accessorOuter.getTupleCount();
-//                for(int currProbleTupleIdx = 0; currProbleTupleIdx < probeTupleCount; currProbleTupleIdx++) {
-//                    currProbeBucketId = FlexibleJoinsUtil.getBucketId(accessorOuter, currProbleTupleIdx,1);
-//                    //System.out.println("build: " + currBuildBucketId + "\tprobe:"+currProbeBucketId);
-//                counter++;
-//                if(lastProbeBucketId != currProbeBucketId || lastBuildBucketId != currBuildBucketId) {
-//                    if(!this.bucketIdsMap.containsKey(currBuildBucketId+","+currProbeBucketId)) {
-//                        this.bucketIdsMap.put(
-//                                currBuildBucketId+","+currProbeBucketId ,
-//                                (tpComparator.compare(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx) == 0)
-//                        );
-//                    }
-//                    matchResult = this.bucketIdsMap.get(currBuildBucketId+","+currProbeBucketId);
-//
-//                    lastProbeBucketId = currProbeBucketId;
-//                    lastBuildBucketId = currBuildBucketId;
-//                }
-//                    //matchResult = (tpComparator.compare(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx) == 0);
-//                    if(matchResult) {
-//                        addToResult(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx, writer);
-//                    }
-//                }
-//            }
-//
-//            inputCursor[BUILD_PARTITION].next();
-//        }
-//    }
-
-//    public void processProbeClose(IFrameWriter writer) throws HyracksDataException {
-//        join(writer);
-//
-//        resultAppender.write(writer, true);
-//        runFileStream.close();
-//        runFileStream.removeRunFile();
-//        System.out.println("join counter"+counter);
-//
-//    }
-
-    private boolean buildHasNext() throws HyracksDataException {
-        if (!inputCursor[BUILD_PARTITION].hasNext()) {
-            // Must keep condition in a separate `if` due to actions applied in loadNextBuffer.
-            return runFileStream.loadNextBuffer(inputCursor[BUILD_PARTITION]);
-        } else {
-            return true;
-        }
+        table.reset();
     }
 
     private void addToResult(IFrameTupleAccessor buildAccessor, int buildTupleId, IFrameTupleAccessor probeAccessor,
             int probeTupleId, IFrameWriter writer) throws HyracksDataException {
-        //System.out.println("build tuple id: " + buildTupleId + "\tprobe tuple id:"+probeTupleId);
+
         FrameUtils.appendConcatToWriter(writer, resultAppender, buildAccessor, buildTupleId, probeAccessor,
                 probeTupleId);
+
     }
 
-    public void closeCache() throws HyracksDataException {
-        if (runFileStream != null) {
-            runFileStream.close();
-        }
+    public boolean isSpilled() {
+        return spilled;
     }
 
-    public void releaseMemory() throws HyracksDataException {
-        outerBufferMngr.reset();
+    public RunFileStream getRunFileStreamForBuild() {
+        return runFileStreamForBuild;
     }
+
+    public RunFileStream getRunFileStreamForProbe() {
+        return runFileStreamForProbe;
+    }
+
+    public void printTableInfo() {
+        table.printInfo();
+    }
+
 
 }
-*/

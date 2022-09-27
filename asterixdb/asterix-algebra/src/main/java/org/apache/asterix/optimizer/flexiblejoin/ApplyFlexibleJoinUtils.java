@@ -336,19 +336,21 @@ public class ApplyFlexibleJoinUtils {
 
         List<LogicalVariable> keysLeftBranch = new ArrayList<>();
         keysLeftBranch.add(leftBucketIdVar);
-        //keysLeftBranch.add(leftInputVar);
+        keysLeftBranch.add(leftInputVar);
 
         List<LogicalVariable> keysRightBranch = new ArrayList<>();
         keysRightBranch.add(rightBucketIdVar);
-        //keysRightBranch.add(rightInputVar);
+        keysRightBranch.add(rightInputVar);
 
         String matchFunctionName = functionName + "_fj_match";
         FunctionSignature matchFunctionSignature = new FunctionSignature(dataverseName, matchFunctionName, 2);
         Function matchFunction = metadataProvider.lookupUserDefinedFunction(matchFunctionSignature);
         FunctionInfo MatchFunctionInfo;
 
+        boolean eqMatch = false;
         if (matchFunction == null) {
             MatchFunctionInfo = BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.EQ);
+            eqMatch = true;
         } else {
             MatchFunctionInfo =
                     ExternalFunctionCompilerUtil.getFJFunctionInfo(metadataProvider, matchFunction, parameters);
@@ -378,7 +380,9 @@ public class ApplyFlexibleJoinUtils {
         //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
         //        keysLeftBranch, keysRightBranch, ));
 
-        //setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
+
+
+        if(!eqMatch) setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
 
         matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());

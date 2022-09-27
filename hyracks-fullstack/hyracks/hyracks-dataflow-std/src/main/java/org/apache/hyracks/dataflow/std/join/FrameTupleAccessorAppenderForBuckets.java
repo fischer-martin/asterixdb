@@ -16,20 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.dataflow.std.structures;
 
-import org.apache.hyracks.api.dataflow.value.ITuplePartitionComputer;
+package org.apache.hyracks.dataflow.std.join;
+
+import org.apache.hyracks.api.comm.FrameHelper;
+import org.apache.hyracks.api.comm.IFrame;
+import org.apache.hyracks.api.comm.IFrameTupleAccessor;
+import org.apache.hyracks.api.comm.IFrameWriter;
+import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.dataflow.std.buffermanager.ITuplePointerAccessor;
+import org.apache.hyracks.dataflow.common.comm.io.FixedSizeFrameTupleAppender;
+import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppenderAccessor;
+import org.apache.hyracks.dataflow.std.sort.util.IAppendDeletableFrameTupleAccessor;
+import org.apache.hyracks.util.IntSerDeUtils;
 
-public interface ISerializableBucketIdList {
+import java.nio.ByteBuffer;
 
-    boolean insert(int bucketId, TuplePointer buildTuplePointer, TuplePointer probeTuplePointer) throws HyracksDataException;
+/**
+ */
+public class FrameTupleAccessorAppenderForBuckets extends FixedSizeFrameTupleAppender {
 
-    int size();
-    int[] getEntry(int index);
-    int getNumEntries();
-    void reset();
-    void close();
+
+    public boolean setTupleDataEndOffset(int tupleDataEndOffset) {
+        this.tupleDataEndOffset = tupleDataEndOffset;
+        return true;
+    };
+
 
 }

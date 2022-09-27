@@ -38,12 +38,13 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
 
     // Content frame list
     protected List<IntSerDeBuffer> contents = new ArrayList<>();
-    protected List<Integer> currentOffsetInEachFrameList = new ArrayList<>();
+    protected List<Integer> numberOfBucketsInEachFrame = new ArrayList<>();
+    protected int currentOffsetInLastFrame = 0;
     protected int frameCapacity;
     protected int currentLargestFrameNumber = 0;
     // The byte size of total frames that are allocated to the headers and contents
     protected int currentByteSize = 0;
-    protected int tupleCount = 0;
+    protected int bucketCount = 0;
     protected TuplePointer tempTuplePointer = new TuplePointer();
     protected int tableSize;
     protected int frameSize;
@@ -51,15 +52,23 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
 
     protected int frameEntryCapacity;
 
-    public SimpleSerializableBucketIdList(int tableSize, final IHyracksFrameMgrContext ctx) {
+    public SimpleSerializableBucketIdList(int tableSize, final IHyracksFrameMgrContext ctx, boolean req) throws HyracksDataException {
         this.ctx = ctx;
         frameSize = ctx.getInitialFrameSize();
-        int residual = tableSize * INT_SIZE * 3 % frameSize == 0 ? 0 : 1;
-        int requiredFrames = tableSize * INT_SIZE * 3 / frameSize + residual;
+        this.frameEntryCapacity = frameSize / (INT_SIZE * 5);
+        if(req) {
+            ByteBuffer newFrame = getFrame(frameSize);
+            if (newFrame == null) {
+                throw new HyracksDataException("Can't initialize the Hash Table. Please assign more memory.");
+            }
 
+            IntSerDeBuffer frame = new IntSerDeBuffer(newFrame);
+
+            contents.add(frame);
+            numberOfBucketsInEachFrame.add(0);
+            currentOffsetInLastFrame = 0;
+        }
         this.tableSize = tableSize;
-
-        this.frameEntryCapacity = frameCapacity / 3;
 
 
     }
@@ -72,40 +81,76 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
 
 
     @Override
-    public int getBucketId(int index) {
+    public int[] getEntry(int index) {
 
         int contentFrameIndex = index / this.frameEntryCapacity;
         if(contentFrameIndex < 0 || contentFrameIndex > currentLargestFrameNumber)
-            return -1;
-        int offsetInContentFrame = (index % this.frameEntryCapacity) * 3;
+            return null;
+        int offsetInContentFrame = (index % this.frameEntryCapacity) * 5;
 
         IntSerDeBuffer frame = contents.get(contentFrameIndex);
-        return frame.getInt(offsetInContentFrame);
+
+        return new int[] {
+                frame.getInt(offsetInContentFrame),
+                frame.getInt(offsetInContentFrame+1),frame.getInt(offsetInContentFrame+2),
+                frame.getInt(offsetInContentFrame+3),frame.getInt(offsetInContentFrame+4)
+        };
     }
 
     @Override
-    public TuplePointer getTuplePointer(int index) {
-
-        int contentFrameIndex = index / this.frameEntryCapacity;
-        if(contentFrameIndex < 0 || contentFrameIndex > currentLargestFrameNumber)
-            return new TuplePointer();
-        int offsetInContentFrame = (index % this.frameEntryCapacity) * 3;
-
-        IntSerDeBuffer frame = contents.get(contentFrameIndex);
-        return new TuplePointer(frame.getInt(offsetInContentFrame+1), frame.getInt(offsetInContentFrame+2));
+    public int getNumEntries() {
+        return bucketCount;
     }
+
+    public TuplePointer getBuildTuplePointer(int bucketId) {
+        //TODO this function needs to traverse all entries and find the given bucket id
+        int contentFrameIndex = 0;
+        while(contentFrameIndex <= currentLargestFrameNumber) {
+            int offsetInContentFrame = 0;
+            IntSerDeBuffer frame = contents.get(contentFrameIndex);
+
+            while(offsetInContentFrame < this.frameCapacity)  {
+                if(frame.getInt(offsetInContentFrame) == bucketId) {
+                    return new TuplePointer(frame.getInt(offsetInContentFrame+1), frame.getInt(offsetInContentFrame+2));
+                }
+                offsetInContentFrame += 5;
+            }
+            contentFrameIndex++;
+        }
+
+        return null;
+    }
+
+    public TuplePointer getProbeTuplePointer(int bucketId) {
+        //TODO this function needs to traverse all entries and find the given bucket id
+        int contentFrameIndex = 0;
+        while(contentFrameIndex <= currentLargestFrameNumber) {
+            int offsetInContentFrame = 0;
+            IntSerDeBuffer frame = contents.get(contentFrameIndex);
+
+            while(offsetInContentFrame < this.frameCapacity)  {
+                if(frame.getInt(offsetInContentFrame) == bucketId) {
+                    return new TuplePointer(frame.getInt(offsetInContentFrame+3), frame.getInt(offsetInContentFrame+4));
+                }
+                offsetInContentFrame += 5;
+            }
+            contentFrameIndex++;
+        }
+
+        return null;
+    }
+
+
 
     @Override
     public void reset() {
-
-
-        currentOffsetInEachFrameList.clear();
+        numberOfBucketsInEachFrame.clear();
         for (int i = 0; i < contents.size(); i++) {
-            currentOffsetInEachFrameList.add(0);
+            numberOfBucketsInEachFrame.add(0);
         }
-
+        currentOffsetInLastFrame = 0;
         currentLargestFrameNumber = 0;
-        tupleCount = 0;
+        bucketCount = 0;
         currentByteSize = 0;
     }
 
@@ -115,19 +160,19 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
         int nFrames = contents.size();
 
         contents.clear();
-        currentOffsetInEachFrameList.clear();
-        tupleCount = 0;
+        numberOfBucketsInEachFrame.clear();
+        bucketCount = 0;
         currentByteSize = 0;
         currentLargestFrameNumber = 0;
         ctx.deallocateFrames(nFrames);
     }
 
-    public boolean insert(int bucketId, TuplePointer tuplePointer) throws HyracksDataException {
-        int lastOffsetInCurrentFrame = currentOffsetInEachFrameList.get(currentLargestFrameNumber);
-        int requiredIntCapacity = INT_SIZE * 4;
+    @Override
+    public boolean insert(int bucketId, TuplePointer buildTuplePointer, TuplePointer probeTuplePointer ) throws HyracksDataException {
+        int requiredIntCapacity = INT_SIZE * 5;
         IntSerDeBuffer contentFrame;
 
-        if (lastOffsetInCurrentFrame + requiredIntCapacity > frameCapacity) {
+        if (currentOffsetInLastFrame + requiredIntCapacity > frameCapacity) {
             ByteBuffer newFrame = getFrame(frameSize);
             if (newFrame == null) {
                 return false;
@@ -135,40 +180,123 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
             contentFrame = new IntSerDeBuffer(newFrame);
             currentLargestFrameNumber++;
             contents.add(contentFrame);
-            currentOffsetInEachFrameList.add(0);
-            lastOffsetInCurrentFrame = 0;
+            numberOfBucketsInEachFrame.add(0);
+            currentOffsetInLastFrame = 0;
         } else {
             contentFrame = contents.get(currentLargestFrameNumber);
-
         }
-        contentFrame.writeInt(lastOffsetInCurrentFrame, bucketId);
-        contentFrame.writeInt(lastOffsetInCurrentFrame + 1, tuplePointer.getFrameIndex());
-        contentFrame.writeInt(lastOffsetInCurrentFrame + 2, tuplePointer.getTupleIndex());
+        //add the new bucket id
+        contentFrame.writeInt(currentOffsetInLastFrame, bucketId);
+        //add tuple pointer from build side
+        contentFrame.writeInt(currentOffsetInLastFrame + 1, buildTuplePointer.getFrameIndex());
+        contentFrame.writeInt(currentOffsetInLastFrame + 2, buildTuplePointer.getTupleIndex());
+        //add tuple pointer from probe side
+        contentFrame.writeInt(currentOffsetInLastFrame + 3, probeTuplePointer.getFrameIndex());
+        contentFrame.writeInt(currentOffsetInLastFrame + 4, probeTuplePointer.getTupleIndex());
 
-        tupleCount++;
+        numberOfBucketsInEachFrame.set(currentLargestFrameNumber, numberOfBucketsInEachFrame.get(currentLargestFrameNumber) + 1);
+        currentOffsetInLastFrame += 5;
+        bucketCount++;
 
         return true;
     }
 
+    public boolean updateProbeBucket(int bucketId, TuplePointer probeTuplePointer) throws HyracksDataException {
+        int contentFrameIndex = 0;
+        while(contentFrameIndex <= currentLargestFrameNumber) {
+            int offsetInContentFrame = 0;
+            IntSerDeBuffer frame = contents.get(contentFrameIndex);
+
+            while(offsetInContentFrame < this.frameCapacity)  {
+                if(frame.getInt(offsetInContentFrame) == bucketId) {
+                    //update tuple pointer from probe side
+                    frame.writeInt(offsetInContentFrame + 3, probeTuplePointer.getFrameIndex());
+                    frame.writeInt(offsetInContentFrame + 4, probeTuplePointer.getTupleIndex());
+
+                    return true;
+                }
+                offsetInContentFrame += 5;
+            }
+            contentFrameIndex++;
+        }
+
+        return false;
+    }
+
+    public boolean updateBuildBucket(int bucketId, TuplePointer buildTuplePointer) throws HyracksDataException {
+        int contentFrameIndex = 0;
+        while(contentFrameIndex <= currentLargestFrameNumber) {
+            int offsetInContentFrame = 0;
+            IntSerDeBuffer frame = contents.get(contentFrameIndex);
+
+            while(offsetInContentFrame < this.frameCapacity)  {
+                if(frame.getInt(offsetInContentFrame) == bucketId) {
+                    //update tuple pointer from probe side
+                    frame.writeInt(offsetInContentFrame + 1, buildTuplePointer.getFrameIndex());
+                    frame.writeInt(offsetInContentFrame + 2, buildTuplePointer.getTupleIndex());
+
+                    return true;
+                }
+                offsetInContentFrame += 5;
+            }
+            contentFrameIndex++;
+        }
+        return false;
+    }
+
+    public void printInfo() {
+        int contentFrameIndex = 0;
+        int printedCounter = 0;
+        StringBuilder dS = new StringBuilder(this.toString());
+        dS.append("\nBucket Id\tBuild F\tBuild T\tProbe F\tProbe T\n");
+        while(contentFrameIndex <= currentLargestFrameNumber) {
+            int offsetInContentFrame = 0;
+            IntSerDeBuffer frame = contents.get(contentFrameIndex);
+
+            while(offsetInContentFrame < this.frameCapacity)  {
+                dS.append(frame.getInt(offsetInContentFrame)).append("\t").append(frame.getInt(offsetInContentFrame + 1)).append("\t").append(frame.getInt(offsetInContentFrame + 2)).append("\t").append(frame.getInt(offsetInContentFrame + 3)).append("\t").append(frame.getInt(offsetInContentFrame + 4)).append("\n");
+                offsetInContentFrame += 5;
+                printedCounter++;
+                if(printedCounter == bucketCount) break;
+            }
+            contentFrameIndex++;
+        }
+        System.out.println(dS);
+    }
+
+    public int lastBucket() {
+        int i = bucketCount - 1;
+        while(i >= 0) {
+            int[] b = getEntry(i);
+            if(b[1] > -1) return b[0];
+            i--;
+        }
+        return -1;
+    }
+
+    public int secondLastBucket() {
+        int i = bucketCount - 1;
+        int j = 2;
+        while(i >= 0) {
+            int[] b = getEntry(i);
+            if(b[1] > -1) {
+                j--;
+                if(j == 0)
+                    return b[0];
+            }
+            i--;
+        }
+        return -1;
+    }
+
     @Override
     public int size() {
-        return tupleCount;
-    }
-
-    protected int getHeaderFrameIndex(int entry) {
-        int frameIndex = (entry % tableSize) * 2 / frameCapacity;
-        return frameIndex;
-    }
-
-    protected int getHeaderFrameOffset(int entry) {
-        int offset = (entry % tableSize) * 2 % frameCapacity;
-        return offset;
+        return bucketCount;
     }
 
     public static int getUnitSize() {
         return INT_SIZE;
     }
-
 
     static class IntSerDeBuffer {
 

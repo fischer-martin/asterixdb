@@ -16,20 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.dataflow.std.structures;
+package org.apache.hyracks.api.dataflow.value;
 
-import org.apache.hyracks.api.dataflow.value.ITuplePartitionComputer;
+import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.dataflow.std.buffermanager.ITuplePointerAccessor;
+import org.apache.hyracks.util.annotations.CriticalPath;
 
-public interface ISerializableBucketIdList {
+public interface IBucketPairComparator extends ITuplePairComparator {
 
-    boolean insert(int bucketId, TuplePointer buildTuplePointer, TuplePointer probeTuplePointer) throws HyracksDataException;
-
-    int size();
-    int[] getEntry(int index);
-    int getNumEntries();
-    void reset();
-    void close();
+    @CriticalPath
+    int compare(int bucketId1, int bucketId2)
+            throws HyracksDataException;
 
 }

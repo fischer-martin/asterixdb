@@ -25,6 +25,7 @@ import java.util.Set;
 
 import org.apache.asterix.runtime.operators.joins.flexible.FlexibleJoinOperatorDescriptor;
 import org.apache.asterix.runtime.operators.joins.flexible.FlexibleJoinOperatorDescriptorT;
+import org.apache.asterix.runtime.operators.joins.flexible.ThetaFlexibleJoinOperatorDescriptor;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.ListSet;
 import org.apache.hyracks.algebricks.core.algebra.base.IHyracksJobBuilder;
@@ -148,12 +149,12 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         localProperties2.add(new LocalOrderProperty(orderColumns2));
 
         StructuralPropertiesVector[] pv = new StructuralPropertiesVector[2];
-        pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
-        //pv[0] = new StructuralPropertiesVector(new RandomPartitioningProperty(context.getComputationNodeDomain()),
-        //        localProperties1);
-        pv[1] = new StructuralPropertiesVector(pp2, localProperties2);
-        //pv[1] = new StructuralPropertiesVector(new BroadcastPartitioningProperty(context.getComputationNodeDomain()),
-        //        localProperties2);
+        //pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
+        pv[0] = new StructuralPropertiesVector(new RandomPartitioningProperty(context.getComputationNodeDomain()),
+                localProperties1);
+        //pv[1] = new StructuralPropertiesVector(pp2, localProperties2);
+        pv[1] = new StructuralPropertiesVector(new BroadcastPartitioningProperty(context.getComputationNodeDomain()),
+                localProperties2);
 
         return new PhysicalRequirements(pv, IPartitioningRequirementsCoordinator.NO_COORDINATION);
     }
@@ -198,8 +199,15 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
                 recordDescriptor, comparatorFactory, reverseComparatorFactory, leftHashFunFamilies, rightHashFunFamilies, predEvaluatorFactory, fudgeFactor);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);*/
 
-        IOperatorDescriptor opDesc = new FlexibleJoinOperatorDescriptorT(spec, memSizeInFrames, keysBuild, keysProbe,
-                recordDescriptor, comparatorFactory);
+        IOperatorDescriptor opDesc = new ThetaFlexibleJoinOperatorDescriptor(
+                spec,
+                memSizeInFrames,
+                keysBuild,
+                keysProbe,
+                recordDescriptor,
+                comparatorFactory,
+                predEvaluatorFactory,
+                fudgeFactor);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
         ILogicalOperator src1 = op.getInputs().get(0).getValue();
         builder.contributeGraphEdge(src1, 0, op, 0);

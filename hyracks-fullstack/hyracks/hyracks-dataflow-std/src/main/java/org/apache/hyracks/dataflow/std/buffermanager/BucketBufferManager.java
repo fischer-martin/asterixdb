@@ -28,9 +28,11 @@ import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.common.comm.io.FixedSizeFrameTupleAppender;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
+import org.apache.hyracks.dataflow.std.join.FrameTupleAccessorAppenderForBuckets;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 public class BucketBufferManager implements IBucketBufferManager {
@@ -49,15 +51,17 @@ public class BucketBufferManager implements IBucketBufferManager {
     private BufferInfo tempInfo;
     private IPartitionedMemoryConstrain constrain;
     private FrameTupleAccessor frameTupleAccessor;
+    protected final RecordDescriptor recordDescriptor;
 
     // In case where a frame pool is shared by one or more buffer manager(s), it can be provided from the caller.
-    public BucketBufferManager(IDeallocatableFramePool framePool, FrameTupleAccessor frameTupleAccessor) throws HyracksDataException {
+    public BucketBufferManager(IDeallocatableFramePool framePool, RecordDescriptor recordDescriptor) throws HyracksDataException {
         this.framePool = framePool;
         this.bufferManager = new FrameBufferManager();
         this.appendFrame = new FixedSizeFrame();
         this.appender = new FixedSizeFrameTupleAppender();
         this.tempInfo = new BufferInfo(null, -1, -1);
-        this.frameTupleAccessor = frameTupleAccessor;
+        this.recordDescriptor = recordDescriptor;
+        this.frameTupleAccessor = new FrameTupleAccessor(recordDescriptor);
     }
 
     @Override
@@ -120,7 +124,7 @@ public class BucketBufferManager implements IBucketBufferManager {
             bufferManager.getFrame(fid, tempInfo);
             tid = appendTupleToBuffer(tempInfo, fieldEndOffsets, byteArray, start, size);
         }
-        pointer.reset(makeGroupFrameId(fid), tid);
+        pointer.reset(fid, tid);
         numTuples++;
         return true;
     }
@@ -138,18 +142,6 @@ public class BucketBufferManager implements IBucketBufferManager {
             return FrameHelper.calcRequiredSpace(fieldEndOffsets.length, size);
         }
         return FrameHelper.calcRequiredSpace(0, size);
-    }
-
-    private int makeGroupFrameId(int fid) {
-        return fid;
-    }
-
-    private int parsePartitionId(int externalFrameId) {
-        return externalFrameId;
-    }
-
-    private int parseFrameIdInPartition(int externalFrameId) {
-        return externalFrameId;
     }
 
     private int createNewBuffer(int size) throws HyracksDataException {
@@ -190,16 +182,6 @@ public class BucketBufferManager implements IBucketBufferManager {
         return -1;
     }
 
-    private void deleteTupleFromBuffer(BufferInfo bufferInfo) throws HyracksDataException {
-        if (bufferInfo.getBuffer() != appendFrame.getBuffer()) {
-            appendFrame.reset(bufferInfo.getBuffer());
-            appender.reset(appendFrame, false);
-        }
-        if (!appender.cancelAppend()) {
-            throw new HyracksDataException("Undoing the last insertion in the given frame couldn't be done.");
-        }
-    }
-
     private int getLastBufferOrCreateNewIfNotExist(int actualSize) throws HyracksDataException {
         if (bufferManager == null || bufferManager.getNumFrames() == 0) {
             bufferManager = new FrameBufferManager();
@@ -210,6 +192,26 @@ public class BucketBufferManager implements IBucketBufferManager {
 
     private int getLastBuffer() throws HyracksDataException {
         return bufferManager.getNumFrames() - 1;
+    }
+
+    public boolean removeBucket(TuplePointer tuplePointer) throws HyracksDataException {
+        int frameIndex = tuplePointer.getFrameIndex();
+
+        int fIdx = frameIndex;
+        while(fIdx < bufferManager.getNumFrames()) {
+            appendFrame.reset(bufferManager.getFrame(frameIndex, tempInfo).getBuffer());
+            appender.reset(appendFrame, false);
+            if(fIdx == frameIndex) {
+                for(int i = tuplePointer.getTupleIndex(); i < appender.getTupleCount(); i++) {
+                    appender.cancelAppend();
+                }
+            }
+            else {
+                framePool.deAllocateBuffer(appendFrame.getBuffer());
+            }
+            fIdx++;
+        }
+        return true;
     }
 
     @Override
@@ -223,9 +225,9 @@ public class BucketBufferManager implements IBucketBufferManager {
     }
 
     @Override
-    public ITuplePointerAccessor getTuplePointerAccessor(final RecordDescriptor recordDescriptor) {
+    public ITuplePointerAccessor createTuplePointerAccessor() {
         return new AbstractTuplePointerAccessor() {
-            FrameTupleAccessor innerAccessor = new FrameTupleAccessor(recordDescriptor);
+            final FrameTupleAccessor innerAccessor = new FrameTupleAccessor(recordDescriptor);
 
             @Override
             IFrameTupleAccessor getInnerAccessor() {
@@ -235,7 +237,7 @@ public class BucketBufferManager implements IBucketBufferManager {
             @Override
             void resetInnerAccessor(TuplePointer tuplePointer) {
                 bufferManager
-                        .getFrame(parseFrameIdInPartition(tuplePointer.getFrameIndex()), tempInfo);
+                        .getFrame(tuplePointer.getFrameIndex(), tempInfo);
                 innerAccessor.reset(tempInfo.getBuffer(), tempInfo.getStartOffset(), tempInfo.getLength());
             }
         };
@@ -268,9 +270,8 @@ public class BucketBufferManager implements IBucketBufferManager {
         return returnedInfo;
     }
 
-    @Override
-    public IPartitionedMemoryConstrain getConstrain() {
-        return constrain;
+    public int getNumberOfFrames() {
+        return bufferManager.getNumFrames();
     }
 
 }

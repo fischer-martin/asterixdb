@@ -16,20 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.dataflow.std.structures;
 
-import org.apache.hyracks.api.dataflow.value.ITuplePartitionComputer;
+package org.apache.hyracks.dataflow.std.join;
+
+import org.apache.hyracks.api.comm.IFrameTupleAccessor;
+import org.apache.hyracks.api.comm.IFrameTupleAppender;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.dataflow.std.buffermanager.ITuplePointerAccessor;
 
-public interface ISerializableBucketIdList {
+import java.nio.ByteBuffer;
 
-    boolean insert(int bucketId, TuplePointer buildTuplePointer, TuplePointer probeTuplePointer) throws HyracksDataException;
+/**
 
-    int size();
-    int[] getEntry(int index);
-    int getNumEntries();
-    void reset();
-    void close();
+ */
+public interface IFrameTupleAccessorForBuckets extends IFrameTupleAppender, IFrameTupleAccessor {
 
+    /**
+     * Append tuple content to this buffer. Return the new tid as a handle to the caller.
+     *
+     * @param tupleDataEndOffset
+     * @return
+     * @throws HyracksDataException
+     */
+    int setTupleDataEndOffset(int tupleDataEndOffset) throws HyracksDataException;
 }

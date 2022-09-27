@@ -16,20 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.dataflow.std.structures;
+package org.apache.hyracks.api.dataflow.value;
 
-import org.apache.hyracks.api.dataflow.value.ITuplePartitionComputer;
+import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.dataflow.std.buffermanager.ITuplePointerAccessor;
 
-public interface ISerializableBucketIdList {
+import java.io.Serializable;
 
-    boolean insert(int bucketId, TuplePointer buildTuplePointer, TuplePointer probeTuplePointer) throws HyracksDataException;
-
-    int size();
-    int[] getEntry(int index);
-    int getNumEntries();
-    void reset();
-    void close();
-
+public interface IBucketPairComparatorFactory extends Serializable, ITuplePairComparatorFactory {
+    public IBucketPairComparator createTuplePairComparator(IHyracksTaskContext ctx) throws HyracksDataException;
 }
