@@ -20,7 +20,6 @@ package org.apache.asterix.external.cartilage.functions;
 
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
-import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getKeyObject;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -118,14 +117,10 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
 
         if (typeTag == ATypeTag.NULL || typeTag == ATypeTag.MISSING) {
             processNull(typeTag);
-        } else if (typeTag == ATypeTag.OBJECT) {
+        } else {
             IVisitablePointable obj = pointableAllocator.allocateFieldValue(aggFieldType);
             eval.evaluate(tuple, obj);
             summary.add(obj);
-        } else {
-            ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len - 1);
-            DataInputStream dataIn = new DataInputStream(inStream);
-            summary.add(getKeyObject(dataIn, typeTag));
         }
     }
 

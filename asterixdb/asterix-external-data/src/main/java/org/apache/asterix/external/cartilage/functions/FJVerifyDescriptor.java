@@ -20,7 +20,6 @@ package org.apache.asterix.external.cartilage.functions;
 
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
-import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getKeyObject;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -122,17 +121,12 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                         eval3.evaluate(tuple, inputArg3);
 
                         byte[] bytes0 = inputArg0.getByteArray();
-                        byte[] bytes1 = inputArg1.getByteArray();
+
                         byte[] bytes2 = inputArg2.getByteArray();
-                        byte[] bytes3 = inputArg3.getByteArray();
 
                         int offset0 = inputArg0.getStartOffset();
-                        int offset1 = inputArg1.getStartOffset();
                         int offset2 = inputArg2.getStartOffset();
-                        int offset3 = inputArg3.getStartOffset();
 
-                        int len3 = inputArg3.getLength();
-                        int len1 = inputArg1.getLength();
                         try {
 
                             int bucketID0 = AInt32SerializerDeserializer.getInt(bytes0, offset0 + 1);
@@ -161,26 +155,10 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
                             }
 
-                            ATypeTag tag1 = eser.deserialize(bytes1[offset1]);
-                            ATypeTag tag3 = eser.deserialize(bytes3[offset3]);
-
-                            ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1 + 1, len1 - 1);
-                            DataInputStream dataIn1 = new DataInputStream(inStream1);
-                            ByteArrayInputStream inStream3 = new ByteArrayInputStream(bytes3, offset3 + 1, len3 - 1);
-                            DataInputStream dataIn3 = new DataInputStream(inStream3);
-
-                            Object key1Obj;
-                            Object key2Obj;
-                            if (tag1 == ATypeTag.OBJECT) {
-                                key1Obj = pointableAllocator.allocateFieldValue(key1Type);
-                                eval1.evaluate(tuple, (IVisitablePointable) key1Obj);
-                            } else
-                                key1Obj = getKeyObject(dataIn1, tag1);
-                            if (tag3 == ATypeTag.OBJECT) {
-                                key2Obj = pointableAllocator.allocateFieldValue(key2Type);
-                                eval3.evaluate(tuple, (IVisitablePointable) key2Obj);
-                            } else
-                                key2Obj = getKeyObject(dataIn3, tag3);
+                            Object key1Obj = pointableAllocator.allocateFieldValue(key1Type);
+                            eval1.evaluate(tuple, (IVisitablePointable) key1Obj);
+                            Object key2Obj = pointableAllocator.allocateFieldValue(key2Type);
+                            eval3.evaluate(tuple, (IVisitablePointable) key2Obj);
 
                             res = flexibleJoin.verify(bucketID0, key1Obj, bucketID1, key2Obj, configuration)
                                     ? ABoolean.TRUE : ABoolean.FALSE;
@@ -205,7 +183,7 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
     @Override
     public IAType[] getArgumentTypes() {
-        IAType[] types = {bucket1Type, key1Type, bucket2Type, key2Type, configType};
+        IAType[] types = { bucket1Type, key1Type, bucket2Type, key2Type, configType };
 
         return types;
     }

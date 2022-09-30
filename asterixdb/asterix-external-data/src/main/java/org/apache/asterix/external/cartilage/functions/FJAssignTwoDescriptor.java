@@ -20,7 +20,6 @@ package org.apache.asterix.external.cartilage.functions;
 
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
-import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getKeyObject;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -133,20 +132,9 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                             }
                         }
 
-                        ByteArrayInputStream inStream =
-                                new ByteArrayInputStream(inputArg0.getByteArray(), offset0 + 1, len - 1);
-                        DataInputStream dataIn = new DataInputStream(inStream);
-                        if (tag0 == ATypeTag.OBJECT) {
-                            IVisitablePointable obj = pointableAllocator.allocateFieldValue(keyType);
-                            eval0.evaluate(tuple, obj);
-                            // I suppose that this is a typo and we should actually call assign2() instead of assign1()
-                            //buckets = flexibleJoin.assign1(obj, configuration);
-                            buckets = flexibleJoin.assign2(obj, configuration);
-                        } else {
-                            // I suppose that this is a typo and we should actually call assign2() instead of assign1()
-                            //buckets = flexibleJoin.assign1(getKeyObject(dataIn, tag0), configuration);
-                            buckets = flexibleJoin.assign2(getKeyObject(dataIn, tag0), configuration);
-                        }
+                        IVisitablePointable obj = pointableAllocator.allocateFieldValue(keyType);
+                        eval0.evaluate(tuple, obj);
+                        buckets = flexibleJoin.assign2(obj, configuration);
 
                         pos = 0;
                     }
@@ -176,7 +164,7 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
 
     @Override
     public IAType[] getArgumentTypes() {
-        IAType[] types = {keyType, configType};
+        IAType[] types = { keyType, configType };
 
         return types;
     }

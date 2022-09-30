@@ -20,7 +20,6 @@ package org.apache.asterix.external.cartilage.functions;
 
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoin;
 import static org.apache.asterix.external.cartilage.util.FlexibleJoinLoader.getFlexibleJoinClassLoader;
-import static org.apache.asterix.external.cartilage.util.ParameterTypeResolver.getKeyObject;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -135,16 +134,10 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
                                 e.printStackTrace();
                             }
                         }
-                        ByteArrayInputStream inStream =
-                                new ByteArrayInputStream(inputArg0.getByteArray(), offset0 + 1, len - 1);
-                        DataInputStream dataIn = new DataInputStream(inStream);
-                        if (tag0 == ATypeTag.OBJECT) {
-                            IVisitablePointable obj = pointableAllocator.allocateFieldValue(keyType);
-                            eval0.evaluate(tuple, obj);
-                            buckets = flexibleJoin.assign1(obj, configuration);
-                        } else {
-                            buckets = flexibleJoin.assign1(getKeyObject(dataIn, tag0), configuration);
-                        }
+
+                        IVisitablePointable obj = pointableAllocator.allocateFieldValue(keyType);
+                        eval0.evaluate(tuple, obj);
+                        buckets = flexibleJoin.assign1(obj, configuration);
 
                         pos = 0;
 
@@ -176,7 +169,7 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
 
     @Override
     public IAType[] getArgumentTypes() {
-        IAType[] types = {keyType, configType};
+        IAType[] types = { keyType, configType };
 
         return types;
     }
