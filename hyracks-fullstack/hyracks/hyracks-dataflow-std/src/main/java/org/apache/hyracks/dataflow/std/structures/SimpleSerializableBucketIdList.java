@@ -103,7 +103,6 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
     }
 
     public TuplePointer getBuildTuplePointer(int bucketId) {
-        //TODO this function needs to traverse all entries and find the given bucket id
         int contentFrameIndex = 0;
         while(contentFrameIndex <= currentLargestFrameNumber) {
             int offsetInContentFrame = 0;
@@ -122,7 +121,6 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
     }
 
     public TuplePointer getProbeTuplePointer(int bucketId) {
-        //TODO this function needs to traverse all entries and find the given bucket id
         int contentFrameIndex = 0;
         while(contentFrameIndex <= currentLargestFrameNumber) {
             int offsetInContentFrame = 0;

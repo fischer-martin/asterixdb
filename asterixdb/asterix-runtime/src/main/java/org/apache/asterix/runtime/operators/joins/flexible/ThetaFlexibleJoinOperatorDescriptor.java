@@ -18,6 +18,9 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible;
 
+import org.apache.asterix.runtime.operators.joins.flexible.utils.IBucket;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.IHeuristicForThetaJoin;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.FirstFit;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
 import org.apache.hyracks.api.comm.IFrame;
@@ -48,10 +51,7 @@ import org.apache.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
 import org.apache.hyracks.dataflow.std.base.AbstractStateObject;
 import org.apache.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
 import org.apache.hyracks.dataflow.std.base.AbstractUnaryInputUnaryOutputOperatorNodePushable;
-import org.apache.hyracks.dataflow.std.buffermanager.DeallocatableFramePool;
-import org.apache.hyracks.dataflow.std.buffermanager.FramePoolBackedFrameBufferManager;
-import org.apache.hyracks.dataflow.std.buffermanager.IDeallocatableFramePool;
-import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
+import org.apache.hyracks.dataflow.std.buffermanager.*;
 import org.apache.hyracks.dataflow.std.join.BucketComparator;
 import org.apache.hyracks.dataflow.std.join.NestedLoopJoin;
 import org.apache.hyracks.dataflow.std.structures.SerializableHashTable;
@@ -59,6 +59,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.BitSet;
 
 public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
@@ -259,6 +260,10 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         try {
                             state.joiner.completeProbe(writer);
                         } finally {
+                            //if there are spilled buckets we need to do additional runs
+                            //here we first need to create a heuristic class
+                            //heuristic class should take the bucket table from the joiner and provide bucket iterators for build and probe
+                            //buckets should give the
                             state.joiner.releaseResource();
                         }
 
@@ -287,6 +292,39 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                         RunFileStream buildRFStream = state.joiner.getRunFileStreamForBuild();
                         RunFileStream probeRFStream = state.joiner.getRunFileStreamForProbe();
+
+
+                        //Create an instance of a heuristic with table and two file streams
+                        IHeuristicForThetaJoin heuristicForThetaJoin = new FirstFit(
+                                state.joiner.getBucketTable(),
+                                memoryForJoin * ctx.getInitialFrameSize(),
+                                buildRFStream,
+                                probeRFStream,
+                                buildRd,
+                                probeRd);
+                        //While heuristic still provides a building set from building sequence
+                        while(heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
+                            //get the building sequence buildSeq
+                            ArrayList<IBucket> buildingBuckets = heuristicForThetaJoin.nextBuildingBucketSequence();
+                            ThetaFlexibleJoiner thetaFlexibleJoiner = new ThetaFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, PROBE_REL, BUILD_REL, predEvaluator, buildingBuckets.size());
+                            //for each bucket from this sequence
+                            for (IBucket buildingBucket:buildingBuckets
+                                 ) {
+                                //add records from this bucket to memory
+                                while(buildingBucket.hasNextFrame())
+                                    thetaFlexibleJoiner.build(buildingBucket.nextFrame());
+                            }
+                            //get the probing sequence
+                            ArrayList<IBucket> probingBuckets = heuristicForThetaJoin.nextProbingBucketSequence();
+                            //for each bucket p in probing sequence
+                            for (IBucket probingBucket:probingBuckets) {
+                                //for each bucket b from memory
+                                while(probingBucket.hasNextFrame())
+                                    thetaFlexibleJoiner.probe(probingBucket.nextFrame(), writer);
+                            }
+                        }
+
+                        /*
                         ThetaFlexibleJoiner thetaFlexibleJoiner = null;
 
                         boolean spilled = true;
@@ -298,8 +336,8 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                 buildRFStream = thetaFlexibleJoiner.getRunFileStreamForBuild();
                                 probeRFStream = thetaFlexibleJoiner.getRunFileStreamForProbe();
 
-
                             } else firstStep = false;
+
                             thetaFlexibleJoiner = new ThetaFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, PROBE_REL, BUILD_REL, predEvaluator, 1000);
 
                             try {
@@ -350,7 +388,9 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                             spilled = thetaFlexibleJoiner.isSpilled();
                             steps++;
-                        }
+                            if(!spilled)
+                                System.out.println("Finished");
+                        }*/
                     }
                     writer.close();
 

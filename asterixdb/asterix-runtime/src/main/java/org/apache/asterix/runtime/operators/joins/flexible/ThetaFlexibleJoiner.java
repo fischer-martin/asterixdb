@@ -95,9 +95,6 @@ public class ThetaFlexibleJoiner {
 
     private ITuplePairComparator tpComparator;
 
-    // Used for special probe BigObject which can not be held into the Join memory
-    private FrameTupleAppender bigFrameAppender;
-
     private final String buildRelName;
     private final String probeRelName;
 
@@ -105,9 +102,6 @@ public class ThetaFlexibleJoiner {
     private final RecordDescriptor probeRd;
 
     private final IPredicateEvaluator predEvaluator;
-
-    private int[] probePSizeInTups;
-
     private final int nBuckets;
     private boolean isCurrentBucketSpilled;
 
@@ -126,9 +120,6 @@ public class ThetaFlexibleJoiner {
 
     protected long numRecordsFromBuild;
 
-
-
-    //private final FlexibleJoin flexibleJoin;
 
     public ThetaFlexibleJoiner(IHyracksTaskContext ctx,
                                int memorySize,
@@ -229,7 +220,6 @@ public class ThetaFlexibleJoiner {
                         //write record to disk directly and set the tuple pointer accordingly
                         runFileStreamForBuild.addToRunFile(accessorBuild, i, tempPtr);
                     } else {
-                        //
                         // System.out.println("Bucket "+ bucketId+" is spilled!");
                         TuplePointer tuplePointerForspilledBucket = table.getBuildTuplePointer(bucketId);
                         //spill current bucket to disk
@@ -478,8 +468,9 @@ public class ThetaFlexibleJoiner {
     public void completeProbe(IFrameWriter writer) throws HyracksDataException {
         //We do NOT join the spilled partitions here, that decision is made at the descriptor level
         //(which join technique to use)
-        //table.printInfo();
+
         if(spilled) {
+            table.printInfo();
             runFileStreamForProbe.flushRunFile();
             //runFileStreamForProbe.startReadingRunFile(inputCursor[BUILD_PARTITION]);
         }
@@ -490,8 +481,8 @@ public class ThetaFlexibleJoiner {
     public void releaseResource() throws HyracksDataException {
         bufferManager.close();
         bufferManager = null;
-        bufferManagerForHashTable = null;
-        table.reset();
+//        bufferManagerForHashTable = null;
+//        table.reset();
     }
 
     private void addToResult(IFrameTupleAccessor buildAccessor, int buildTupleId, IFrameTupleAccessor probeAccessor,
@@ -516,6 +507,10 @@ public class ThetaFlexibleJoiner {
 
     public void printTableInfo() {
         table.printInfo();
+    }
+
+    public SerializableBucketIdList getBucketTable() {
+        return table;
     }
 
 
