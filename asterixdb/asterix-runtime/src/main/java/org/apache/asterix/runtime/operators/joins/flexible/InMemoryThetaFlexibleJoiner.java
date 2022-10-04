@@ -134,7 +134,7 @@ public class InMemoryThetaFlexibleJoiner {
             int newBucketId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
             //If we have a different bucket id then the bucketID we should stop
             if (newBucketId != bucketId) {
-                continue;
+                break;
             }
 
             // If the memory does not accept the new record join should fail since buildOneBucket shall only be called for the buckets fit into memory
@@ -176,50 +176,47 @@ public class InMemoryThetaFlexibleJoiner {
         int accessorIndex = 0;
         // for each record from S
         for (int i = 0; i < tupleCount; ++i) {
-            int numberOfBuckets = table.getNumEntries();
-            // Iterate over the buckets from bucket table
-            for (int bucketIndex = 0; bucketIndex < numberOfBuckets; bucketIndex++) {
-                int[] bucketInfo = table.getEntry(bucketIndex);
-                memoryAccessor.reset(new TuplePointer(bucketInfo[1], bucketInfo[2]));
-                accessorIndex = bucketInfo[2];
-
-                // if buckets are matching
-                //TODO Here we are not able to reach the data from memory if the bucket is already spilled
-                if (this.tpComparator.compare(memoryAccessor, accessorIndex, accessorProbe, i) < 1) {
-
-                    // if the bucket is in memory join the records
-                    int tupleCounter = bucketInfo[2];
-                    int frameCounter = bucketInfo[1];
-                    boolean finished = false;
-                    boolean first = true;
-                    while (frameCounter < bufferManager.getNumberOfFrames()) {
-                        if (!first) {
-                            tupleCounter = 0;
-                        }
-                        while (tupleCounter < memoryAccessor.getTupleCount()) {
-                            first = false;
-                            memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                            int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, 1);
-
-                            if (bucketReadFromMem != bucketInfo[0]) {
-                                finished = true;
-                                break;
-                            }
-                            addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
-                            //if(bCounter.containsKey(bucketReadFromMem)) bCounter.put(bucketReadFromMem, bCounter.get(bucketReadFromMem) + 1);
-                            //else bCounter.put(bucketReadFromMem, 1);
-                            tupleCounter++;
-
-                        }
-                        if (finished) break;
-                        frameCounter++;
-                    }
-                    //System.out.println("bCounter\n");
-                    //bCounter.forEach((key, value) -> System.out.println(key + " " + value));
-
-
-                }
-            }
+            int newBucketId = FlexibleJoinsUtil.getBucketId(accessorProbe, i, 1);
+            System.out.println(newBucketId);
+//            if(newBucketId != bucketId) break;
+//            int numberOfBuckets = table.getNumEntries();
+//            // Iterate over the buckets from bucket table
+//            for (int bucketIndex = 0; bucketIndex < numberOfBuckets; bucketIndex++) {
+//                int[] bucketInfo = table.getEntry(bucketIndex);
+//                memoryAccessor.reset(new TuplePointer(bucketInfo[1], bucketInfo[2]));
+//                accessorIndex = bucketInfo[2];
+//
+//                // if buckets are matching
+//                //TODO Here we are not able to reach the data from memory if the bucket is already spilled
+//                if (this.tpComparator.compare(memoryAccessor, accessorIndex, accessorProbe, i) < 1) {
+//
+//                    // if the bucket is in memory join the records
+//                    int tupleCounter = bucketInfo[2];
+//                    int frameCounter = bucketInfo[1];
+//                    boolean finished = false;
+//                    boolean first = true;
+//
+//                    while (frameCounter < bufferManager.getNumberOfFrames()) {
+//                        if (!first) {
+//                            tupleCounter = 0;
+//                        }
+//                        while (tupleCounter < memoryAccessor.getTupleCount()) {
+//                            first = false;
+//                            memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
+//                            int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, 1);
+//                            if (bucketReadFromMem != bucketInfo[0]) {
+//                                finished = true;
+//                                break;
+//                            }
+//                            addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
+//                            tupleCounter++;
+//
+//                        }
+//                        if (finished) break;
+//                        frameCounter++;
+//                    }
+//                }
+//            }
 
         }
 

@@ -472,6 +472,7 @@ public class ThetaFlexibleJoiner {
         if (spilled) {
             table.printInfo();
             runFileStreamForProbe.flushRunFile();
+            runFileStreamForBuild.flushRunFile();
             //runFileStreamForProbe.startReadingRunFile(inputCursor[BUILD_PARTITION]);
         }
         table.printInfo();

@@ -21,6 +21,7 @@ package org.apache.asterix.runtime.operators.joins.flexible;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IBucket;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IHeuristicForThetaJoin;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.FirstFit;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
 import org.apache.hyracks.api.comm.IFrame;
@@ -292,8 +293,56 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                         RunFileStream buildRFStream = state.joiner.getRunFileStreamForBuild();
                         RunFileStream probeRFStream = state.joiner.getRunFileStreamForProbe();
+//                        buildRFStream.startReadingRunFile();
+//                        int nBuckets = state.joiner.getBucketTable().getNumEntries();
+//                        for(int i = 0; i < nBuckets; i++) {
+//                            int[] bucket = state.joiner.getBucketTable().getEntry(i);
+//                            if(bucket[1] >= 0) continue;
+//
+//                            long startOffset = -((long) (bucket[1] + 1) * ctx.getInitialFrameSize()) + bucket[2];
+//                            buildRFStream.seekToAPosition(startOffset-5);
+//                            //buildRFStream.startReadingRunFile(frameTupleCursor, startOffset-5);
+//                            //FrameTupleCursor frameTupleCursor = new FrameTupleCursor(buildRd);
+//                            StringBuilder sb = new StringBuilder();
+//                            IFrame frame = new VSizeFrame(ctx, ctx.getInitialFrameSize());
+//                            FrameTupleAccessor frameTupleAccessor = new FrameTupleAccessor(buildRd);
+//                            buildRFStream.loadNextBuffer(frame);
+//                            frameTupleAccessor.reset(frame.getBuffer());
+//                            for(int j = 0; j < frameTupleAccessor.getTupleCount() && j < 1; j++) {
+//                                sb.append(FlexibleJoinsUtil.getBucketId(frameTupleAccessor, j, 1)).append("\n");
+//                            }
+//                            //for(int j = 0; j < frameTupleCursor.getAccessor().getTupleCount() && j < 1; j++) {
+//                            //    sb.append(FlexibleJoinsUtil.getBucketId(frameTupleCursor.getAccessor(), j, 1)).append("\n");
+//                            //}
+//                            System.out.println("Bucket Id:"+bucket[0]+"\n"+sb);
+//                            System.out.println("-----------------------------------------");
+//                        }
+//                        probeRFStream.startReadingRunFile();
+//                        int nBuckets = state.joiner.getBucketTable().getNumEntries();
+//                        for(int i = 0; i < nBuckets; i++) {
+//                            int[] bucket = state.joiner.getBucketTable().getEntry(i);
+//                            if(bucket[1] >= 0) continue;
+//
+//                            long startOffset = -((long) (bucket[3] + 1) * ctx.getInitialFrameSize()) + bucket[4];
+//                            probeRFStream.seekToAPosition(startOffset-5);
+//                            //buildRFStream.startReadingRunFile(frameTupleCursor, startOffset-5);
+//                            //FrameTupleCursor frameTupleCursor = new FrameTupleCursor(buildRd);
+//                            StringBuilder sb = new StringBuilder();
+//                            IFrame frame = new VSizeFrame(ctx, ctx.getInitialFrameSize());
+//                            FrameTupleAccessor frameTupleAccessor = new FrameTupleAccessor(buildRd);
+//                            probeRFStream.loadNextBuffer(frame);
+//                            frameTupleAccessor.reset(frame.getBuffer());
+//                            for(int j = 0; j < frameTupleAccessor.getTupleCount() && j < 1; j++) {
+//                                sb.append(FlexibleJoinsUtil.getBucketId(frameTupleAccessor, j, 1)).append("\n");
+//                            }
+//                            //for(int j = 0; j < frameTupleCursor.getAccessor().getTupleCount() && j < 1; j++) {
+//                            //    sb.append(FlexibleJoinsUtil.getBucketId(frameTupleCursor.getAccessor(), j, 1)).append("\n");
+//                            //}
+//                            System.out.println("Bucket Id:"+bucket[0]+"\n"+sb);
+//                            System.out.println("-----------------------------------------");
+//                        }
 
-                        //buildRFStream.startReadingRunFile();
+                        buildRFStream.startReadingRunFile();
                         probeRFStream.startReadingRunFile();
 
                         //Create an instance of a heuristic with table and two file streams
@@ -308,6 +357,9 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         //While heuristic still provides a building set from building sequence
                         String a = "";
                         int nsb = 0;
+
+
+
                         while(heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
                             //get the building sequence buildSeq
                             ArrayList<IBucket> buildingBuckets = heuristicForThetaJoin.nextBuildingBucketSequence();
@@ -321,12 +373,12 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                 //int frameSize = remainingData > ctx.getInitialFrameSize()?ctx.getInitialFrameSize(): (int) remainingData;
                                 int frameSize = ctx.getInitialFrameSize();
                                 IFrame frame = new VSizeFrame(ctx, frameSize);
-                                if(remainingData < ctx.getInitialFrameSize()) frame.resize((int) remainingData);
-                                /*if(buildingBucket.getSide() == 0) {
-                                    buildRFStream.seekToAPosition(buildingBucket.getStartOffset());
+                                //if(remainingData < ctx.getInitialFrameSize()) frame.resize((int) remainingData);
+                                if(buildingBucket.getSide() == 0) {
+                                    buildRFStream.seekToAPosition(buildingBucket.getStartOffset()-5);
                                 } else {
-                                    probeRFStream.seekToAPosition(buildingBucket.getStartOffset());
-                                }*/
+                                    probeRFStream.seekToAPosition(buildingBucket.getStartOffset()-5);
+                                }
                                 while(remainingData > 0) {
                                     if(buildingBucket.getSide() == 0) {
                                         //add records from this bucket to memory
@@ -342,6 +394,8 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                             }
 
+                            thetaFlexibleJoiner.getBucketTable().printInfo();
+
                             a += "(";
                             //get the probing sequence
                             ArrayList<IBucket> probingBuckets = heuristicForThetaJoin.nextProbingBucketSequence();
@@ -351,20 +405,19 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                                 long remainingData = probingBucket.getSize();
                                 //int frameSize = remainingData > ctx.getInitialFrameSize()?ctx.getInitialFrameSize(): (int) remainingData;
-                                IFrame frame = new VSizeFrame(ctx, ctx.getInitialFrameSize());
-                                int frameSize = remainingData > ctx.getInitialFrameSize()?ctx.getInitialFrameSize(): (int) remainingData;
-
+                                //int frameSize = remainingData > ctx.getInitialFrameSize()?ctx.getInitialFrameSize(): (int) remainingData;
+                                int frameSize = ctx.getInitialFrameSize();
+                                IFrame frame = new VSizeFrame(ctx, frameSize);
                                 //if(remainingData < ctx.getInitialFrameSize()) frame.resize((int) remainingData);
-                                /*if(probingBucket.getSide() == 0) {
-                                    buildRFStream.seekToAPosition(probingBucket.getStartOffset());
+                                if(probingBucket.getSide() == 0) {
+                                    buildRFStream.seekToAPosition(probingBucket.getStartOffset()-5);
                                 } else {
-                                    probeRFStream.seekToAPosition(probingBucket.getStartOffset());
-                                }*/
+                                    probeRFStream.seekToAPosition(probingBucket.getStartOffset()-5);
+                                }
                                 nsb++;
                                 a+= ":"+probingBucket.getBucketId();
                                 while(remainingData > 0) {
                                     if(probingBucket.getSide() == 0) {
-                                        //add records from this bucket to memory
                                         buildRFStream.loadNextBuffer(frame);
                                     }
                                     else {
