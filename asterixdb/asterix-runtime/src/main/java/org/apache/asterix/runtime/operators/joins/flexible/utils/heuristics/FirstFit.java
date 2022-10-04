@@ -20,11 +20,14 @@ public class FirstFit implements IHeuristicForThetaJoin {
     FrameTupleCursor frameTupleCursorForBuild;
     FrameTupleCursor frameTupleCursorForProbe;
     int memoryForJoinInBytes;
+    int frameSize;
     boolean hasNextBuildingBucketSequence;
     int numberOfBuckets;
-    public FirstFit(SerializableBucketIdList bucketTable, int memoryForJoinInBytes, RunFileStream buildRunFileStream, RunFileStream probeRunFileStream, RecordDescriptor buildRecordDescriptor, RecordDescriptor probeRecordDescriptor) throws HyracksDataException {
+    int buildingBucketPosition = 0;
+    public FirstFit(SerializableBucketIdList bucketTable, int memoryForJoin, int frameSize, RunFileStream buildRunFileStream, RunFileStream probeRunFileStream, RecordDescriptor buildRecordDescriptor, RecordDescriptor probeRecordDescriptor) throws HyracksDataException {
         this.bucketTable = bucketTable;
-        this.memoryForJoinInBytes = memoryForJoinInBytes;
+        this.memoryForJoinInBytes = memoryForJoin * frameSize;
+        this.frameSize = frameSize;
         this.buildRunFileStream = buildRunFileStream;
         this.probeRunFileStream = probeRunFileStream;
         this.buildRecordDescriptor = buildRecordDescriptor;
@@ -46,23 +49,33 @@ public class FirstFit implements IHeuristicForThetaJoin {
     }
 
     @Override
-    public ArrayList<IBucket> nextBuildingBucketSequence() {
+    public ArrayList<IBucket> nextBuildingBucketSequence() throws HyracksDataException {
         ArrayList<IBucket> returnBuckets = new ArrayList<>();
         int totalSizeOfBuckets = 0;
-        int previousOffset = 0;
-        boolean first = true;
-
-        for(int i = 0; i < this.numberOfBuckets; i++) {
+        int i;
+        for(i = this.buildingBucketPosition; i < this.numberOfBuckets; i++) {
             int[] bucket = bucketTable.getEntry(i);
-            if(bucket[1] > 0) continue;
-            totalSizeOfBuckets += (first)?0:(-bucket[2] * bucket[3] - previousOffset);
-            if(totalSizeOfBuckets > memoryForJoinInBytes) break;
-            returnBuckets.add(new Bucket(bucket[0]));
 
-            if(!first) previousOffset = -bucket[2] * bucket[3];
-            first = false;
+            if(bucket[0] == -1) {
+                this.hasNextBuildingBucketSequence = false;
+                return returnBuckets;
+            }
+            long bucketSize;
+            long startOffset = -((long) (bucket[1] - 1) * this.frameSize) + bucket[2];
+            if(i+1 < this.numberOfBuckets) {
+                bucketSize = -((long) (bucketTable.getEntry(i + 1)[1] - 1) * this.frameSize) + bucketTable.getEntry(i+1)[2] - startOffset;
+            } else {
+                bucketSize = buildRunFileStream.getRunFileReaderSize() - startOffset;
+            }
+            if(bucket[1] >= 0) continue;
+            totalSizeOfBuckets += bucketSize;
+            if(totalSizeOfBuckets > memoryForJoinInBytes) break;
+            Bucket returnBucket = new Bucket(bucket[0], startOffset, bucketSize, 0);
+            returnBuckets.add(returnBucket);
         }
-        hasNextBuildingBucketSequence = false;
+        this.buildingBucketPosition += i;
+        if(this.buildingBucketPosition < this.numberOfBuckets) this.hasNextBuildingBucketSequence = true;
+        else this.hasNextBuildingBucketSequence = false;
         return returnBuckets;
     }
 

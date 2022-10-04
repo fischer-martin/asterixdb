@@ -140,6 +140,22 @@ public class RunFileStream {
 
     }
 
+    public void startReadingRunFile() throws HyracksDataException {
+        if (runFileReader != null) {
+            runFileReader.close();
+        }
+        reading = true;
+        // Create reader
+        runFileReader = runFileWriter.createReader();
+        runFileReader.open();
+        previousReadPointer = 0;
+    }
+
+    public long getRunFileReaderSize() {
+        if(runFileReader == null) return - 1;
+        return runFileReader.getFileSize();
+    }
+
     public void startReadingRunFile(FrameTupleCursor cursor) throws HyracksDataException {
         startReadingRunFile(cursor, 0);
     }
@@ -156,6 +172,24 @@ public class RunFileStream {
         previousReadPointer = 0;
         // Load first frame
         loadNextBuffer(cursor);
+    }
+
+    public void seekToAPosition(long position) throws HyracksDataException {
+        if (runFileReader == null) return;
+
+        runFileReader.open();
+        runFileReader.seek(position);
+        previousReadPointer = runFileReader.position();
+    }
+
+    public boolean loadNextBuffer(IFrame frame) throws HyracksDataException {
+        final long tempFrame = runFileReader.position();
+        if (runFileReader.nextFrame(frame)) {
+            previousReadPointer = tempFrame;
+            readCount++;
+            return true;
+        }
+        return false;
     }
 
     public boolean loadNextBuffer(FrameTupleCursor cursor) throws HyracksDataException {

@@ -293,11 +293,14 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         RunFileStream buildRFStream = state.joiner.getRunFileStreamForBuild();
                         RunFileStream probeRFStream = state.joiner.getRunFileStreamForProbe();
 
+                        buildRFStream.startReadingRunFile();
+                        probeRFStream.startReadingRunFile();
 
                         //Create an instance of a heuristic with table and two file streams
                         IHeuristicForThetaJoin heuristicForThetaJoin = new FirstFit(
                                 state.joiner.getBucketTable(),
-                                memoryForJoin * ctx.getInitialFrameSize(),
+                                memoryForJoin,
+                                ctx.getInitialFrameSize(),
                                 buildRFStream,
                                 probeRFStream,
                                 buildRd,
@@ -310,17 +313,46 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                             //for each bucket from this sequence
                             for (IBucket buildingBucket:buildingBuckets
                                  ) {
-                                //add records from this bucket to memory
-                                while(buildingBucket.hasNextFrame())
-                                    thetaFlexibleJoiner.build(buildingBucket.nextFrame());
+                                long remainingData = buildingBucket.getSize();
+                                //int frameSize = remainingData > ctx.getInitialFrameSize()?ctx.getInitialFrameSize(): (int) remainingData;
+                                int frameSize = ctx.getInitialFrameSize();
+                                IFrame frame = new VSizeFrame(ctx, frameSize);
+                                while(remainingData > 0) {
+                                    if(buildingBucket.getSide() == 0) {
+                                        //add records from this bucket to memory
+                                        buildRFStream.loadNextBuffer(frame);
+                                    }
+                                    else {
+                                        probeRFStream.loadNextBuffer(frame);
+                                    }
+                                    thetaFlexibleJoiner.buildOneBucket(frame.getBuffer(), buildingBucket.getBucketId());
+                                    remainingData -= frameSize;
+                                }
+
+
                             }
                             //get the probing sequence
                             ArrayList<IBucket> probingBuckets = heuristicForThetaJoin.nextProbingBucketSequence();
                             //for each bucket p in probing sequence
                             for (IBucket probingBucket:probingBuckets) {
-                                //for each bucket b from memory
-                                while(probingBucket.hasNextFrame())
-                                    thetaFlexibleJoiner.probe(probingBucket.nextFrame(), writer);
+
+                                long remainingData = probingBucket.getSize();
+                                //int frameSize = remainingData > ctx.getInitialFrameSize()?ctx.getInitialFrameSize(): (int) remainingData;
+                                IFrame frame = new VSizeFrame(ctx, ctx.getInitialFrameSize());
+                                int frameSize = remainingData > ctx.getInitialFrameSize()?ctx.getInitialFrameSize(): (int) remainingData;
+
+                                frame.resize(frameSize);
+                                while(remainingData > 0) {
+                                    if(probingBucket.getSide() == 0) {
+                                        //add records from this bucket to memory
+                                        buildRFStream.loadNextBuffer(frame);
+                                    }
+                                    else {
+                                        probeRFStream.loadNextBuffer(frame);
+                                    }
+                                    thetaFlexibleJoiner.probe(frame.getBuffer(), writer);
+                                    remainingData -= frameSize;
+                                }
                             }
                         }
 
