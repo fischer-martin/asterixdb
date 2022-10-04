@@ -56,10 +56,7 @@ import org.apache.logging.log4j.Logger;
 
 public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
 
-    /**
-     * Use a random seed to avoid hash collision with the hash exchange operator.
-     * See https://issues.apache.org/jira/browse/ASTERIXDB-2783 for more details.
-     */
+
     private static final int INIT_SEED = 982028031;
 
     private static final double NLJ_SWITCH_THRESHOLD = 0.8;

@@ -31,4 +31,8 @@ public class Bucket implements IBucket {
     public long getSize() {
         return size;
     }
+
+    public long getStartOffset() {
+        return startOffset;
+    }
 }

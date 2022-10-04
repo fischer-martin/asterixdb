@@ -1,0 +1,261 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.asterix.runtime.operators.joins.flexible;
+
+import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsSideTuple;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
+import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
+import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFilePointer;
+import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
+import org.apache.hyracks.api.comm.IFrameTupleAccessor;
+import org.apache.hyracks.api.comm.IFrameWriter;
+import org.apache.hyracks.api.comm.VSizeFrame;
+import org.apache.hyracks.api.context.IHyracksTaskContext;
+import org.apache.hyracks.api.dataflow.value.IPredicateEvaluator;
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
+import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
+import org.apache.hyracks.api.exceptions.ErrorCode;
+import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
+import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
+import org.apache.hyracks.dataflow.common.comm.util.FrameUtils;
+import org.apache.hyracks.dataflow.std.buffermanager.BucketBufferManager;
+import org.apache.hyracks.dataflow.std.buffermanager.BufferInfo;
+import org.apache.hyracks.dataflow.std.buffermanager.DeallocatableFramePool;
+import org.apache.hyracks.dataflow.std.buffermanager.FramePoolBackedFrameBufferManager;
+import org.apache.hyracks.dataflow.std.buffermanager.IDeallocatableFramePool;
+import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
+import org.apache.hyracks.dataflow.std.buffermanager.ITuplePointerAccessor;
+import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
+import org.apache.hyracks.dataflow.std.structures.TuplePointer;
+
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.HashMap;
+
+public class InMemoryThetaFlexibleJoiner {
+
+    protected static final int JOIN_PARTITIONS = 2;
+    protected static final int BUILD_PARTITION = 0;
+    protected static final int PROBE_PARTITION = 1;
+
+    protected final FrameTupleAppender resultAppender;
+    protected final FrameTupleCursor[] inputCursor;
+
+    private final IHyracksTaskContext ctx;
+
+
+    private int memSizeInFrames;
+
+    private ISimpleFrameBufferManager bufferManagerForHashTable;
+    private BucketBufferManager bufferManager;
+    private ITuplePointerAccessor memoryAccessor;
+
+
+    private final FrameTupleAccessor accessorBuild;
+    private final FrameTupleAccessor accessorProbe;
+    private final TuplePointer tempPtr = new TuplePointer();
+
+    private ITuplePairComparator tpComparator;
+
+    private final int nBuckets;
+
+    private SerializableBucketIdList table;
+
+    protected int numberOfBuckets = 0;
+
+    protected boolean spilled;
+
+    protected long numRecordsFromBuild;
+
+
+    public InMemoryThetaFlexibleJoiner(IHyracksTaskContext ctx,
+                                       int memorySize,
+                                       RecordDescriptor buildRd,
+                                       RecordDescriptor probeRd,
+                                       int nBuckets) throws HyracksDataException {
+
+        // Memory (probe buffer)
+        if (memorySize < 5) {
+            throw new RuntimeException(
+                    "FlexibleJoiner does not have enough memory (needs > 4, got " + memorySize + ").");
+        }
+        this.ctx = ctx;
+        this.nBuckets = nBuckets;
+
+
+        inputCursor = new FrameTupleCursor[JOIN_PARTITIONS];
+        inputCursor[BUILD_PARTITION] = new FrameTupleCursor(buildRd);
+        // Result
+        this.resultAppender = new FrameTupleAppender(new VSizeFrame(ctx));
+
+        this.memSizeInFrames = memorySize;
+        this.accessorBuild = new FrameTupleAccessor(buildRd);
+        this.accessorProbe = new FrameTupleAccessor(probeRd);
+
+
+        IDeallocatableFramePool framePool =
+                new DeallocatableFramePool(ctx, memSizeInFrames * ctx.getInitialFrameSize());
+        bufferManagerForHashTable = new FramePoolBackedFrameBufferManager(framePool);
+
+        table = new SerializableBucketIdList(nBuckets, ctx, bufferManagerForHashTable);
+
+        this.bufferManager = new BucketBufferManager(framePool, buildRd);
+        this.memoryAccessor = bufferManager.createTuplePointerAccessor();
+
+        this.spilled = false;
+        this.numRecordsFromBuild = 0;
+
+
+    }
+
+    public void buildOneBucket(ByteBuffer buffer, int bucketId) throws HyracksDataException {
+        accessorBuild.reset(buffer);
+        int tupleCount = accessorBuild.getTupleCount();
+        tempPtr.reset(-1, -1);
+        for (int i = 0; i < tupleCount; ++i) {
+            int newBucketId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
+            //If we have a different bucket id then the bucketID we should stop
+            if (newBucketId != bucketId) {
+                continue;
+            }
+
+            // If the memory does not accept the new record join should fail since buildOneBucket shall only be called for the buckets fit into memory
+            if (!bufferManager.insertTuple(accessorBuild, i, tempPtr)) {
+                throw HyracksDataException.create(ErrorCode.INSUFFICIENT_MEMORY, "");
+            }
+            if (table.getBuildTuplePointer(bucketId) == null) {
+                numberOfBuckets++;
+                // If the table does not accept the new bucket id join should fail since buildOneBucket shall only be called for the buckets fit into memory
+                if (!table.insert(bucketId, tempPtr, new TuplePointer())) {
+                    throw HyracksDataException.create(ErrorCode.INSUFFICIENT_MEMORY, "");
+                }
+            }
+            numRecordsFromBuild++;
+        }
+
+    }
+
+    public void closeBuild() throws HyracksDataException {
+        //System.out.println("Number of records from build side: " + numRecordsFromBuild);
+        //table.printInfo();
+    }
+
+    public void initProbe(ITuplePairComparator comparator) {
+        this.tpComparator = comparator;
+    }
+
+    private byte[] intToByteArray(int value) {
+        return new byte[]{
+                (byte) (value >>> 24),
+                (byte) (value >>> 16),
+                (byte) (value >>> 8),
+                (byte) value};
+    }
+
+    public void probeOneBucket(ByteBuffer buffer, IFrameWriter writer, int bucketId) throws HyracksDataException {
+        accessorProbe.reset(buffer);
+        int tupleCount = accessorProbe.getTupleCount();
+        int accessorIndex = 0;
+        // for each record from S
+        for (int i = 0; i < tupleCount; ++i) {
+            int numberOfBuckets = table.getNumEntries();
+            // Iterate over the buckets from bucket table
+            for (int bucketIndex = 0; bucketIndex < numberOfBuckets; bucketIndex++) {
+                int[] bucketInfo = table.getEntry(bucketIndex);
+                memoryAccessor.reset(new TuplePointer(bucketInfo[1], bucketInfo[2]));
+                accessorIndex = bucketInfo[2];
+
+                // if buckets are matching
+                //TODO Here we are not able to reach the data from memory if the bucket is already spilled
+                if (this.tpComparator.compare(memoryAccessor, accessorIndex, accessorProbe, i) < 1) {
+
+                    // if the bucket is in memory join the records
+                    int tupleCounter = bucketInfo[2];
+                    int frameCounter = bucketInfo[1];
+                    boolean finished = false;
+                    boolean first = true;
+                    while (frameCounter < bufferManager.getNumberOfFrames()) {
+                        if (!first) {
+                            tupleCounter = 0;
+                        }
+                        while (tupleCounter < memoryAccessor.getTupleCount()) {
+                            first = false;
+                            memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
+                            int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, 1);
+
+                            if (bucketReadFromMem != bucketInfo[0]) {
+                                finished = true;
+                                break;
+                            }
+                            addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
+                            //if(bCounter.containsKey(bucketReadFromMem)) bCounter.put(bucketReadFromMem, bCounter.get(bucketReadFromMem) + 1);
+                            //else bCounter.put(bucketReadFromMem, 1);
+                            tupleCounter++;
+
+                        }
+                        if (finished) break;
+                        frameCounter++;
+                    }
+                    //System.out.println("bCounter\n");
+                    //bCounter.forEach((key, value) -> System.out.println(key + " " + value));
+
+
+                }
+            }
+
+        }
+
+    }
+
+    public void completeProbe(IFrameWriter writer) throws HyracksDataException {
+        //We do NOT join the spilled partitions here, that decision is made at the descriptor level
+        //(which join technique to use)
+
+        table.printInfo();
+        resultAppender.write(writer, true);
+    }
+
+    public void releaseResource() throws HyracksDataException {
+        bufferManager.close();
+        bufferManager = null;
+//        bufferManagerForHashTable = null;
+//        table.reset();
+    }
+
+    private void addToResult(IFrameTupleAccessor buildAccessor, int buildTupleId, IFrameTupleAccessor probeAccessor,
+                             int probeTupleId, IFrameWriter writer) throws HyracksDataException {
+
+        FrameUtils.appendConcatToWriter(writer, resultAppender, buildAccessor, buildTupleId, probeAccessor,
+                probeTupleId);
+
+    }
+
+
+    public void printTableInfo() {
+        table.printInfo();
+    }
+
+    public SerializableBucketIdList getBucketTable() {
+        return table;
+    }
+
+
+}

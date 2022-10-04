@@ -14,6 +14,6 @@ public interface IHeuristicForThetaJoin {
     boolean hasNextBuildingBucketSequence();
     ArrayList<IBucket> nextBuildingBucketSequence() throws HyracksDataException;
     ArrayList<IBucket> nextProbingBucketSequence();
-
+    void setBucketTable(SerializableBucketIdList bucketTable);
 
 }

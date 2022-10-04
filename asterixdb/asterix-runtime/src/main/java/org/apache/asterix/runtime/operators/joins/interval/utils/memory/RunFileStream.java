@@ -177,7 +177,7 @@ public class RunFileStream {
     public void seekToAPosition(long position) throws HyracksDataException {
         if (runFileReader == null) return;
 
-        runFileReader.open();
+        //runFileReader.open();
         runFileReader.seek(position);
         previousReadPointer = runFileReader.position();
     }

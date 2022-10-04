@@ -6,4 +6,5 @@ public interface IBucket {
     int getBucketId();
     int getSide();
     long getSize();
+    long getStartOffset();
 }

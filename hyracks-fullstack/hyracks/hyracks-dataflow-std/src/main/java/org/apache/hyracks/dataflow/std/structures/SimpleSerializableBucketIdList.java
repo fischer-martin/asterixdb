@@ -247,18 +247,22 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
         int printedCounter = 0;
         StringBuilder dS = new StringBuilder(this.toString());
         dS.append("\nBucket Id\tBuild F\tBuild T\tProbe F\tProbe T\n");
+        int numberOfSpilled = 0;
         while(contentFrameIndex <= currentLargestFrameNumber) {
             int offsetInContentFrame = 0;
             IntSerDeBuffer frame = contents.get(contentFrameIndex);
 
             while(offsetInContentFrame < this.frameCapacity)  {
+                int bucketFrame = frame.getInt(offsetInContentFrame+1);
+                if(bucketFrame < 0) numberOfSpilled++;
                 dS.append(frame.getInt(offsetInContentFrame)).append("\t").append(frame.getInt(offsetInContentFrame + 1)).append("\t").append(frame.getInt(offsetInContentFrame + 2)).append("\t").append(frame.getInt(offsetInContentFrame + 3)).append("\t").append(frame.getInt(offsetInContentFrame + 4)).append("\n");
                 offsetInContentFrame += 5;
                 printedCounter++;
-                if(printedCounter == bucketCount) break;
+                if(printedCounter >= bucketCount) break;
             }
             contentFrameIndex++;
         }
+        dS.append("\nNumber of Spilled Buckets + ").append(numberOfSpilled);
         System.out.println(dS);
     }
 
