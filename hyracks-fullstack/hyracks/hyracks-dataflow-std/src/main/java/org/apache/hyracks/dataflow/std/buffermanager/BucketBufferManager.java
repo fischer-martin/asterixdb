@@ -44,7 +44,7 @@ public class BucketBufferManager implements IBucketBufferManager {
     };
 
     private IDeallocatableFramePool framePool;
-    private IFrameBufferManager bufferManager;
+    private FrameBufferManagerForBuckets bufferManager;
     private int numTuples;
     private final FixedSizeFrame appendFrame;
     private final FixedSizeFrameTupleAppender appender;
@@ -56,7 +56,7 @@ public class BucketBufferManager implements IBucketBufferManager {
     // In case where a frame pool is shared by one or more buffer manager(s), it can be provided from the caller.
     public BucketBufferManager(IDeallocatableFramePool framePool, RecordDescriptor recordDescriptor) throws HyracksDataException {
         this.framePool = framePool;
-        this.bufferManager = new FrameBufferManager();
+        this.bufferManager = new FrameBufferManagerForBuckets();
         this.appendFrame = new FixedSizeFrame();
         this.appender = new FixedSizeFrameTupleAppender();
         this.tempInfo = new BufferInfo(null, -1, -1);
@@ -184,7 +184,7 @@ public class BucketBufferManager implements IBucketBufferManager {
 
     private int getLastBufferOrCreateNewIfNotExist(int actualSize) throws HyracksDataException {
         if (bufferManager == null || bufferManager.getNumFrames() == 0) {
-            bufferManager = new FrameBufferManager();
+            bufferManager = new FrameBufferManagerForBuckets();
             return createNewBuffer(actualSize);
         }
         return getLastBuffer();
@@ -207,7 +207,8 @@ public class BucketBufferManager implements IBucketBufferManager {
                 }
             }
             else {
-                framePool.deAllocateBuffer(appendFrame.getBuffer());
+                framePool.deAllocateBuffer(bufferManager.getFrame(fIdx, tempInfo).getBuffer());
+                bufferManager.removeFrame(fIdx);
             }
             fIdx++;
         }

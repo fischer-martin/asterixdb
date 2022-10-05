@@ -221,6 +221,7 @@ public class ThetaFlexibleJoiner {
                         // System.out.println("Bucket "+ bucketId+" is spilled!");
                         TuplePointer tuplePointerForspilledBucket = table.getBuildTuplePointer(bucketId);
                         //spill current bucket to disk
+                        table.printInfo();
                         tempPtr.reset(spillStartingFrom(tuplePointerForspilledBucket));
                         //spill the rest of the records for this bucket
                         isCurrentBucketSpilled = true;
@@ -423,7 +424,13 @@ public class ThetaFlexibleJoiner {
                             while (tupleCounter < memoryAccessor.getTupleCount()) {
                                 first = false;
                                 memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                                int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, 1);
+                                int bucketReadFromMem = 0;
+                                try {
+                                    bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, 1);
+                                } catch (Exception e) {
+                                    System.out.println(e.getMessage());
+                                }
+
 
                                 if (bucketReadFromMem != bucketInfo[0]) {
                                     finished = true;
@@ -470,16 +477,17 @@ public class ThetaFlexibleJoiner {
         //(which join technique to use)
 
         if (spilled) {
-            table.printInfo();
+            //table.printInfo();
             runFileStreamForProbe.flushRunFile();
             runFileStreamForBuild.flushRunFile();
             //runFileStreamForProbe.startReadingRunFile(inputCursor[BUILD_PARTITION]);
         }
-        table.printInfo();
+        //table.printInfo();
         resultAppender.write(writer, true);
     }
 
     public void releaseResource() throws HyracksDataException {
+
         bufferManager.close();
         bufferManager = null;
 //        bufferManagerForHashTable = null;

@@ -248,7 +248,7 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
         StringBuilder dS = new StringBuilder(this.toString());
         dS.append("\nBucket Id\tBuild F\tBuild T\tProbe F\tProbe T\n");
         int numberOfSpilled = 0;
-        while(contentFrameIndex <= currentLargestFrameNumber) {
+        while(contentFrameIndex <= currentLargestFrameNumber && bucketCount > 0) {
             int offsetInContentFrame = 0;
             IntSerDeBuffer frame = contents.get(contentFrameIndex);
 

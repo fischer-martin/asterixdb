@@ -289,7 +289,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                         //Create an instance of a heuristic with table and two file streams
                         IHeuristicForThetaJoin heuristicForThetaJoin = new FirstFit(
-                                memoryForJoin-1,
+                                memoryForJoin-2,
                                 ctx.getInitialFrameSize(),
                                 runFileStreams[0].getRunFileReaderSize(),
                                 runFileStreams[1].getRunFileReaderSize());
@@ -323,7 +323,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                     currentFrame++;
                                 }
                             }
-                            thetaFlexibleJoiner.getBucketTable().printInfo();
+                            //thetaFlexibleJoiner.getBucketTable().printInfo();
 
                             //get the probing sequence
                             ArrayList<IBucket> probingBuckets = heuristicForThetaJoin.nextProbingBucketSequence();
@@ -348,7 +348,6 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                     thetaFlexibleJoiner.probeOneBucket(frame.getBuffer(), writer, probingBucket.getBucketId(), startOffset, endOffset);
                                     currentFrame++;
                                 }
-
 
                             }
 
