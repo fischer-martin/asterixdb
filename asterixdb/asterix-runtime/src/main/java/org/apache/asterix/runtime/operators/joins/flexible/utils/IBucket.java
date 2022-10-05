@@ -5,6 +5,8 @@ import java.nio.ByteBuffer;
 public interface IBucket {
     int getBucketId();
     int getSide();
-    long getSize();
-    long getStartOffset();
+    int getStartOffset();
+    int getStartFrame();
+    int getEndFrame();
+    int getEndOffset();
 }

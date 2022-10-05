@@ -126,17 +126,12 @@ public class InMemoryThetaFlexibleJoiner {
 
     }
 
-    public void buildOneBucket(ByteBuffer buffer, int bucketId) throws HyracksDataException {
+    public void buildOneBucket(ByteBuffer buffer, int bucketId, int startOffset, int endOffset) throws HyracksDataException {
         accessorBuild.reset(buffer);
         int tupleCount = accessorBuild.getTupleCount();
-        tempPtr.reset(-1, -1);
-        for (int i = 0; i < tupleCount; ++i) {
-            int newBucketId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
-            //If we have a different bucket id then the bucketID we should stop
-            if (newBucketId != bucketId) {
-                break;
-            }
-
+        for (int i = 0; i < tupleCount; i++) {
+            if(accessorBuild.getTupleStartOffset(i) < startOffset-5) continue;
+            if(accessorBuild.getTupleStartOffset(i) > endOffset-5) break;
             // If the memory does not accept the new record join should fail since buildOneBucket shall only be called for the buckets fit into memory
             if (!bufferManager.insertTuple(accessorBuild, i, tempPtr)) {
                 throw HyracksDataException.create(ErrorCode.INSUFFICIENT_MEMORY, "");
@@ -150,12 +145,10 @@ public class InMemoryThetaFlexibleJoiner {
             }
             numRecordsFromBuild++;
         }
-
     }
 
     public void closeBuild() throws HyracksDataException {
-        //System.out.println("Number of records from build side: " + numRecordsFromBuild);
-        //table.printInfo();
+
     }
 
     public void initProbe(ITuplePairComparator comparator) {
@@ -170,71 +163,63 @@ public class InMemoryThetaFlexibleJoiner {
                 (byte) value};
     }
 
-    public void probeOneBucket(ByteBuffer buffer, IFrameWriter writer, int bucketId) throws HyracksDataException {
+    public void probeOneBucket(ByteBuffer buffer, IFrameWriter writer, int bucketId, int startOffset, int endOffset) throws HyracksDataException {
         accessorProbe.reset(buffer);
         int tupleCount = accessorProbe.getTupleCount();
         int accessorIndex = 0;
         // for each record from S
         for (int i = 0; i < tupleCount; ++i) {
-            int newBucketId = FlexibleJoinsUtil.getBucketId(accessorProbe, i, 1);
-            System.out.println(newBucketId);
-//            if(newBucketId != bucketId) break;
-//            int numberOfBuckets = table.getNumEntries();
-//            // Iterate over the buckets from bucket table
-//            for (int bucketIndex = 0; bucketIndex < numberOfBuckets; bucketIndex++) {
-//                int[] bucketInfo = table.getEntry(bucketIndex);
-//                memoryAccessor.reset(new TuplePointer(bucketInfo[1], bucketInfo[2]));
-//                accessorIndex = bucketInfo[2];
-//
-//                // if buckets are matching
-//                //TODO Here we are not able to reach the data from memory if the bucket is already spilled
-//                if (this.tpComparator.compare(memoryAccessor, accessorIndex, accessorProbe, i) < 1) {
-//
-//                    // if the bucket is in memory join the records
-//                    int tupleCounter = bucketInfo[2];
-//                    int frameCounter = bucketInfo[1];
-//                    boolean finished = false;
-//                    boolean first = true;
-//
-//                    while (frameCounter < bufferManager.getNumberOfFrames()) {
-//                        if (!first) {
-//                            tupleCounter = 0;
-//                        }
-//                        while (tupleCounter < memoryAccessor.getTupleCount()) {
-//                            first = false;
-//                            memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-//                            int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, 1);
-//                            if (bucketReadFromMem != bucketInfo[0]) {
-//                                finished = true;
-//                                break;
-//                            }
-//                            addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
-//                            tupleCounter++;
-//
-//                        }
-//                        if (finished) break;
-//                        frameCounter++;
-//                    }
-//                }
-//            }
+            if(accessorProbe.getTupleStartOffset(i) < startOffset-5) continue;
+            if(accessorProbe.getTupleStartOffset(i) > endOffset-5) break;
+            int numberOfBuckets = table.getNumEntries();
+            // Iterate over the buckets from bucket table
+            for (int bucketIndex = 0; bucketIndex < numberOfBuckets; bucketIndex++) {
+                int[] bucketInfo = table.getEntry(bucketIndex);
+                memoryAccessor.reset(new TuplePointer(bucketInfo[1], bucketInfo[2]));
+                accessorIndex = bucketInfo[2];
+                // if buckets are matching
+                //TODO Here we are not able to reach the data from memory if the bucket is already spilled
+                if (this.tpComparator.compare(memoryAccessor, accessorIndex, accessorProbe, i) < 1) {
 
+                    // if the bucket is in memory join the records
+                    int tupleCounter = bucketInfo[2];
+                    int frameCounter = bucketInfo[1];
+                    boolean finished = false;
+                    boolean first = true;
+
+                    while (frameCounter < bufferManager.getNumberOfFrames()) {
+                        if (!first) {
+                            tupleCounter = 0;
+                        }
+                        while (tupleCounter < memoryAccessor.getTupleCount()) {
+                            first = false;
+                            memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
+                            int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, 1);
+                            if (bucketReadFromMem != bucketInfo[0]) {
+                                finished = true;
+                                break;
+                            }
+                            addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
+                            tupleCounter++;
+
+                        }
+                        if (finished) break;
+                        frameCounter++;
+                    }
+
+                }
+            }
         }
 
     }
 
     public void completeProbe(IFrameWriter writer) throws HyracksDataException {
-        //We do NOT join the spilled partitions here, that decision is made at the descriptor level
-        //(which join technique to use)
-
-        table.printInfo();
         resultAppender.write(writer, true);
     }
 
     public void releaseResource() throws HyracksDataException {
         bufferManager.close();
         bufferManager = null;
-//        bufferManagerForHashTable = null;
-//        table.reset();
     }
 
     private void addToResult(IFrameTupleAccessor buildAccessor, int buildTupleId, IFrameTupleAccessor probeAccessor,
