@@ -382,7 +382,7 @@ public class ApplyFlexibleJoinUtils {
 
 
 
-        if(!eqMatch) setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
+        setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
 
         matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());

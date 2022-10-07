@@ -189,102 +189,43 @@ public class ThetaFlexibleJoiner {
         accessorBuild.reset(buffer);
         int tupleCount = accessorBuild.getTupleCount();
         numRecordsFromBuild += tupleCount;
-        tempPtr.reset(-1, -1);
-        for (int i = 0; i < tupleCount; ++i) {
+
+        newBucket = false;
+        boolean writeToDisk = false;
+        for (int i = 0; i < tupleCount; i++) {
             int bucketId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
-            //Check if we have a new bucket
-            if (currentBucketId == null || !currentBucketId.equals(bucketId)) {
-                if (table.getBuildTuplePointer(bucketId) == null) {
-                    newBucket = true;
-                    currentBucketId = bucketId;
-                    isCurrentBucketSpilled = false;
-                } else {
-                    newBucket = false;
-                }
+            TuplePointer tuplePointer = table.getBuildTuplePointer(bucketId);
+            if (tuplePointer == null) {
+                newBucket = true;
+                tuplePointer = new TuplePointer();
+            } else if(tuplePointer.getFrameIndex() < 0) {
+                newBucket = false;
+                writeToDisk = true;
             } else {
                 newBucket = false;
+                writeToDisk = false;
             }
-            // If the current bucket is spilled or memory is closed
-            if (isCurrentBucketSpilled || !memoryOpen) {
-                // Write the record to disk
-                runFileStreamForBuild.addToRunFile(accessorBuild, i, tempPtr);
+
+            if(writeToDisk || !memoryOpen) {
+                runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer);
             } else {
-                // If the memory does not accept the new record
-                if (!bufferManager.insertTuple(accessorBuild, i, tempPtr)) {
-                    // If this is the first record of the bucket
-                    if (newBucket) {
-                        //if we cannot insert a new bucket we close memory
+                while(!bufferManager.insertTuple(accessorBuild, i, tuplePointer)) {
+                    if(newBucket) {
+                        runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer);
                         memoryOpen = false;
-                        //write record to disk directly and set the tuple pointer accordingly
-                        runFileStreamForBuild.addToRunFile(accessorBuild, i, tempPtr);
-                    } else {
-                        // System.out.println("Bucket "+ bucketId+" is spilled!");
-                        TuplePointer tuplePointerForspilledBucket = table.getBuildTuplePointer(bucketId);
-                        //spill current bucket to disk
-                        table.printInfo();
-                        tempPtr.reset(spillStartingFrom(tuplePointerForspilledBucket));
-                        //spill the rest of the records for this bucket
-                        isCurrentBucketSpilled = true;
-                        //change the bucket table to show the bucket is on disk
-                        table.updateBuildBucket(bucketId, tempPtr);
+                        break;
                     }
-                } else if (newBucket) {
-                    previousLatestBucketInMemory = latestBucketInMemory;
-                    latestBucketInMemory = bucketId;
-                }
-
-            }
-            //insert new bucket to the bucket table
-            if (newBucket) {
-                numberOfBuckets++;
-                if (!table.insert(bucketId, tempPtr, new TuplePointer())) {
-                    //if there is not enough space for the new entry
-                    if (!memoryOpen) {
-                        //Memory is closed which means we already wrote the new bucket to disk
-                        //We do not need to spill current bucket but only the latest bucket written to memory
-                        latestBucketInMemory = table.lastBucket();
-                        //System.out.println("Bucket "+ latestBucketInMemory+" is spilled!");
-                        TuplePointer spilledBucketTuplePointer = new TuplePointer();
-                        //table.printInfo();
-                        spilledBucketTuplePointer.reset(spillStartingFrom(table.getBuildTuplePointer(latestBucketInMemory)));
-                        //set the disk location for spilled bucket
-                        table.updateBuildBucket(latestBucketInMemory, spilledBucketTuplePointer);
-                        //re-open the memory since we might have enough space for future buckets
-                        memoryOpen = true;
-
-                    } else {
-                        previousLatestBucketInMemory = table.lastBucket();
-                        tempPtr.reset(spillStartingFrom(tempPtr));
-                        System.out.println("new Bucket " + bucketId + " is spilled!");
-                        //here we know we inserted only one record for this bucket to memory
-                        // and the latest bucket is the current bucket
-                        //1.we first need to spill the previous latest bucket to disk
-                        TuplePointer spilledBucketTuplePointer = new TuplePointer();
-
-                        //System.out.println("prev Bucket "+ previousLatestBucketInMemory+" is spilled!");
-                        //table.printInfo();
-                        spilledBucketTuplePointer.reset(spillStartingFrom(table.getBuildTuplePointer(previousLatestBucketInMemory)));
-                        //2.then we need to change its tuple pointer
-                        table.updateBuildBucket(previousLatestBucketInMemory, spilledBucketTuplePointer);
-                        previousLatestBucketInMemory = null;
-                        //3.next we spill current bucket to disk and change the tempPtr to show the location on disk
-                        //tempPtr.reset(spillStartingFrom(tempPtr));
-                    }
-                    // re-try to insert new bucket to bucket table
-                    while (!table.insert(bucketId, tempPtr, new TuplePointer())) {
-                        latestBucketInMemory = table.lastBucket();
-                        System.out.println("Bucket aaa " + latestBucketInMemory + " is spilled!");
-                        TuplePointer spilledBucketTuplePointer = new TuplePointer();
-                        //table.printInfo();
-                        spilledBucketTuplePointer.reset(spillStartingFrom(table.getBuildTuplePointer(latestBucketInMemory)));
-                        //set the disk location for spilled bucket
-                        table.updateBuildBucket(latestBucketInMemory, spilledBucketTuplePointer);
-                        //table.printInfo();
-                        //re-open the memory since we might have enough space for future buckets
-                        memoryOpen = true;
-                    }
+                    int lastBucket = table.lastBucket();
+                    TuplePointer tuplePointerToSpill = table.getBuildTuplePointer(lastBucket);
+                    TuplePointer newTuplePointerForSpilled = spillStartingFrom(tuplePointerToSpill);
+                    table.updateBuildBucket(lastBucket, newTuplePointerForSpilled);
                 }
             }
+
+            if(newBucket) {
+                table.insert(bucketId, tuplePointer, new TuplePointer());
+            }
+
         }
     }
 
@@ -298,9 +239,9 @@ public class ThetaFlexibleJoiner {
 
     public void closeBuild() throws HyracksDataException {
         //System.out.println("Number of records from build side: " + numRecordsFromBuild);
-        //table.printInfo();
+        table.printInfo();
         runFileStreamForBuild.flushRunFile();
-        runFileStreamForBuild.startReadingRunFile(inputCursor[BUILD_PARTITION]);
+        //runFileStreamForBuild.startReadingRunFile(inputCursor[BUILD_PARTITION]);
     }
 
     private TuplePointer spillStartingFrom(TuplePointer tuplePointer) throws HyracksDataException {
@@ -367,52 +308,37 @@ public class ThetaFlexibleJoiner {
     public void probe(ByteBuffer buffer, IFrameWriter writer) throws HyracksDataException {
         accessorProbe.reset(buffer);
         int tupleCount = accessorProbe.getTupleCount();
-        Integer currentBucket = null;
-        boolean newBucket;
+        int numberOfBuckets = table.getNumEntries();
+
         IFrameTupleAccessor iFrameTupleAccessor;
         IFrameTupleAccessor dumpTupleAccessorForBucket1 = new FrameTupleAccessor(new RecordDescriptor(Arrays.copyOfRange(buildRd.getFields(), 0, 1), Arrays.copyOfRange(buildRd.getTypeTraits(), 0, 1)));
-        //ITuplePointerAccessor memoryAccessor = bufferManager.createTuplePointerAccessor();
-        BitSet bucketTest = new BitSet(numberOfBuckets);
         int accessorIndex = 0;
-        // for each record from S
+
+        //For each s from S
         for (int i = 0; i < tupleCount; ++i) {
             int probeBucketId = FlexibleJoinsUtil.getBucketId(accessorProbe, i, 1);
-
-            if (currentBucket == null || !currentBucket.equals(probeBucketId)) {
-                TuplePointer tuplePointerTester = table.getProbeTuplePointer(probeBucketId);
-                if (tuplePointerTester == null || tuplePointerTester.getTupleIndex() == -1) {
-                    currentBucket = probeBucketId;
-                    newBucket = true;
-                    bucketTest.clear();
-                } else {
-                    newBucket = false;
-                }
-            } else {
-                newBucket = false;
-            }
             boolean writtenToDisk = false;
-            int numberOfBuckets = table.getNumEntries();
-            // Iterate over the buckets from bucket table
-            HashMap<Integer, Integer> bCounter = new HashMap<>();
+            //For each bucket from bucket table
             for (int bucketIndex = 0; bucketIndex < numberOfBuckets; bucketIndex++) {
                 int[] bucketInfo = table.getEntry(bucketIndex);
+                //if the building tuple pointer has a negative tuple index that means we added this bucket only from S side
                 if (bucketInfo[2] == -1) continue;
+                //Below we need to create appropriate accessor to use it in comparator
                 if (bucketInfo[1] > -1) {
+                    //If the building side bucket is in memory
                     memoryAccessor.reset(new TuplePointer(bucketInfo[1], bucketInfo[2]));
                     iFrameTupleAccessor = memoryAccessor;
                     accessorIndex = bucketInfo[2];
                 } else {
+                    //If the building side bucket is on disk
                     dumpTupleAccessorForBucket1.reset(ByteBuffer.wrap(intToByteArray(bucketInfo[0])));
                     iFrameTupleAccessor = dumpTupleAccessorForBucket1;
-                    if (writtenToDisk) continue;
                 }
-                // if buckets are matching
-                //TODO Here we are not able to reach the data from memory if the bucket is already spilled
-                if (bucketTest.get(bucketIndex) || this.tpComparator.compare(iFrameTupleAccessor, accessorIndex, accessorProbe, i) < 1) {
-                    bucketTest.set(bucketIndex);
-                    // check the tuple pointer of the build side
+
+                //If buckets are matching
+                if (this.tpComparator.compare(iFrameTupleAccessor, accessorIndex, accessorProbe, i) < 1) {
+                    //If the building bucket is in memory we join the records
                     if (bucketInfo[1] > -1) {
-                        // if the bucket is in memory join the records
                         int tupleCounter = bucketInfo[2];
                         int frameCounter = bucketInfo[1];
                         boolean finished = false;
@@ -424,50 +350,36 @@ public class ThetaFlexibleJoiner {
                             while (tupleCounter < memoryAccessor.getTupleCount()) {
                                 first = false;
                                 memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                                int bucketReadFromMem = 0;
-                                try {
-                                    bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, 1);
-                                } catch (Exception e) {
-                                    System.out.println(e.getMessage());
-                                }
-
-
+                                int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, 1);
                                 if (bucketReadFromMem != bucketInfo[0]) {
                                     finished = true;
                                     break;
                                 }
                                 addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
-                                //if(bCounter.containsKey(bucketReadFromMem)) bCounter.put(bucketReadFromMem, bCounter.get(bucketReadFromMem) + 1);
-                                //else bCounter.put(bucketReadFromMem, 1);
                                 tupleCounter++;
 
                             }
                             if (finished) break;
                             frameCounter++;
                         }
-                        //System.out.println("bCounter\n");
-                        //bCounter.forEach((key, value) -> System.out.println(key + " " + value));
-
-
                     } else if (!writtenToDisk) {
-                        //Set spilled to true to complete join using the records from disk
-                        spilled = true;
-
-                        writtenToDisk = true;
-                        // if the bucket is on disk, write the bucket from probe side to disk
+                        //If the building bucket is on disk, we need to write s to disk but only once
                         TuplePointer tuplePointerForProbeDiskFile = new TuplePointer();
                         runFileStreamForProbe.addToRunFile(accessorProbe, i, tuplePointerForProbeDiskFile);
-                        if (newBucket) {
+
+                        TuplePointer tuplePointerTester = table.getProbeTuplePointer(probeBucketId);
+                        if (tuplePointerTester == null) {
                             // set the tuple pointer for probe side as it locates it on disk
-                            if (!table.updateProbeBucket(probeBucketId, tuplePointerForProbeDiskFile)) {
-                                table.insert(probeBucketId, new TuplePointer(), tuplePointerForProbeDiskFile);
-                            }
+                            table.insert(probeBucketId, new TuplePointer(), tuplePointerForProbeDiskFile);
+                        } else if(tuplePointerTester.getFrameIndex() == -1 && tuplePointerTester.getTupleIndex() == -1) {
+                            table.updateProbeBucket(probeBucketId, tuplePointerForProbeDiskFile);
                         }
+                        writtenToDisk = true;
+                        this.spilled = true;
                     }
                 }
 
             }
-
         }
 
     }

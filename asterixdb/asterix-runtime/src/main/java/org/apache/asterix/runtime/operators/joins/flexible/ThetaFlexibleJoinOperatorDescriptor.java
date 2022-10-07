@@ -280,6 +280,8 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                     //If there is spilled records to disk
                     if(state.joiner.isSpilled()) {
+                        RunFileStream buildRFStream = state.joiner.getRunFileStreamForBuild();
+                        RunFileStream probeRFStream = state.joiner.getRunFileStreamForProbe();
                         RunFileStream[] runFileStreams = new RunFileStream[2];
                         runFileStreams[0] = state.joiner.getRunFileStreamForBuild();
                         runFileStreams[1] = state.joiner.getRunFileStreamForProbe();
@@ -296,7 +298,78 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                         heuristicForThetaJoin.setBucketTable(state.joiner.getBucketTable());
 
-                        while(heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
+                        ThetaFlexibleJoiner thetaFlexibleJoiner = null;
+
+                        boolean spilled = true;
+                        boolean firstStep = true;
+                        int steps = 1;
+                        while (spilled) {
+                            LOGGER.info("Step " + steps + " Starts");
+                            if(!firstStep) {
+                                buildRFStream = thetaFlexibleJoiner.getRunFileStreamForBuild();
+                                probeRFStream = thetaFlexibleJoiner.getRunFileStreamForProbe();
+
+                            } else firstStep = false;
+
+
+
+                            thetaFlexibleJoiner = new ThetaFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, PROBE_REL, BUILD_REL, predEvaluator, 1000);
+
+                            try {
+                                FrameTupleCursor frameTupleCursor = new FrameTupleCursor(buildRd);
+                                buildRFStream.startReadingRunFile(frameTupleCursor);
+
+
+                                try {
+                                    LOGGER.info("Step " + steps + " Build Starts");
+                                    buildRFStream.startReadingRunFile(frameTupleCursor);
+                                    thetaFlexibleJoiner.build(frameTupleCursor.getAccessor().getBuffer());
+                                    while (buildRFStream.loadNextBuffer(frameTupleCursor)) {
+                                        thetaFlexibleJoiner.build(frameTupleCursor.getAccessor().getBuffer());
+                                    }
+                                } finally {
+                                    // Makes sure that files are always properly closed.
+                                    thetaFlexibleJoiner.closeBuild();
+                                    //buildRFStream.closeRunFileReading();
+                                }
+                            } finally {
+                                //buildRFStream.closeRunFileReading();
+                            }
+                            thetaFlexibleJoiner.printTableInfo();
+                            try {
+                                FrameTupleCursor frameTupleCursor = new FrameTupleCursor(probeRd);
+                                try {
+                                    LOGGER.info("Step " + steps + " Probe Starts");
+
+                                    thetaFlexibleJoiner.initProbe(probComp);
+                                    probeRFStream.startReadingRunFile(frameTupleCursor);
+                                    thetaFlexibleJoiner.probe(frameTupleCursor.getAccessor().getBuffer(), writer);
+
+                                    while (probeRFStream.loadNextBuffer(frameTupleCursor)) {
+                                        thetaFlexibleJoiner.probe(frameTupleCursor.getAccessor().getBuffer(), writer);
+                                    }
+
+                                } finally {
+                                    thetaFlexibleJoiner.completeProbe(writer);
+                                    thetaFlexibleJoiner.releaseResource();
+                                }
+                            } finally {
+                                // Makes sure that files are always properly closed.
+                                buildRFStream.close();
+                                probeRFStream.close();
+
+                                //buildRFStream.removeRunFile();
+                                //probeRFStream.removeRunFile();
+                                //writer.close();
+                            }
+
+                            spilled = thetaFlexibleJoiner.isSpilled();
+                            steps++;
+                            if(!spilled)
+                                System.out.println("Finished");
+                        }
+
+                        /*while(heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
                             //get the building sequence buildSeq
                             ArrayList<IBucket> buildingBuckets = heuristicForThetaJoin.nextBuildingBucketSequence();
                             InMemoryThetaFlexibleJoiner thetaFlexibleJoiner = new InMemoryThetaFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, buildingBuckets.size());
@@ -353,7 +426,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                             thetaFlexibleJoiner.completeProbe(writer);
                             thetaFlexibleJoiner.releaseResource();
-                        }
+                        }*/
 
 
                     }
