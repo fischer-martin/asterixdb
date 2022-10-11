@@ -130,8 +130,10 @@ public class InMemoryThetaFlexibleJoiner {
         accessorBuild.reset(buffer);
         int tupleCount = accessorBuild.getTupleCount();
         for (int i = 0; i < tupleCount; i++) {
-            if(accessorBuild.getTupleStartOffset(i) < startOffset-5) continue;
-            if(accessorBuild.getTupleStartOffset(i) > endOffset-5) break;
+
+            if(accessorBuild.getTupleStartOffset(i) < startOffset) continue;
+            if(accessorBuild.getTupleStartOffset(i) >= endOffset) break;
+            //System.out.println("Start offset of "+ i +":"+accessorBuild.getTupleStartOffset(i));
             // If the memory does not accept the new record join should fail since buildOneBucket shall only be called for the buckets fit into memory
             if (!bufferManager.insertTuple(accessorBuild, i, tempPtr)) {
                 throw HyracksDataException.create(ErrorCode.INSUFFICIENT_MEMORY, "");
@@ -169,8 +171,8 @@ public class InMemoryThetaFlexibleJoiner {
         int accessorIndex = 0;
         // for each record from S
         for (int i = 0; i < tupleCount; ++i) {
-            if(accessorProbe.getTupleStartOffset(i) < startOffset-5) continue;
-            if(accessorProbe.getTupleStartOffset(i) > endOffset-5) break;
+            if(accessorProbe.getTupleStartOffset(i) < startOffset) continue;
+            if(accessorProbe.getTupleStartOffset(i) >= endOffset) break;
             int numberOfBuckets = table.getNumEntries();
             // Iterate over the buckets from bucket table
             for (int bucketIndex = 0; bucketIndex < numberOfBuckets; bucketIndex++) {

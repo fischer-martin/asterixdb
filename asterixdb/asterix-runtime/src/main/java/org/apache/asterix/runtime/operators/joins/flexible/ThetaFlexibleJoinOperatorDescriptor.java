@@ -291,14 +291,14 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                         //Create an instance of a heuristic with table and two file streams
                         IHeuristicForThetaJoin heuristicForThetaJoin = new FirstFit(
-                                memoryForJoin-2,
+                                memoryForJoin,
                                 ctx.getInitialFrameSize(),
                                 runFileStreams[0].getRunFileReaderSize(),
                                 runFileStreams[1].getRunFileReaderSize());
 
                         heuristicForThetaJoin.setBucketTable(state.joiner.getBucketTable());
 
-                        ThetaFlexibleJoiner thetaFlexibleJoiner = null;
+                        /*ThetaFlexibleJoiner thetaFlexibleJoiner = null;
 
                         boolean spilled = true;
                         boolean firstStep = true;
@@ -335,7 +335,6 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                             } finally {
                                 //buildRFStream.closeRunFileReading();
                             }
-                            thetaFlexibleJoiner.printTableInfo();
                             try {
                                 FrameTupleCursor frameTupleCursor = new FrameTupleCursor(probeRd);
                                 try {
@@ -351,6 +350,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                                 } finally {
                                     thetaFlexibleJoiner.completeProbe(writer);
+                                    thetaFlexibleJoiner.printTableInfo();
                                     thetaFlexibleJoiner.releaseResource();
                                 }
                             } finally {
@@ -367,9 +367,9 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                             steps++;
                             if(!spilled)
                                 System.out.println("Finished");
-                        }
+                        }*/
 
-                        /*while(heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
+                        while(heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
                             //get the building sequence buildSeq
                             ArrayList<IBucket> buildingBuckets = heuristicForThetaJoin.nextBuildingBucketSequence();
                             InMemoryThetaFlexibleJoiner thetaFlexibleJoiner = new InMemoryThetaFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, buildingBuckets.size());
@@ -381,14 +381,14 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                 int startFrame = buildingBucket.getStartFrame();
                                 int endFrame = buildingBucket.getEndFrame();
 
-                                runFileStreams[buildingBucket.getSide()].seekToAPosition(startFrame * frameSize);
+                                runFileStreams[buildingBucket.getSide()].seekToAPosition((long) startFrame * frameSize);
                                 int currentFrame = startFrame;
                                 int startOffset;
                                 int endOffset;
                                 while(currentFrame <= endFrame) {
                                     runFileStreams[buildingBucket.getSide()].loadNextBuffer(frame);
                                     if(currentFrame == startFrame) startOffset = buildingBucket.getStartOffset();
-                                    else startOffset = 0;
+                                    else startOffset = 5;
                                     if(currentFrame == endFrame) endOffset = buildingBucket.getEndOffset();
                                     else endOffset = frameSize;
                                     //TODO: build function should also get the record descriptor since it will not be always R
@@ -396,7 +396,17 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                     currentFrame++;
                                 }
                             }
-                            //thetaFlexibleJoiner.getBucketTable().printInfo();
+                            thetaFlexibleJoiner.getBucketTable().printInfo();
+
+//                            FrameTupleCursor frameTupleCursor = new FrameTupleCursor(probeRd);
+//
+//                                thetaFlexibleJoiner.initProbe(probComp);
+//                                probeRFStream.startReadingRunFile(frameTupleCursor);
+//                                thetaFlexibleJoiner.probeOneBucket(frameTupleCursor.getAccessor().getBuffer(), writer, 0, 0, 2048);
+//
+//                                while (probeRFStream.loadNextBuffer(frameTupleCursor)) {
+//                                    thetaFlexibleJoiner.probeOneBucket(frameTupleCursor.getAccessor().getBuffer(), writer, 0, 0, 2048);
+//                                }
 
                             //get the probing sequence
                             ArrayList<IBucket> probingBuckets = heuristicForThetaJoin.nextProbingBucketSequence();
@@ -414,7 +424,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                 while(currentFrame <= endFrame) {
                                     runFileStreams[probingBucket.getSide()].loadNextBuffer(frame);
                                     if(currentFrame == startFrame) startOffset = probingBucket.getStartOffset();
-                                    else startOffset = 0;
+                                    else startOffset = 5;
                                     if(currentFrame == endFrame) endOffset = probingBucket.getEndOffset();
                                     else endOffset = frameSize;
                                     //TODO: build function should also get the record descriptor since it will not be always S
@@ -426,7 +436,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                             thetaFlexibleJoiner.completeProbe(writer);
                             thetaFlexibleJoiner.releaseResource();
-                        }*/
+                        }
 
 
                     }

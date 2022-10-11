@@ -13,16 +13,22 @@ import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 import java.util.ArrayList;
 
 public class FirstFit implements IHeuristicForThetaJoin {
+    double CONSTANT = 1.25;
     SerializableBucketIdList bucketTable;
     long buildFileSize;
     long probeFileSize;
     int memoryForJoinInBytes;
+    int memoryForJoinInFrames;
     int frameSize;
     boolean hasNextBuildingBucketSequence;
     int numberOfBuckets;
     int buildingBucketPosition = 0;
+
+
+
     public FirstFit(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize) throws HyracksDataException {
         this.memoryForJoinInBytes = memoryForJoin * frameSize;
+        this.memoryForJoinInFrames = memoryForJoin;
         this.frameSize = frameSize;
         this.buildFileSize = buildFileSize;
         this.probeFileSize = probeFileSize;
@@ -42,8 +48,9 @@ public class FirstFit implements IHeuristicForThetaJoin {
     @Override
     public ArrayList<IBucket> nextBuildingBucketSequence() throws HyracksDataException {
         ArrayList<IBucket> returnBuckets = new ArrayList<>();
-        int totalSizeOfBuckets = 0;
-
+        int totalFramesForBuckets = 0;
+        long totalSizeForBuckets = 0;
+        int currentFrame = 0;
         for(int i= 0; i < this.numberOfBuckets; i++) {
             int[] bucket = bucketTable.getEntry(i);
 
@@ -66,10 +73,9 @@ public class FirstFit implements IHeuristicForThetaJoin {
                 endOffset = frameSize;
             }
 
-            totalSizeOfBuckets += bucketSize;
-            if(totalSizeOfBuckets > memoryForJoinInBytes) {
-                break;
-            }
+            if(Math.ceil(((double)totalSizeForBuckets + bucketSize)*CONSTANT/frameSize) < memoryForJoinInFrames) totalSizeForBuckets += bucketSize;
+            else break;
+
             bucketTable.updateBuildBucket(bucket[0], new TuplePointer(0,0));
             Bucket returnBucket = new Bucket(bucket[0],0, bucket[2], endOffset, -(bucket[1]+1), endFrame);
             returnBuckets.add(returnBucket);

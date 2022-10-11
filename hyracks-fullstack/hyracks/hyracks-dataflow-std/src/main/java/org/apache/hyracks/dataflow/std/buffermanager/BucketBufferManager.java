@@ -215,6 +215,16 @@ public class BucketBufferManager implements IBucketBufferManager {
         return true;
     }
 
+    public boolean cancelLastInsert() throws HyracksDataException {
+        try{
+            appender.cancelAppend();
+            numTuples--;
+        } catch (Exception e) {
+            throw e;
+        }
+        return true;
+    }
+
     @Override
     public void close() {
             if (bufferManager != null) {

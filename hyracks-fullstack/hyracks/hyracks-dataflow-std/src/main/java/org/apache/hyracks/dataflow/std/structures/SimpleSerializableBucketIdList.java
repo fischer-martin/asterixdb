@@ -167,7 +167,7 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
 
     @Override
     public boolean insert(int bucketId, TuplePointer buildTuplePointer, TuplePointer probeTuplePointer ) throws HyracksDataException {
-        int requiredIntCapacity = INT_SIZE * 5;
+        int requiredIntCapacity = 5;
         IntSerDeBuffer contentFrame;
 
         if (currentOffsetInLastFrame + requiredIntCapacity > frameCapacity) {
@@ -252,7 +252,7 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
             int offsetInContentFrame = 0;
             IntSerDeBuffer frame = contents.get(contentFrameIndex);
 
-            while(offsetInContentFrame < this.frameCapacity)  {
+            while(offsetInContentFrame + 5 < this.frameCapacity)  {
                 int bucketFrame = frame.getInt(offsetInContentFrame+1);
                 if(bucketFrame < 0) numberOfSpilled++;
                 dS.append(frame.getInt(offsetInContentFrame)).append("\t").append(frame.getInt(offsetInContentFrame + 1)).append("\t").append(frame.getInt(offsetInContentFrame + 2)).append("\t").append(frame.getInt(offsetInContentFrame + 3)).append("\t").append(frame.getInt(offsetInContentFrame + 4)).append("\n");

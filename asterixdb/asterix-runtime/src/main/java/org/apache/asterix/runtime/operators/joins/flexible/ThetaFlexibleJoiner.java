@@ -58,8 +58,6 @@ import java.util.HashMap;
 
 public class ThetaFlexibleJoiner {
 
-    private final FrameTupleAccessor accessorOuter;
-
     private final RunFileStream runFileStreamForBuild;
     private final RunFilePointer runFilePointerForBuild;
 
@@ -75,7 +73,6 @@ public class ThetaFlexibleJoiner {
     protected static final int PROBE_PARTITION = 1;
 
     protected final FrameTupleAppender resultAppender;
-    protected final FrameTupleCursor[] inputCursor;
 
     private final IHyracksTaskContext ctx;
 
@@ -113,6 +110,10 @@ public class ThetaFlexibleJoiner {
     private int latestBucketInMemory;
     private Integer previousLatestBucketInMemory;
 
+    private HashMap<Integer, Integer> bucketMap = new HashMap<>();
+    private HashMap<Integer, Long> spilledBucketMap = new HashMap<>();
+
+
     protected int numberOfBuckets = 0;
 
     protected boolean spilled;
@@ -140,9 +141,7 @@ public class ThetaFlexibleJoiner {
         this.buildRd = buildRd;
         this.probeRd = probeRd;
 
-        inputCursor = new FrameTupleCursor[JOIN_PARTITIONS];
-        inputCursor[BUILD_PARTITION] = new FrameTupleCursor(buildRd);
-        accessorOuter = new FrameTupleAccessor(probeRd);
+
 
         // Run File and frame cache (build buffer)
         runFileStreamForBuild = new RunFileStream(ctx, "tfj-build");
@@ -190,14 +189,19 @@ public class ThetaFlexibleJoiner {
         int tupleCount = accessorBuild.getTupleCount();
         numRecordsFromBuild += tupleCount;
 
-        newBucket = false;
-        boolean writeToDisk = false;
+
+
+
         for (int i = 0; i < tupleCount; i++) {
+            boolean inMemory = false;
+            boolean writeToDisk = false;
+            newBucket = false;
             int bucketId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
             TuplePointer tuplePointer = table.getBuildTuplePointer(bucketId);
             if (tuplePointer == null) {
                 newBucket = true;
                 tuplePointer = new TuplePointer();
+                writeToDisk = false;
             } else if(tuplePointer.getFrameIndex() < 0) {
                 newBucket = false;
                 writeToDisk = true;
@@ -206,26 +210,40 @@ public class ThetaFlexibleJoiner {
                 writeToDisk = false;
             }
 
-            if(writeToDisk || !memoryOpen) {
+            if(writeToDisk) {
                 runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer);
             } else {
                 while(!bufferManager.insertTuple(accessorBuild, i, tuplePointer)) {
-                    if(newBucket) {
-                        runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer);
-                        memoryOpen = false;
-                        break;
-                    }
+
                     int lastBucket = table.lastBucket();
                     TuplePointer tuplePointerToSpill = table.getBuildTuplePointer(lastBucket);
                     TuplePointer newTuplePointerForSpilled = spillStartingFrom(tuplePointerToSpill);
+                    //runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer);
                     table.updateBuildBucket(lastBucket, newTuplePointerForSpilled);
+                    spilledBucketMap.put(lastBucket, runFileStreamForBuild.getTupleCount());
+                    if(!newBucket) {
+                        runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer);
+                        break;
+                    }
                 }
             }
 
             if(newBucket) {
-                table.insert(bucketId, tuplePointer, new TuplePointer());
-            }
+                if(!table.insert(bucketId, tuplePointer, new TuplePointer())) {
 
+                    bufferManager.cancelLastInsert();
+
+                    int lastBucket = table.lastBucket();
+                    TuplePointer tuplePointerToSpill = table.getBuildTuplePointer(lastBucket);
+                    TuplePointer newTuplePointerForSpilled = spillStartingFrom(tuplePointerToSpill);
+                    table.updateBuildBucket(lastBucket, newTuplePointerForSpilled);
+                    bufferManager.insertTuple(accessorBuild, i, tuplePointer);
+                    table.insert(bucketId, tuplePointer, new TuplePointer());
+
+                }
+                bucketMap.put(bucketId, 0);
+            }
+            bucketMap.merge(bucketId, 1, Integer::sum);
         }
     }
 
@@ -239,6 +257,18 @@ public class ThetaFlexibleJoiner {
 
     public void closeBuild() throws HyracksDataException {
         //System.out.println("Number of records from build side: " + numRecordsFromBuild);
+        /*
+        StringBuilder a = new StringBuilder();
+        for(Integer bucketId: bucketMap.keySet()) {
+            a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
+        }
+        System.out.println(a);
+        System.out.println("\nSpilled Map");
+        StringBuilder b = new StringBuilder();
+        for(Integer bucketId: spilledBucketMap.keySet()) {
+            b.append(bucketId).append("\t").append(spilledBucketMap.get(bucketId)).append("\n");
+        }
+        System.out.println(b);*/
         table.printInfo();
         runFileStreamForBuild.flushRunFile();
         //runFileStreamForBuild.startReadingRunFile(inputCursor[BUILD_PARTITION]);
@@ -264,11 +294,12 @@ public class ThetaFlexibleJoiner {
             }
 
         }*/
+        int writeCounter = 0;
         FrameTupleAccessor frameTupleAccessor = new FrameTupleAccessor(buildRd);
         while (fIndex < bufferManager.getNumberOfFrames()) {
             bufferManager.getFrame(fIndex, tempInfo);
-            tempInfo.getBuffer().position(tempInfo.getStartOffset());
-            tempInfo.getBuffer().limit(tempInfo.getStartOffset() + tempInfo.getLength());
+            //tempInfo.getBuffer().position(tempInfo.getStartOffset());
+            //tempInfo.getBuffer().limit(tempInfo.getStartOffset() + tempInfo.getLength());
             frameTupleAccessor.reset(tempInfo.getBuffer());
             int i = firstFrame ? tIndex : 0;
             while (i < frameTupleAccessor.getTupleCount()) {
@@ -278,6 +309,7 @@ public class ThetaFlexibleJoiner {
                 } else {
                     runFileStreamForBuild.addToRunFile(frameTupleAccessor, i);
                 }
+                writeCounter++;
                 i++;
             }
             fIndex++;
@@ -290,6 +322,7 @@ public class ThetaFlexibleJoiner {
 
         }*/
         //bufferManager.reOrganizeFrames();
+        //System.out.println(writeCounter);
         return returnTuplePointer;
     }
 
