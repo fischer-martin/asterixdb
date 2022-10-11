@@ -298,7 +298,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                         heuristicForThetaJoin.setBucketTable(state.joiner.getBucketTable());
 
-                        /*ThetaFlexibleJoiner thetaFlexibleJoiner = null;
+                        ThetaFlexibleJoiner thetaFlexibleJoiner = null;
 
                         boolean spilled = true;
                         boolean firstStep = true;
@@ -367,9 +367,9 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                             steps++;
                             if(!spilled)
                                 System.out.println("Finished");
-                        }*/
+                        }
 
-                        while(heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
+                        /*while(heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
                             //get the building sequence buildSeq
                             ArrayList<IBucket> buildingBuckets = heuristicForThetaJoin.nextBuildingBucketSequence();
                             InMemoryThetaFlexibleJoiner thetaFlexibleJoiner = new InMemoryThetaFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, buildingBuckets.size());
@@ -436,7 +436,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                             thetaFlexibleJoiner.completeProbe(writer);
                             thetaFlexibleJoiner.releaseResource();
-                        }
+                        }*/
 
 
                     }
