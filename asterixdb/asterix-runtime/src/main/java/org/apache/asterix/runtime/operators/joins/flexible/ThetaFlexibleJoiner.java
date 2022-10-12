@@ -113,9 +113,9 @@ public class ThetaFlexibleJoiner {
     private int latestBucketInMemory;
     private Integer previousLatestBucketInMemory;
 
-    private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
-    private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
-    private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
+//    private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
+//    private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
+//    private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
 
 
     protected int numberOfBuckets = 0;
@@ -224,7 +224,7 @@ public class ThetaFlexibleJoiner {
                     TuplePointer newTuplePointerForSpilled = spillStartingFrom(tuplePointerToSpill);
                     //runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer);
                     table.updateBuildBucket(lastBucket, newTuplePointerForSpilled);
-                    spilledBucketMap.put(lastBucket, runFileStreamForBuild.getTupleCount());
+                    //spilledBucketMap.put(lastBucket, runFileStreamForBuild.getTupleCount());
                     if(!newBucket) {
                         runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer);
                         break;
@@ -245,9 +245,9 @@ public class ThetaFlexibleJoiner {
                     table.insert(bucketId, tuplePointer, new TuplePointer());
 
                 }
-                bucketMap.put(bucketId, 0);
+                //bucketMap.put(bucketId, 0);
             }
-            bucketMap.merge(bucketId, 1, Integer::sum);
+            //bucketMap.merge(bucketId, 1, Integer::sum);
         }
     }
 
@@ -260,21 +260,21 @@ public class ThetaFlexibleJoiner {
     }
 
     public void closeBuild() throws HyracksDataException {
-        System.out.println("Number of records from build side: " + numRecordsFromBuild);
-
-        StringBuilder a = new StringBuilder();
-        a.append("Bucket Counter From Build Side\n");
-        for(Integer bucketId: bucketMap.keySet()) {
-            a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
-        }
-        System.out.println(a);
+//        System.out.println("Number of records from build side: " + numRecordsFromBuild);
+//
+//        StringBuilder a = new StringBuilder();
+//        a.append("Bucket Counter From Build Side\n");
+//        for(Integer bucketId: bucketMap.keySet()) {
+//            a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
+//        }
+//        System.out.println(a);
         /*System.out.println("\nSpilled Map");
         StringBuilder b = new StringBuilder();
         for(Integer bucketId: spilledBucketMap.keySet()) {
             b.append(bucketId).append("\t").append(spilledBucketMap.get(bucketId)).append("\n");
         }
         System.out.println(b);*/
-        table.printInfo();
+        //table.printInfo();
         runFileStreamForBuild.flushRunFile();
     }
 
@@ -402,7 +402,7 @@ public class ThetaFlexibleJoiner {
                         //If the building bucket is on disk, we need to write s to disk but only once
                         TuplePointer tuplePointerForProbeDiskFile = new TuplePointer();
                         runFileStreamForProbe.addToRunFile(accessorProbe, i, tuplePointerForProbeDiskFile);
-                        bucketMatchCount.merge(probeBucketId, 1, Integer::sum);
+                        //bucketMatchCount.merge(probeBucketId, 1, Integer::sum);
                         TuplePointer tuplePointerTester = table.getProbeTuplePointer(probeBucketId);
                         if (tuplePointerTester == null) {
                             // set the tuple pointer for probe side as it locates it on disk
@@ -431,13 +431,13 @@ public class ThetaFlexibleJoiner {
             //runFileStreamForProbe.startReadingRunFile(inputCursor[BUILD_PARTITION]);
         }
 
-        table.printInfo();
-        StringBuilder a = new StringBuilder();
-        a.append("Bucket Counter From Probe Side\n");
-        for(Integer bucketId: bucketMatchCount.keySet()) {
-            a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
-        }
-        System.out.println(a);
+//        table.printInfo();
+//        StringBuilder a = new StringBuilder();
+//        a.append("Bucket Counter From Probe Side\n");
+//        for(Integer bucketId: bucketMatchCount.keySet()) {
+//            a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
+//        }
+//        System.out.println(a);
         resultAppender.write(writer, true);
     }
 
