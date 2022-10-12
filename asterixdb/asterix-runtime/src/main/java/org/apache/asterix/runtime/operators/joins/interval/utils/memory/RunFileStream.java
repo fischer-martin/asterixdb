@@ -126,9 +126,9 @@ public class RunFileStream {
         totalTupleCount++;
     }
     //Set the tuple pointer as it shows the location on disk
-    public void addToRunFile(IFrameTupleAccessor accessor, int tupleId, TuplePointer tuplePointer) throws HyracksDataException {
+    public void addToRunFile(IFrameTupleAccessor accessor, int tupleId, TuplePointer tuplePointer, boolean forceNewFrame) throws HyracksDataException {
         int offset = ((FrameTupleAppender) runFileAppender).getTupleDataEndOffset();
-        if (!runFileAppender.append(accessor, tupleId)) {
+        if ((forceNewFrame && totalTupleCount > 0) || !runFileAppender.append(accessor, tupleId)) {
             runFileAppender.write(runFileWriter, true);
             offset = ((FrameTupleAppender) runFileAppender).getTupleDataEndOffset();
             writeCount++;

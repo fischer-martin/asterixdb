@@ -215,7 +215,7 @@ public class ThetaFlexibleJoiner {
             }
 
             if(writeToDisk) {
-                runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer);
+                runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer, false);
             } else {
                 while(!bufferManager.insertTuple(accessorBuild, i, tuplePointer)) {
 
@@ -226,7 +226,7 @@ public class ThetaFlexibleJoiner {
                     table.updateBuildBucket(lastBucket, newTuplePointerForSpilled);
                     //spilledBucketMap.put(lastBucket, runFileStreamForBuild.getTupleCount());
                     if(!newBucket) {
-                        runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer);
+                        runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer, false);
                         break;
                     }
                 }
@@ -308,7 +308,7 @@ public class ThetaFlexibleJoiner {
             int i = firstFrame ? tIndex : 0;
             while (i < frameTupleAccessor.getTupleCount()) {
                 if (firstFrame) {
-                    runFileStreamForBuild.addToRunFile(frameTupleAccessor, i, returnTuplePointer);
+                    runFileStreamForBuild.addToRunFile(frameTupleAccessor, i, returnTuplePointer, true);
                     firstFrame = false;
                 } else {
                     runFileStreamForBuild.addToRunFile(frameTupleAccessor, i);
@@ -369,7 +369,7 @@ public class ThetaFlexibleJoiner {
                 //buff.position(0);
                 dumpTupleAccessorForBucket1.reset(buff);
                 iFrameTupleAccessor = dumpTupleAccessorForBucket1;
-                int bucki = FlexibleJoinsUtil.getBucketId(iFrameTupleAccessor, 0, 1);
+                //int bucki = FlexibleJoinsUtil.getBucketId(iFrameTupleAccessor, 0, 1);
                 //If buckets are matching
                 if (this.tpComparator.compare(iFrameTupleAccessor, 0, accessorProbe, i) < 1) {
                     //If the building bucket is in memory we join the records
@@ -399,11 +399,14 @@ public class ThetaFlexibleJoiner {
                             frameCounter++;
                         }
                     } else if (!writtenToDisk) {
-                        //If the building bucket is on disk, we need to write s to disk but only once
-                        TuplePointer tuplePointerForProbeDiskFile = new TuplePointer();
-                        runFileStreamForProbe.addToRunFile(accessorProbe, i, tuplePointerForProbeDiskFile);
                         //bucketMatchCount.merge(probeBucketId, 1, Integer::sum);
                         TuplePointer tuplePointerTester = table.getProbeTuplePointer(probeBucketId);
+                        boolean isBucketNew = (tuplePointerTester == null) || (tuplePointerTester.getFrameIndex() == -1 && tuplePointerTester.getTupleIndex() == -1);
+                        //If the building bucket is on disk, we need to write s to disk but only once
+                        TuplePointer tuplePointerForProbeDiskFile = new TuplePointer();
+                        runFileStreamForProbe.addToRunFile(accessorProbe, i, tuplePointerForProbeDiskFile, isBucketNew);
+
+
                         if (tuplePointerTester == null) {
                             // set the tuple pointer for probe side as it locates it on disk
                             table.insert(probeBucketId, new TuplePointer(), tuplePointerForProbeDiskFile);

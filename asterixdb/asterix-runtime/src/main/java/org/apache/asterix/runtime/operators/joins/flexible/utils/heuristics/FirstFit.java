@@ -13,7 +13,7 @@ import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 import java.util.ArrayList;
 
 public class FirstFit implements IHeuristicForThetaJoin {
-    double CONSTANT = 1.25;
+    double CONSTANT = 1;
     SerializableBucketIdList bucketTable;
     long buildFileSize;
     long probeFileSize;
@@ -40,7 +40,7 @@ public class FirstFit implements IHeuristicForThetaJoin {
     public boolean hasNextBuildingBucketSequence() {
         for(int i= 0; i < this.numberOfBuckets; i++) {
             int[] bucket = bucketTable.getEntry(i);
-            if(bucket[1] < 0) return true;
+            if(bucket[1] < 0 && bucket[2] > -1) return true;
         }
         return false;
     }
@@ -53,12 +53,10 @@ public class FirstFit implements IHeuristicForThetaJoin {
         int currentFrame = 0;
         for(int i= 0; i < this.numberOfBuckets; i++) {
             int[] bucket = bucketTable.getEntry(i);
-
-            if(bucket[0] == -1) {
-                this.hasNextBuildingBucketSequence = false;
-                return returnBuckets;
-            }
-            if(bucket[1] >= 0  || bucket[2] == -1) continue;
+            //The bucket is pruned in initial run
+            if(bucket[1] > -1 && bucket[2] > -1) continue;
+            //The bucket is loaded in one of the previous iterations
+            if(bucket[1] == -1 && bucket[2] == -1) continue;
             long bucketSize;
             long startOffsetInFile = -((long) (bucket[1] + 1) * this.frameSize) + bucket[2];
             int endFrame;
@@ -76,9 +74,9 @@ public class FirstFit implements IHeuristicForThetaJoin {
             if(Math.ceil(((double)totalSizeForBuckets + bucketSize)*CONSTANT/frameSize) < memoryForJoinInFrames) totalSizeForBuckets += bucketSize;
             else break;
 
-            bucketTable.updateBuildBucket(bucket[0], new TuplePointer(0,0));
             Bucket returnBucket = new Bucket(bucket[0],0, bucket[2], endOffset, -(bucket[1]+1), endFrame);
             returnBuckets.add(returnBucket);
+            bucketTable.updateBuildBucket(bucket[0], new TuplePointer(-1,-1));
         }
 
         return returnBuckets;

@@ -85,7 +85,7 @@ public class InMemoryThetaFlexibleJoiner {
     protected boolean spilled;
 
     protected long numRecordsFromBuild;
-//    private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
+    //private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
 //    private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
 //    private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
 
@@ -134,10 +134,11 @@ public class InMemoryThetaFlexibleJoiner {
         int tupleCount = accessorBuild.getTupleCount();
         for (int i = 0; i < tupleCount; i++) {
 
-            if(accessorBuild.getTupleStartOffset(i) < startOffset) continue;
-            if(endOffset != -1) {
-                if(accessorBuild.getTupleStartOffset(i) >= endOffset) break;
-            }
+//            if(accessorBuild.getTupleStartOffset(i) < startOffset) continue;
+//            if(endOffset != -1) {
+//                if(accessorBuild.getTupleStartOffset(i) >= endOffset) break;
+//            }
+            // b = FlexibleJoinsUtil.getBucketId(accessorBuild,i,1);
             //bucketMap.merge(bucketId, 1, Integer::sum);
             //System.out.println("Start offset of "+ i +":"+accessorBuild.getTupleStartOffset(i));
             // If the memory does not accept the new record join should fail since buildOneBucket shall only be called for the buckets fit into memory
@@ -177,17 +178,16 @@ public class InMemoryThetaFlexibleJoiner {
                 (byte) value};
     }
 
-    public void probeOneBucket(ByteBuffer buffer, IFrameWriter writer, int bucketId, int startOffset, int endOffset) throws HyracksDataException {
+    public void probeOneBucket(ByteBuffer buffer, IFrameWriter writer, int startOffset, int endOffset) throws HyracksDataException {
         accessorProbe.reset(buffer);
         int tupleCount = accessorProbe.getTupleCount();
         int accessorIndex = 0;
         // for each record from S
         for (int i = 0; i < tupleCount; ++i) {
-
-            if(accessorProbe.getTupleStartOffset(i) < startOffset) continue;
-            if(endOffset != -1) {
-                if(accessorProbe.getTupleStartOffset(i) >= endOffset) break;
-            }
+//            if(accessorProbe.getTupleStartOffset(i) < startOffset) continue;
+//            if(endOffset != -1) {
+//                if(accessorProbe.getTupleStartOffset(i) >= endOffset) break;
+//            }
             //bucketMatchCount.merge(bucketId, 1, Integer::sum);
             int numberOfBuckets = table.getNumEntries();
             // Iterate over the buckets from bucket table
