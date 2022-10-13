@@ -32,23 +32,23 @@ import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
 /**
- * Use {@link JEDILengthFilterDescriptor} to compute the length filter for the JSON Edit Distance (JEDI)
- * between two JSON trees. The length filter functions as a lower bound for the JSON Edit Distance.
+ * Use {@link SizeDifferenceDescriptor} to compute the size difference between two JSON trees.
+ * The size difference acts as a lower bound for the JSON Edit Distance.
  * For the JEDI computation itself, see {@link JEDIDescriptor}.
  */
 
-public class JEDILengthFilterDescriptor extends AbstractScalarFunctionDynamicDescriptor {
+public class SizeDifferenceDescriptor extends AbstractScalarFunctionDynamicDescriptor {
 
     private static final long serialVersionUID = 1L;
     public static final IFunctionDescriptorFactory FACTORY = new IFunctionDescriptorFactory() {
         @Override
         public IFunctionDescriptor createFunctionDescriptor() {
-            return new JEDILengthFilterDescriptor();
+            return new SizeDifferenceDescriptor();
         }
 
         @Override
         public IFunctionTypeInferer createFunctionTypeInferer() {
-            return new FunctionTypeInferers.JSONSimilarityLengthFilterTypeInferer();
+            return new FunctionTypeInferers.SizeDifferenceTypeInferer();
         }
     };
 
@@ -68,14 +68,14 @@ public class JEDILengthFilterDescriptor extends AbstractScalarFunctionDynamicDes
 
             @Override
             public IScalarEvaluator createScalarEvaluator(IEvaluatorContext ctx) throws HyracksDataException {
-                return new JEDILengthFilterEvaluator(args, ctx, sourceLoc, type1, type2);
+                return new SizeDifferenceEvaluator(args, ctx, sourceLoc, type1, type2);
             }
         };
     }
 
     @Override
     public FunctionIdentifier getIdentifier() {
-        return BuiltinFunctions.JEDI_LEN_FILTER;
+        return BuiltinFunctions.SIZE_DIFFERENCE;
     }
 
 }

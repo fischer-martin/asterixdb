@@ -19,22 +19,16 @@
 package org.apache.asterix.runtime.evaluators.functions.records;
 
 import java.io.DataOutput;
-import java.util.List;
 
-import org.apache.asterix.builders.ArrayListFactory;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMutableDouble;
 import org.apache.asterix.om.pointables.PointableAllocator;
 import org.apache.asterix.om.pointables.base.IVisitablePointable;
-import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.IAType;
-import org.apache.asterix.om.util.container.IObjectPool;
-import org.apache.asterix.om.util.container.ListObjectPool;
 import org.apache.asterix.runtime.evaluators.common.JSONCostModel;
 import org.apache.asterix.runtime.evaluators.common.JSONTreeTransformator;
-import org.apache.asterix.runtime.evaluators.common.Node;
-import org.apache.commons.lang3.mutable.MutableInt;import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
@@ -45,10 +39,7 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
-import it.unimi.dsi.fastutil.ints.IntIntMutablePair;
-import it.unimi.dsi.fastutil.ints.IntIntPair;
-
-public class JEDILengthFilterEvaluator implements IScalarEvaluator {
+public class SizeDifferenceEvaluator implements IScalarEvaluator {
     protected final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
     protected final DataOutput out = resultStorage.getDataOutput();
     protected final IScalarEvaluator firstStringEval;
@@ -66,7 +57,7 @@ public class JEDILengthFilterEvaluator implements IScalarEvaluator {
     private final JSONTreeTransformator treeTransformator = new JSONTreeTransformator();
     private final JSONCostModel cm = new JSONCostModel(1, 1, 1); // Unit cost model (each operation has cost 1).
 
-    public JEDILengthFilterEvaluator(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
+    public SizeDifferenceEvaluator(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
             SourceLocation sourceLoc, IAType type1, IAType type2) throws HyracksDataException {
         PointableAllocator allocator = new PointableAllocator();
         firstStringEval = args[0].createScalarEvaluator(context);

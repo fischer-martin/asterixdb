@@ -156,7 +156,7 @@ public final class FunctionTypeInferers {
         }
     }
 
-    public static final class JSONSimilarityLengthFilterTypeInferer implements IFunctionTypeInferer {
+    public static final class SizeDifferenceTypeInferer implements IFunctionTypeInferer {
         @Override
         public void infer(ILogicalExpression expr, IFunctionDescriptor fd, IVariableTypeEnvironment context,
                 CompilerProperties compilerProps) throws AlgebricksException {

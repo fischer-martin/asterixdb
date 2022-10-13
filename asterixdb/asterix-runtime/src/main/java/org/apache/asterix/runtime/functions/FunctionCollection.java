@@ -531,7 +531,7 @@ import org.apache.asterix.runtime.evaluators.functions.records.FieldAccessNested
 import org.apache.asterix.runtime.evaluators.functions.records.GetRecordFieldValueDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.GetRecordFieldsDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.JEDIDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.JEDILengthFilterDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.records.SizeDifferenceDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.PairsDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.RecordAddDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.RecordAddFieldsDescriptor;
@@ -1156,7 +1156,7 @@ public final class FunctionCollection implements IFunctionCollection {
 
         // JSON
         fc.add(JEDIDescriptor.FACTORY);
-        fc.add(JEDILengthFilterDescriptor.FACTORY);
+        fc.add(SizeDifferenceDescriptor.FACTORY);
 
         // Spatial
         fc.add(CreatePointDescriptor.FACTORY);
