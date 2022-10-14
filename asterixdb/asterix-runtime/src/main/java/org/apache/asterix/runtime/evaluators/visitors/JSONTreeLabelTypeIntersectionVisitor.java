@@ -30,6 +30,7 @@ import org.apache.asterix.om.util.container.ListObjectPool;
 import org.apache.asterix.runtime.evaluators.common.LabelTypeTuple;
 import org.apache.asterix.runtime.evaluators.common.LabelTypeTupleFactory;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
 /**
@@ -40,11 +41,12 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
  *          pointable.accept(jTreeLTIVisitor, arg);
  */
 
-public class JSONTreeLabelTypeIntersectionVisitor implements IVisitablePointableVisitor<Void, HashMap<LabelTypeTuple, MutableInt>> {
+public class JSONTreeLabelTypeIntersectionVisitor
+        implements IVisitablePointableVisitor<Void, MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt>> {
     private final IObjectPool<LabelTypeTuple, Object> labelTypeTupleAllocator;
 
     public JSONTreeLabelTypeIntersectionVisitor() {
-        // Use ListObjectPool to reuse in-memory buffers instead of allocating new memory for each node.
+        // Use ListObjectPool to reuse in-memory buffers instead of allocating new memory for each (label, type)).
         labelTypeTupleAllocator = new ListObjectPool<>(new LabelTypeTupleFactory());
     }
 
@@ -64,9 +66,9 @@ public class JSONTreeLabelTypeIntersectionVisitor implements IVisitablePointable
     }
 
     @Override
-    public Void visit(AListVisitablePointable pointable, HashMap<LabelTypeTuple, MutableInt> arg)
-            throws HyracksDataException {
-        // Create a new list node (array or multiset).
+    public Void visit(AListVisitablePointable pointable,
+            MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt> arg) throws HyracksDataException {
+        // Create a new list (label, type) (array or multiset).
         LabelTypeTuple listLTT = labelTypeTupleAllocator.allocate(null);
         listLTT.setLabel(null);
         if (pointable.ordered()) {
@@ -75,7 +77,8 @@ public class JSONTreeLabelTypeIntersectionVisitor implements IVisitablePointable
             listLTT.setType(5);
         }
 
-        addToBag(arg, listLTT);
+        arg.right.increment();
+        addToBag(arg.left, listLTT);
 
         // Recursively visit all list children (elements).
         for (int i = 0; i < pointable.getItems().size(); i++) {
@@ -86,39 +89,42 @@ public class JSONTreeLabelTypeIntersectionVisitor implements IVisitablePointable
     }
 
     @Override
-    public Void visit(ARecordVisitablePointable pointable, HashMap<LabelTypeTuple, MutableInt> arg)
-            throws HyracksDataException {
-        // Create a new object node.
+    public Void visit(ARecordVisitablePointable pointable,
+            MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt> arg) throws HyracksDataException {
+        // Create a new object (label, type).
         LabelTypeTuple objectLTT = labelTypeTupleAllocator.allocate(null);
         objectLTT.setLabel(null);
         objectLTT.setType(3);
 
-        addToBag(arg, objectLTT);
+        arg.right.increment();
+        addToBag(arg.left, objectLTT);
 
         // Recursively visit all object children (key-value pairs).
         for (int i = 0; i < pointable.getFieldValues().size(); i++) {
             pointable.getFieldValues().get(i).accept(this, arg);
 
-            // Building a key node.
+            // Building a key (label, type).
             IVisitablePointable key = pointable.getFieldNames().get(i);
             LabelTypeTuple keyLTT = labelTypeTupleAllocator.allocate(null);
             keyLTT.setLabel(key);
             keyLTT.setType(2);
 
-            addToBag(arg, keyLTT);;
+            arg.right.increment();
+            addToBag(arg.left, keyLTT);;
         }
 
         return null;
     }
 
     @Override
-    public Void visit(AFlatValuePointable pointable, HashMap<LabelTypeTuple, MutableInt> arg)
+    public Void visit(AFlatValuePointable pointable, MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt> arg)
             throws HyracksDataException {
         LabelTypeTuple ltt = labelTypeTupleAllocator.allocate(null);
         ltt.setLabel(pointable);
         ltt.setType(1);
 
-        addToBag(arg, ltt);
+        arg.right.increment();
+        addToBag(arg.left, ltt);
 
         return null;
     }

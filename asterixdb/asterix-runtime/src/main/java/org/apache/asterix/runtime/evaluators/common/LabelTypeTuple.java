@@ -1,14 +1,16 @@
 package org.apache.asterix.runtime.evaluators.common;
 
-import org.apache.asterix.om.pointables.base.IVisitablePointable
-;import java.util.Objects;
+import java.util.Objects;
+
+import org.apache.asterix.om.pointables.base.IVisitablePointable;
 
 public class LabelTypeTuple {
 
     private IVisitablePointable label; // null if type is object, array, or multiset
     private int type; // 1: literal, 2: key, 3: object, 4: array, 5: multiset
 
-    @Override public boolean equals(Object o) {
+    @Override
+    public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
@@ -36,8 +38,8 @@ public class LabelTypeTuple {
         int result = Objects.hashCode(type);
 
         if (type == 1 || type == 2) {
-            result = result * 31+ hashArraySlice(label.getByteArray(), label.getStartOffset()
-                , label.getStartOffset() + label.getLength());
+            result = result * 31 + hashArraySlice(label.getByteArray(), label.getStartOffset(),
+                    label.getStartOffset() + label.getLength());
         }
 
         return result;

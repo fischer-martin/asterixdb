@@ -18,10 +18,12 @@
  */
 package org.apache.asterix.runtime.evaluators.common;
 
-import java.util.HashMap;import java.util.List;
+import java.util.HashMap;
+import java.util.List;
 
 import org.apache.asterix.om.pointables.base.IVisitablePointable;
-import org.apache.asterix.runtime.evaluators.visitors.JSONTreeLabelTypeIntersectionVisitor;import org.apache.asterix.runtime.evaluators.visitors.JSONTreeSizeVisitor;
+import org.apache.asterix.runtime.evaluators.visitors.JSONTreeLabelTypeIntersectionVisitor;
+import org.apache.asterix.runtime.evaluators.visitors.JSONTreeSizeVisitor;
 import org.apache.asterix.runtime.evaluators.visitors.JSONTreeVisitor;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
@@ -40,7 +42,8 @@ import it.unimi.dsi.fastutil.ints.IntIntPair;
 public class JSONTreeTransformator {
     private final JSONTreeVisitor jTreeVisitor = new JSONTreeVisitor();
     private final JSONTreeSizeVisitor jTreeSizeVisitor = new JSONTreeSizeVisitor();
-    private final JSONTreeLabelTypeIntersectionVisitor jIntersectionVisitor = new JSONTreeLabelTypeIntersectionVisitor();
+    private final JSONTreeLabelTypeIntersectionVisitor jIntersectionVisitor =
+            new JSONTreeLabelTypeIntersectionVisitor();
 
     public JSONTreeTransformator() {
     }
@@ -59,14 +62,17 @@ public class JSONTreeTransformator {
         return nodeCounter.intValue();
     }
 
+    public MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt> countAndGenerateNodeBag(
+            IVisitablePointable pointable, MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt> arg)
+            throws HyracksDataException {
+        pointable.accept(jIntersectionVisitor, arg);
+
+        return arg;
+    }
+
     public void reset() {
         // Free in-memory buffers for reuse.
         jTreeVisitor.reset();
-    }
-    public HashMap<LabelTypeTuple,MutableInt> generateNodeBag(IVisitablePointable pointable
-            , HashMap<LabelTypeTuple, MutableInt> bag) throws HyracksDataException {
-        pointable.accept(jIntersectionVisitor, bag);
-
-        return bag;
+        jIntersectionVisitor.reset();
     }
 }

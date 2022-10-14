@@ -33,7 +33,7 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 
 /**
  * Use {@link IntersectionLowerBoundDescriptor} to compute the Intersection Lower Bound for the JSON Edit Distance
- * between two JSON trees by using the QuickJedi algorithm as described in Huetter et al. (SIGMOD 2022).
+ * between two JSON trees as described in Huetter et al. (SIGMOD 2022).
  */
 
 public class IntersectionLowerBoundDescriptor extends AbstractScalarFunctionDynamicDescriptor {
@@ -74,7 +74,7 @@ public class IntersectionLowerBoundDescriptor extends AbstractScalarFunctionDyna
 
     @Override
     public FunctionIdentifier getIdentifier() {
-        return BuiltinFunctions.JEDI;
+        return BuiltinFunctions.INTERSECTION_LOWER_BOUND;
     }
 
 }

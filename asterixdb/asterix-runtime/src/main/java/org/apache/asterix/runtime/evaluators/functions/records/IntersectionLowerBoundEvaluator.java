@@ -19,7 +19,8 @@
 package org.apache.asterix.runtime.evaluators.functions.records;
 
 import java.io.DataOutput;
-import java.util.HashMap;import java.util.List;
+import java.util.HashMap;
+import java.util.List;
 
 import org.apache.asterix.builders.ArrayListFactory;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
@@ -32,7 +33,8 @@ import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.om.util.container.IObjectPool;
 import org.apache.asterix.om.util.container.ListObjectPool;
 import org.apache.asterix.runtime.evaluators.common.*;
-import org.apache.commons.lang3.mutable.MutableInt;import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
@@ -42,9 +44,6 @@ import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
-
-import it.unimi.dsi.fastutil.ints.IntIntMutablePair;
-import it.unimi.dsi.fastutil.ints.IntIntPair;
 
 public class IntersectionLowerBoundEvaluator implements IScalarEvaluator {
     protected final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
@@ -63,8 +62,8 @@ public class IntersectionLowerBoundEvaluator implements IScalarEvaluator {
 
     private final JSONTreeTransformator treeTransformator = new JSONTreeTransformator();
 
-    public IntersectionLowerBoundEvaluator(IScalarEvaluatorFactory[] args, IEvaluatorContext context, SourceLocation sourceLoc,
-            IAType type1, IAType type2) throws HyracksDataException {
+    public IntersectionLowerBoundEvaluator(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
+            SourceLocation sourceLoc, IAType type1, IAType type2) throws HyracksDataException {
         PointableAllocator allocator = new PointableAllocator();
         firstStringEval = args[0].createScalarEvaluator(context);
         secondStringEval = args[1].createScalarEvaluator(context);
@@ -83,10 +82,17 @@ public class IntersectionLowerBoundEvaluator implements IScalarEvaluator {
         secondStringEval.evaluate(tuple, pointableRight);
 
         // Convert the given data items into node bags of their JSON trees.
-        HashMap<LabelTypeTuple, MutableInt> nodeBag1 = treeTransformator.generateNodeBag(pointableLeft, new HashMap<>());
-        HashMap<LabelTypeTuple, MutableInt> nodeBag2 = treeTransformator.generateNodeBag(pointableLeft, new HashMap<>());
+        MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt> temp = treeTransformator
+                .countAndGenerateNodeBag(pointableLeft, new MutablePair<>(new HashMap<>(), new MutableInt()));
+        int treeSize1 = temp.right.intValue();
+        HashMap<LabelTypeTuple, MutableInt> nodeBag1 = temp.left;
 
-        writeResult(intersectionLowerBound(nodeBag1, nodeBag2));
+        temp = treeTransformator.countAndGenerateNodeBag(pointableRight,
+                new MutablePair<>(new HashMap<>(), new MutableInt()));
+        int treeSize2 = temp.right.intValue();
+        HashMap<LabelTypeTuple, MutableInt> nodeBag2 = temp.left;
+
+        writeResult(intersectionLowerBound(treeSize1, nodeBag1, treeSize2, nodeBag2));
         result.set(resultStorage);
     }
 
@@ -95,9 +101,20 @@ public class IntersectionLowerBoundEvaluator implements IScalarEvaluator {
         doubleSerde.serialize(aDouble, out);
     }
 
-    private double intersectionLowerBound(HashMap<LabelTypeTuple, MutableInt> bag1, HashMap<LabelTypeTuple, MutableInt> bag2) {
-        // TODO
-        return -1;
+    private double intersectionLowerBound(int treeSize1, HashMap<LabelTypeTuple, MutableInt> bag1, int treeSize2,
+            HashMap<LabelTypeTuple, MutableInt> bag2) {
+        int intersectionSize = 0;
+
+        MutableInt otherCount;
+        for (var entry : bag1.entrySet()) {
+            otherCount = bag2.get(entry.getKey());
+
+            if (otherCount != null) {
+                intersectionSize += Math.min(entry.getValue().intValue(), otherCount.intValue());
+            }
+        }
+
+        return Math.max(treeSize1, treeSize2) - intersectionSize;
     }
 
 }
