@@ -19,10 +19,10 @@
 
 package org.apache.hyracks.dataflow.std.buffermanager;
 
-import org.apache.hyracks.api.exceptions.HyracksDataException;
-
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+
+import org.apache.hyracks.api.exceptions.HyracksDataException;
 
 /**
  * General Frame based buffer manager class

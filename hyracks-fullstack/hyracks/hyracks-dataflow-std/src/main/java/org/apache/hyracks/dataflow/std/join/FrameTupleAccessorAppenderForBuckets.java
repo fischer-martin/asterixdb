@@ -19,28 +19,15 @@
 
 package org.apache.hyracks.dataflow.std.join;
 
-import org.apache.hyracks.api.comm.FrameHelper;
-import org.apache.hyracks.api.comm.IFrame;
-import org.apache.hyracks.api.comm.IFrameTupleAccessor;
-import org.apache.hyracks.api.comm.IFrameWriter;
-import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
-import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.common.comm.io.FixedSizeFrameTupleAppender;
-import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppenderAccessor;
-import org.apache.hyracks.dataflow.std.sort.util.IAppendDeletableFrameTupleAccessor;
-import org.apache.hyracks.util.IntSerDeUtils;
-
-import java.nio.ByteBuffer;
 
 /**
  */
 public class FrameTupleAccessorAppenderForBuckets extends FixedSizeFrameTupleAppender {
 
-
     public boolean setTupleDataEndOffset(int tupleDataEndOffset) {
         this.tupleDataEndOffset = tupleDataEndOffset;
         return true;
     };
-
 
 }

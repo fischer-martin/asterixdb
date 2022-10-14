@@ -16,14 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.api.dataflow.value;
+package org.apache.asterix.common.annotations;
 
-import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.util.annotations.CriticalPath;
+import org.apache.hyracks.algebricks.core.algebra.expressions.IExpressionAnnotation;
 
-public interface IBucketPairComparator extends ITuplePairComparator {
+public final class FlexibleJoinAnnotation implements IExpressionAnnotation {
 
-    @CriticalPath
-    int compare(int bucketId1, int bucketId2) throws HyracksDataException;
+    public static final String HINT_STRING = "shadow-join";
 
+    public FlexibleJoinAnnotation() {
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s", HINT_STRING);
+    }
 }

@@ -29,13 +29,18 @@ import org.apache.hyracks.api.dataflow.IActivity;
 import org.apache.hyracks.api.dataflow.IActivityGraphBuilder;
 import org.apache.hyracks.api.dataflow.IOperatorNodePushable;
 import org.apache.hyracks.api.dataflow.TaskId;
-import org.apache.hyracks.api.dataflow.value.*;
+import org.apache.hyracks.api.dataflow.value.IBinaryHashFunctionFamily;
+import org.apache.hyracks.api.dataflow.value.IPredicateEvaluator;
+import org.apache.hyracks.api.dataflow.value.IPredicateEvaluatorFactory;
+import org.apache.hyracks.api.dataflow.value.IRecordDescriptorProvider;
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparatorFactory;
+import org.apache.hyracks.api.dataflow.value.ITuplePartitionComputer;
+import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 import org.apache.hyracks.api.job.JobId;
-import org.apache.hyracks.dataflow.common.comm.io.ArrayTupleBuilder;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
-import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 import org.apache.hyracks.dataflow.common.comm.util.FrameUtils;
 import org.apache.hyracks.dataflow.common.data.partition.FieldHashPartitionComputerFamily;
 import org.apache.hyracks.dataflow.common.io.RunFileReader;
@@ -49,13 +54,11 @@ import org.apache.hyracks.dataflow.std.buffermanager.FramePoolBackedFrameBufferM
 import org.apache.hyracks.dataflow.std.buffermanager.IDeallocatableFramePool;
 import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
 import org.apache.hyracks.dataflow.std.join.NestedLoopJoin;
-import org.apache.hyracks.dataflow.std.structures.ISerializableTable;
 import org.apache.hyracks.dataflow.std.structures.SerializableHashTable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
-
 
     private static final int INIT_SEED = 982028031;
 
@@ -85,11 +88,11 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
     private final double fudgeFactor;
 
     public FlexibleJoinOperatorDescriptor(IOperatorDescriptorRegistry spec, int memoryForJoin, int[] buildKeys,
-            int[] probeKeys, RecordDescriptor recordDescriptor,
-            ITuplePairComparatorFactory tupPaircomparatorFactory01,ITuplePairComparatorFactory tupPaircomparatorFactory10,
-                                          IBinaryHashFunctionFamily[] propHashFunctionFactories,
-                                          IBinaryHashFunctionFamily[] buildHashFunctionFactories,
-                                          IPredicateEvaluatorFactory predEvaluatorFactory, double fudgeFactor) {
+            int[] probeKeys, RecordDescriptor recordDescriptor, ITuplePairComparatorFactory tupPaircomparatorFactory01,
+            ITuplePairComparatorFactory tupPaircomparatorFactory10,
+            IBinaryHashFunctionFamily[] propHashFunctionFactories,
+            IBinaryHashFunctionFamily[] buildHashFunctionFactories, IPredicateEvaluatorFactory predEvaluatorFactory,
+            double fudgeFactor) {
         super(spec, 2, 1);
 
         this.predEvaluatorFactory = predEvaluatorFactory;
@@ -202,7 +205,8 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                     state.memForJoin = memoryForJoin - 2;
                     state.numOfPartitions = getNumberOfPartitions(state.memForJoin, -1, fudgeFactor, nPartitions);
 
-                    state.joiner = new OptimizedFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, partition, probeHpc, buildHpc, PROBE_REL, BUILD_REL, predEvaluator);
+                    state.joiner = new OptimizedFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, partition,
+                            probeHpc, buildHpc, PROBE_REL, BUILD_REL, predEvaluator);
 
                     state.joiner.initBuild();
                 }
@@ -225,8 +229,8 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                             state.joiner.clearBuildTempFiles();
                         }
                     }
-//                    state.joiner.processBuildClose();
-//                    ctx.setStateObject(state);
+                    //                    state.joiner.processBuildClose();
+                    //                    ctx.setStateObject(state);
                 }
 
                 @Override
@@ -252,12 +256,15 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) throws HyracksDataException {
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions)
+                throws HyracksDataException {
             return new AbstractUnaryInputUnaryOutputOperatorNodePushable() {
                 private JoinCacheTaskState state;
                 boolean failed = false;
-                final ITuplePairComparator probComp = tuplePairComparatorFactoryProbe2Build.createTuplePairComparator(ctx);
-                final ITuplePairComparator buildComp = tuplePairComparatorFactoryBuild2Probe.createTuplePairComparator(ctx);
+                final ITuplePairComparator probComp =
+                        tuplePairComparatorFactoryProbe2Build.createTuplePairComparator(ctx);
+                final ITuplePairComparator buildComp =
+                        tuplePairComparatorFactoryBuild2Probe.createTuplePairComparator(ctx);
 
                 final IPredicateEvaluator predEvaluator =
                         predEvaluatorFactory == null ? null : predEvaluatorFactory.createPredicateEvaluator();
@@ -266,6 +273,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                 final RecordDescriptor probeRd = recordDescProvider.getInputRecordDescriptor(getActivityId(), 0);
 
                 private IFrame rPartbuff = new VSizeFrame(ctx);
+
                 @Override
                 public void open() throws HyracksDataException {
                     writer.open();
@@ -311,9 +319,9 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                             RunFileReader pReader = state.joiner.getProbeRFReader(pid);
 
                             if (bReader == null || pReader == null) {
-//                                if (isLeftOuter && pReader != null) {
-//                                    appendNullToProbeTuples(pReader);
-//                                }
+                                //                                if (isLeftOuter && pReader != null) {
+                                //                                    appendNullToProbeTuples(pReader);
+                                //                                }
                                 if (bReader != null) {
                                     bReader.close();
                                 }
@@ -355,7 +363,7 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
 
                 //The buildSideReader should be always the original buildSideReader, so should the probeSideReader
                 private void joinPartitionPair(RunFileReader buildSideReader, RunFileReader probeSideReader,
-                                               int buildSizeInTuple, int probeSizeInTuple, int level) throws HyracksDataException {
+                        int buildSizeInTuple, int probeSizeInTuple, int level) throws HyracksDataException {
                     ITuplePartitionComputer probeHpc =
                             new FieldHashPartitionComputerFamily(probeKeys, propHashFunctionFactories)
                                     .createPartitioner(level);
@@ -445,10 +453,10 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                 }
 
                 private void applyHybridHashJoin(int tableSize, final String PROBE_REL, final String BUILD_REL,
-                                                 final int[] probeKeys, final int[] buildKeys, final RecordDescriptor probeRd,
-                                                 final RecordDescriptor buildRd, final ITuplePartitionComputer probeHpc,
-                                                 final ITuplePartitionComputer buildHpc, RunFileReader probeSideReader,
-                                                 RunFileReader buildSideReader, final int level, final long beforeMax, ITuplePairComparator comp)
+                        final int[] probeKeys, final int[] buildKeys, final RecordDescriptor probeRd,
+                        final RecordDescriptor buildRd, final ITuplePartitionComputer probeHpc,
+                        final ITuplePartitionComputer buildHpc, RunFileReader probeSideReader,
+                        RunFileReader buildSideReader, final int level, final long beforeMax, ITuplePairComparator comp)
                         throws HyracksDataException {
 
                     boolean isReversed = probeKeys == FlexibleJoinOperatorDescriptor.this.buildKeys
@@ -456,9 +464,10 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
 
                     OptimizedFlexibleJoiner recursiveFlexibleJoin;
                     int n = getNumberOfPartitions(state.memForJoin, tableSize, fudgeFactor, nPartitions);
-                    recursiveFlexibleJoin = new OptimizedFlexibleJoiner(ctx, state.memForJoin, buildRd, probeRd, n, probeHpc, buildHpc, PROBE_REL, BUILD_REL, predEvaluator); //checked-confirmed
+                    recursiveFlexibleJoin = new OptimizedFlexibleJoiner(ctx, state.memForJoin, buildRd, probeRd, n,
+                            probeHpc, buildHpc, PROBE_REL, BUILD_REL, predEvaluator); //checked-confirmed
 
-                    recursiveFlexibleJoin. setIsReversed(isReversed);
+                    recursiveFlexibleJoin.setIsReversed(isReversed);
                     try {
                         buildSideReader.open();
                         try {
@@ -567,14 +576,13 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                 }
 
                 private void applyNestedLoopJoin(RecordDescriptor outerRd, RecordDescriptor innerRd, int memorySize,
-                                                 RunFileReader outerReader, RunFileReader innerReader) throws HyracksDataException {
+                        RunFileReader outerReader, RunFileReader innerReader) throws HyracksDataException {
                     // The nested loop join result is outer + inner. All the other operator is probe + build.
                     // Hence the reverse relation is different.
                     boolean isReversed = outerRd == buildRd && innerRd == probeRd;
                     ITuplePairComparator nljComptorOuterInner = isReversed ? buildComp : probComp;
                     NestedLoopJoin nlj = new NestedLoopJoin(ctx.getJobletContext(), new FrameTupleAccessor(outerRd),
-                            new FrameTupleAccessor(innerRd), memorySize, predEvaluator, false, null,
-                            isReversed);
+                            new FrameTupleAccessor(innerRd), memorySize, predEvaluator, false, null, isReversed);
                     nlj.setComparator(nljComptorOuterInner);
 
                     IFrame cacheBuff = new VSizeFrame(ctx);
@@ -609,9 +617,9 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                 }
 
                 private void applyInMemHashJoin(int[] bKeys, int[] pKeys, int tabSize, RecordDescriptor buildRDesc,
-                                                RecordDescriptor probeRDesc, ITuplePartitionComputer hpcRepBuild,
-                                                ITuplePartitionComputer hpcRepProbe, RunFileReader bReader, RunFileReader pReader,
-                                                ITuplePairComparator comp) throws HyracksDataException {
+                        RecordDescriptor probeRDesc, ITuplePartitionComputer hpcRepBuild,
+                        ITuplePartitionComputer hpcRepProbe, RunFileReader bReader, RunFileReader pReader,
+                        ITuplePairComparator comp) throws HyracksDataException {
                     boolean isReversed = pKeys == FlexibleJoinOperatorDescriptor.this.buildKeys
                             && bKeys == FlexibleJoinOperatorDescriptor.this.probeKeys;
                     IDeallocatableFramePool framePool =
@@ -620,8 +628,8 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
 
                     SerializableHashTable table = new SerializableHashTable(tabSize, ctx, bufferManager);
                     InMemoryFlexibleJoin joiner = new InMemoryFlexibleJoin(ctx, new FrameTupleAccessor(probeRDesc),
-                            hpcRepProbe, new FrameTupleAccessor(buildRDesc), buildRDesc, hpcRepBuild,
-                            table, predEvaluator, isReversed, bufferManager);
+                            hpcRepProbe, new FrameTupleAccessor(buildRDesc), buildRDesc, hpcRepBuild, table,
+                            predEvaluator, isReversed, bufferManager);
                     joiner.setComparator(comp);
                     try {
                         bReader.open();
@@ -670,7 +678,6 @@ public class FlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
                         }
                     }
                 }
-
 
                 @Override
                 public void fail() throws HyracksDataException {

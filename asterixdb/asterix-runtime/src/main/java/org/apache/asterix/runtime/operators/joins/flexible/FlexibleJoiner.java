@@ -46,14 +46,13 @@ import org.apache.hyracks.dataflow.std.buffermanager.FramePoolBackedFrameBufferM
 import org.apache.hyracks.dataflow.std.buffermanager.IDeallocatableFramePool;
 import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.VariableFrameMemoryManager;
-import org.apache.hyracks.dataflow.std.structures.KeyPair;
 import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 
 public class FlexibleJoiner {
-//    private final IDeallocatableFramePool framePool;
-//    private final IDeletableTupleBufferManager bufferManager;
-//    private final TuplePointerCursor memoryCursor;
+    //    private final IDeallocatableFramePool framePool;
+    //    private final IDeletableTupleBufferManager bufferManager;
+    //    private final TuplePointerCursor memoryCursor;
     private final LinkedList<TuplePointer> memoryBuffer = new LinkedList<>();
     private final HashMap<String, Boolean> bucketIdsMap = new HashMap<>();
 
@@ -91,7 +90,8 @@ public class FlexibleJoiner {
     private int buildTupleCounter = 0;
 
     public FlexibleJoiner(IHyracksTaskContext ctx, ITuplePairComparator tpComparator, int memorySize, int[] buildKeys,
-            int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd, int partition) throws HyracksDataException {
+            int[] probeKeys, RecordDescriptor buildRd, RecordDescriptor probeRd, int partition)
+            throws HyracksDataException {
 
         // Memory (probe buffer)
         if (memorySize < 5) {
@@ -107,20 +107,16 @@ public class FlexibleJoiner {
         inputCursor[PROBE_PARTITION] = new FrameTupleCursor(probeRd);
         accessorOuter = new FrameTupleAccessor(probeRd);
 
-
         inputBuffer = new IFrame[JOIN_PARTITIONS];
         inputBuffer[BUILD_PARTITION] = new VSizeFrame(ctx);
         inputBuffer[PROBE_PARTITION] = new VSizeFrame(ctx);
 
-        IDeallocatableFramePool framePool =
-                new DeallocatableFramePool(ctx, memorySize * ctx.getInitialFrameSize());
+        IDeallocatableFramePool framePool = new DeallocatableFramePool(ctx, memorySize * ctx.getInitialFrameSize());
         bufferManagerForHashTable = new FramePoolBackedFrameBufferManager(framePool);
-
 
         int outerBufferMngrMemBudgetInFrames = memorySize - 4;
         int outerBufferMngrMemBudgetInBytes = ctx.getInitialFrameSize() * outerBufferMngrMemBudgetInFrames;
-        this.outerBufferMngr = new VariableFrameMemoryManager(
-                framePool, FrameFreeSlotPolicyFactory
+        this.outerBufferMngr = new VariableFrameMemoryManager(framePool, FrameFreeSlotPolicyFactory
                 .createFreeSlotPolicy(EnumFreeSlotPolicy.LAST_FIT, outerBufferMngrMemBudgetInFrames));
 
         // Run File and frame cache (build buffer)
@@ -138,7 +134,6 @@ public class FlexibleJoiner {
         // Result
         this.resultAppender = new FrameTupleAppender(new VSizeFrame(ctx));
     }
-
 
     public void processBuildFrame(ByteBuffer buffer) throws HyracksDataException {
         inputCursor[BUILD_PARTITION].reset(buffer);
@@ -190,29 +185,29 @@ public class FlexibleJoiner {
         int currBuildTupleIdx = 0;
         while (buildHasNext()) {
             currBuildTupleIdx = inputCursor[BUILD_PARTITION].getTupleId() + 1;
-            currBuildBucketId = FlexibleJoinsUtil.getBucketId(buildAccessor,currBuildTupleIdx,1);
+            currBuildBucketId = FlexibleJoinsUtil.getBucketId(buildAccessor, currBuildTupleIdx, 1);
             for (int i = 0; i < outerBufferFrameCount; i++) {
                 BufferInfo outerBufferInfo = outerBufferMngr.getFrame(i, tempInfo);
                 accessorOuter.reset(outerBufferInfo.getBuffer(), outerBufferInfo.getStartOffset(),
                         outerBufferInfo.getLength());
                 int probeTupleCount = accessorOuter.getTupleCount();
-                for(int currProbleTupleIdx = 0; currProbleTupleIdx < probeTupleCount; currProbleTupleIdx++) {
-                    currProbeBucketId = FlexibleJoinsUtil.getBucketId(accessorOuter, currProbleTupleIdx,1);
+                for (int currProbleTupleIdx = 0; currProbleTupleIdx < probeTupleCount; currProbleTupleIdx++) {
+                    currProbeBucketId = FlexibleJoinsUtil.getBucketId(accessorOuter, currProbleTupleIdx, 1);
                     //System.out.println("build: " + currBuildBucketId + "\tprobe:"+currProbeBucketId);
-                counter++;
-                if(lastProbeBucketId != currProbeBucketId || lastBuildBucketId != currBuildBucketId) {
-                    /*if(!this.table.getResult(new KeyPair(currBuildBucketId, currProbeBucketId))) {
+                    counter++;
+                    if (lastProbeBucketId != currProbeBucketId || lastBuildBucketId != currBuildBucketId) {
+                        /*if(!this.table.getResult(new KeyPair(currBuildBucketId, currProbeBucketId))) {
                         this.table.insert(new KeyPair(currBuildBucketId, currProbeBucketId),
                                 (tpComparator.compare(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx) == 0)
                         );
-                    }
-                    matchResult = this.table.getResult(new KeyPair(currBuildBucketId, currProbeBucketId));*/
+                        }
+                        matchResult = this.table.getResult(new KeyPair(currBuildBucketId, currProbeBucketId));*/
 
-                    lastProbeBucketId = currProbeBucketId;
-                    lastBuildBucketId = currBuildBucketId;
-                }
+                        lastProbeBucketId = currProbeBucketId;
+                        lastBuildBucketId = currBuildBucketId;
+                    }
                     //matchResult = (tpComparator.compare(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx) == 0);
-                    if(matchResult) {
+                    if (matchResult) {
                         addToResult(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx, writer);
                     }
                 }
@@ -228,7 +223,7 @@ public class FlexibleJoiner {
         resultAppender.write(writer, true);
         runFileStream.close();
         runFileStream.removeRunFile();
-        System.out.println("join counter"+counter);
+        System.out.println("join counter" + counter);
 
     }
 
@@ -240,69 +235,69 @@ public class FlexibleJoiner {
             return true;
         }
     }
-//
-//    private void processBuildTuple(IFrameWriter writer) throws HyracksDataException {
-//        // Check against memory
-//        if (memoryHasTuples()) {
-//            memoryCursor.reset(memoryBuffer.iterator());
-//            while (memoryCursor.hasNext()) {
-//                memoryCursor.next();
-//                if (inputTuple[BUILD_PARTITION].removeFromMemory(memoryTuple)) {
-//                    // remove from memory
-//                    bufferManager.deleteTuple(memoryCursor.getTuplePointer());
-//                    memoryCursor.remove();
-//                    continue;
-//                } else if (inputTuple[BUILD_PARTITION].checkForEarlyExit(memoryTuple)) {
-//                    // No more possible comparisons
-//                    break;
-//                } else if (inputTuple[BUILD_PARTITION].compareJoin(memoryTuple)) {
-//                    // add to result
-//                    addToResult(inputCursor[BUILD_PARTITION].getAccessor(), inputCursor[BUILD_PARTITION].getTupleId(),
-//                            memoryCursor.getAccessor(), memoryCursor.getTupleId(), writer);
-//                }
-//            }
-//        }
-//    }
+    //
+    //    private void processBuildTuple(IFrameWriter writer) throws HyracksDataException {
+    //        // Check against memory
+    //        if (memoryHasTuples()) {
+    //            memoryCursor.reset(memoryBuffer.iterator());
+    //            while (memoryCursor.hasNext()) {
+    //                memoryCursor.next();
+    //                if (inputTuple[BUILD_PARTITION].removeFromMemory(memoryTuple)) {
+    //                    // remove from memory
+    //                    bufferManager.deleteTuple(memoryCursor.getTuplePointer());
+    //                    memoryCursor.remove();
+    //                    continue;
+    //                } else if (inputTuple[BUILD_PARTITION].checkForEarlyExit(memoryTuple)) {
+    //                    // No more possible comparisons
+    //                    break;
+    //                } else if (inputTuple[BUILD_PARTITION].compareJoin(memoryTuple)) {
+    //                    // add to result
+    //                    addToResult(inputCursor[BUILD_PARTITION].getAccessor(), inputCursor[BUILD_PARTITION].getTupleId(),
+    //                            memoryCursor.getAccessor(), memoryCursor.getTupleId(), writer);
+    //                }
+    //            }
+    //        }
+    //    }
 
-//    private void processProbeTuple(IFrameWriter writer) throws HyracksDataException {
-//        // append to memory
-//        // BUILD Cursor is guaranteed to have next
-//        if (tpComparator.compare(inputCursor[BUILD_PARTITION].getAccessor(),
-//                inputCursor[BUILD_PARTITION].getTupleId() + 1, inputCursor[PROBE_PARTITION].getAccessor(),
-//                inputCursor[PROBE_PARTITION].getTupleId()) == 0) {
-//            if (!addToMemory(inputCursor[PROBE_PARTITION].getAccessor(), inputCursor[PROBE_PARTITION].getTupleId())) {
-//                unfreezeAndClearMemory(writer);
-//                if (!addToMemory(inputCursor[PROBE_PARTITION].getAccessor(),
-//                        inputCursor[PROBE_PARTITION].getTupleId())) {
-//                    throw new RuntimeException("Should Never get called.");
-//                }
-//            }
-//        }
-//    }
+    //    private void processProbeTuple(IFrameWriter writer) throws HyracksDataException {
+    //        // append to memory
+    //        // BUILD Cursor is guaranteed to have next
+    //        if (tpComparator.compare(inputCursor[BUILD_PARTITION].getAccessor(),
+    //                inputCursor[BUILD_PARTITION].getTupleId() + 1, inputCursor[PROBE_PARTITION].getAccessor(),
+    //                inputCursor[PROBE_PARTITION].getTupleId()) == 0) {
+    //            if (!addToMemory(inputCursor[PROBE_PARTITION].getAccessor(), inputCursor[PROBE_PARTITION].getTupleId())) {
+    //                unfreezeAndClearMemory(writer);
+    //                if (!addToMemory(inputCursor[PROBE_PARTITION].getAccessor(),
+    //                        inputCursor[PROBE_PARTITION].getTupleId())) {
+    //                    throw new RuntimeException("Should Never get called.");
+    //                }
+    //            }
+    //        }
+    //    }
 
-//    private void unfreezeAndClearMemory(IFrameWriter writer) throws HyracksDataException {
-//        runFilePointer.reset(runFileStream.getReadPointer(), inputCursor[BUILD_PARTITION].getTupleId());
-//        while (buildHasNext() && memoryHasTuples()) {
-//            // Process build side from runfile
-//            inputCursor[BUILD_PARTITION].next();
-//            processBuildTuple(writer);
-//        }
-//        // Clear memory
-//        memoryBuffer.clear();
-//        bufferManager.reset();
-//        // Start reading
-//        runFileStream.startReadingRunFile(inputCursor[BUILD_PARTITION], runFilePointer.getFileOffset());
-//        inputCursor[BUILD_PARTITION].resetPosition(runFilePointer.getTupleIndex());
-//    }
+    //    private void unfreezeAndClearMemory(IFrameWriter writer) throws HyracksDataException {
+    //        runFilePointer.reset(runFileStream.getReadPointer(), inputCursor[BUILD_PARTITION].getTupleId());
+    //        while (buildHasNext() && memoryHasTuples()) {
+    //            // Process build side from runfile
+    //            inputCursor[BUILD_PARTITION].next();
+    //            processBuildTuple(writer);
+    //        }
+    //        // Clear memory
+    //        memoryBuffer.clear();
+    //        bufferManager.reset();
+    //        // Start reading
+    //        runFileStream.startReadingRunFile(inputCursor[BUILD_PARTITION], runFilePointer.getFileOffset());
+    //        inputCursor[BUILD_PARTITION].resetPosition(runFilePointer.getTupleIndex());
+    //    }
 
-//    private boolean addToMemory(IFrameTupleAccessor accessor, int tupleId) throws HyracksDataException {
-//        tp = new TuplePointer();
-//        if (bufferManager.insertTuple(accessor, tupleId, tp)) {
-//            memoryBuffer.add(tp);
-//            return true;
-//        }
-//        return false;
-//    }
+    //    private boolean addToMemory(IFrameTupleAccessor accessor, int tupleId) throws HyracksDataException {
+    //        tp = new TuplePointer();
+    //        if (bufferManager.insertTuple(accessor, tupleId, tp)) {
+    //            memoryBuffer.add(tp);
+    //            return true;
+    //        }
+    //        return false;
+    //    }
 
     private void addToResult(IFrameTupleAccessor buildAccessor, int buildTupleId, IFrameTupleAccessor probeAccessor,
             int probeTupleId, IFrameWriter writer) throws HyracksDataException {
@@ -321,8 +316,8 @@ public class FlexibleJoiner {
         outerBufferMngr.reset();
     }
 
-//    private boolean memoryHasTuples() {
-//        return bufferManager.getNumTuples() > 0;
-//    }
+    //    private boolean memoryHasTuples() {
+    //        return bufferManager.getNumTuples() > 0;
+    //    }
 
 }

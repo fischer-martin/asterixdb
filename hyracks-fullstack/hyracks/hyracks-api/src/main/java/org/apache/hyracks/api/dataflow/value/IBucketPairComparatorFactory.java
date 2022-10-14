@@ -18,10 +18,10 @@
  */
 package org.apache.hyracks.api.dataflow.value;
 
+import java.io.Serializable;
+
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-
-import java.io.Serializable;
 
 public interface IBucketPairComparatorFactory extends Serializable, ITuplePairComparatorFactory {
     public IBucketPairComparator createTuplePairComparator(IHyracksTaskContext ctx) throws HyracksDataException;

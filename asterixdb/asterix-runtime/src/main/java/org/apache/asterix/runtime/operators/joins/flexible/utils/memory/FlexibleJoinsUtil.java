@@ -18,12 +18,8 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible.utils.memory;
 
-import org.apache.asterix.dataflow.data.nontagged.Coordinate;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
-import org.apache.hyracks.api.exceptions.HyracksDataException;
 
 public class FlexibleJoinsUtil {
 

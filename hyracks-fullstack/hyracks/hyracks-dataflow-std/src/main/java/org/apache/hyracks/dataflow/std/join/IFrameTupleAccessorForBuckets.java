@@ -23,8 +23,6 @@ import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.comm.IFrameTupleAppender;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
-import java.nio.ByteBuffer;
-
 /**
 
  */

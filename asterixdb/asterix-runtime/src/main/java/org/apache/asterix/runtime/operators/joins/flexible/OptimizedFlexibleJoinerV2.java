@@ -18,6 +18,11 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible;
 
+import java.nio.ByteBuffer;
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.LinkedList;
+
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsSideTuple;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
@@ -41,14 +46,20 @@ import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 import org.apache.hyracks.dataflow.common.comm.util.FrameUtils;
 import org.apache.hyracks.dataflow.common.io.RunFileReader;
 import org.apache.hyracks.dataflow.common.io.RunFileWriter;
-import org.apache.hyracks.dataflow.std.buffermanager.*;
+import org.apache.hyracks.dataflow.std.buffermanager.BufferInfo;
+import org.apache.hyracks.dataflow.std.buffermanager.DeallocatableFramePool;
+import org.apache.hyracks.dataflow.std.buffermanager.EnumFreeSlotPolicy;
+import org.apache.hyracks.dataflow.std.buffermanager.FrameFreeSlotPolicyFactory;
+import org.apache.hyracks.dataflow.std.buffermanager.FramePoolBackedFrameBufferManager;
+import org.apache.hyracks.dataflow.std.buffermanager.IDeallocatableFramePool;
+import org.apache.hyracks.dataflow.std.buffermanager.IPartitionedTupleBufferManager;
+import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
+import org.apache.hyracks.dataflow.std.buffermanager.PreferToSpillFullyOccupiedFramePolicy;
+import org.apache.hyracks.dataflow.std.buffermanager.VPartitionTupleBufferManager;
+import org.apache.hyracks.dataflow.std.buffermanager.VariableFrameMemoryManager;
+import org.apache.hyracks.dataflow.std.buffermanager.VariableFramePool;
 import org.apache.hyracks.dataflow.std.structures.SerializableHashTable;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
-
-import java.nio.ByteBuffer;
-import java.util.BitSet;
-import java.util.HashMap;
-import java.util.LinkedList;
 
 public class OptimizedFlexibleJoinerV2 {
     private final LinkedList<TuplePointer> memoryBuffer = new LinkedList<>();
@@ -81,7 +92,7 @@ public class OptimizedFlexibleJoinerV2 {
 
     private final int partition;
 
-    private  int memSizeInFrames;
+    private int memSizeInFrames;
 
     private ISimpleFrameBufferManager bufferManagerForHashTable;
     private IPartitionedTupleBufferManager bufferManager;
@@ -121,9 +132,10 @@ public class OptimizedFlexibleJoinerV2 {
 
     //private final FlexibleJoin flexibleJoin;
 
-    public OptimizedFlexibleJoinerV2(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd, RecordDescriptor probeRd, int partition,
-                                     ITuplePartitionComputer probeHpc, ITuplePartitionComputer buildHpc, String probeRelName, String buildRelName,
-                                     IPredicateEvaluator predEval, int numOfPartitions) throws HyracksDataException {
+    public OptimizedFlexibleJoinerV2(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd,
+            RecordDescriptor probeRd, int partition, ITuplePartitionComputer probeHpc, ITuplePartitionComputer buildHpc,
+            String probeRelName, String buildRelName, IPredicateEvaluator predEval, int numOfPartitions)
+            throws HyracksDataException {
 
         this.numOfPartitions = numOfPartitions;
 
@@ -146,7 +158,7 @@ public class OptimizedFlexibleJoinerV2 {
         int outerBufferMngrMemBudgetInBytes = ctx.getInitialFrameSize() * outerBufferMngrMemBudgetInFrames;
         this.outerBufferMngr = new VariableFrameMemoryManager(
                 new VariableFramePool(ctx, outerBufferMngrMemBudgetInBytes), FrameFreeSlotPolicyFactory
-                .createFreeSlotPolicy(EnumFreeSlotPolicy.LAST_FIT, outerBufferMngrMemBudgetInFrames));
+                        .createFreeSlotPolicy(EnumFreeSlotPolicy.LAST_FIT, outerBufferMngrMemBudgetInFrames));
 
         // Run File and frame cache (build buffer)
         runFileStream = new RunFileStream(ctx, "ofj-build");
@@ -172,9 +184,6 @@ public class OptimizedFlexibleJoinerV2 {
         this.probeRelName = probeRelName;
 
         this.predEvaluator = predEval;
-
-
-
 
         //flexibleJoin = null;
     }
@@ -226,8 +235,8 @@ public class OptimizedFlexibleJoinerV2 {
                 // memory-resident with no frame.
                 flushBigObjectToDisk(pid, accessorBuild, tid, buildRFWriters, buildRelName);
                 spilledStatus.set(pid);
-                if ((double) bufferManager.getPhysicalSize(pid)
-                        / (double) ctx.getInitialFrameSize() > bufferManager.getConstrain().frameLimit(pid)) {
+                if ((double) bufferManager.getPhysicalSize(pid) / (double) ctx.getInitialFrameSize() > bufferManager
+                        .getConstrain().frameLimit(pid)) {
                     // The partition is getting spilled, we need to check if the size of it is still under the frame
                     // limit as frame limit for it might have changed (due to transition from memory-resident to
                     // spilled)
@@ -252,8 +261,8 @@ public class OptimizedFlexibleJoinerV2 {
 
         //SerializableHashTable table = new SerializableHashTable(inMemTupCount, ctx, bufferManagerForHashTable);
         this.inMemJoiner = new InMemoryFlexibleJoin(ctx, new FrameTupleAccessor(probeRd), probeHpc,
-                new FrameTupleAccessor(buildRd), buildRd, buildHpc, this.table, predEvaluator,
-                isReversed, bufferManagerForHashTable);
+                new FrameTupleAccessor(buildRd), buildRd, buildHpc, this.table, predEvaluator, isReversed,
+                bufferManagerForHashTable);
 
         //buildHashTable();
     }
@@ -413,7 +422,7 @@ public class OptimizedFlexibleJoinerV2 {
             // Reserve space for loaded data & increase in hash table (give back one frame taken by spilled partition.)
             currentFreeSpace = currentFreeSpace
                     - bufferManager.getPhysicalSize(pid) - SerializableHashTable
-                    .calculateByteSizeDeltaForTableSizeChange(inMemTupCount, buildPSizeInTups[pid], frameSize)
+                            .calculateByteSizeDeltaForTableSizeChange(inMemTupCount, buildPSizeInTups[pid], frameSize)
                     + frameSize;
         }
         return currentMemoryTupleCount;
@@ -514,7 +523,7 @@ public class OptimizedFlexibleJoinerV2 {
     }
 
     private void flushBigObjectToDisk(int pid, FrameTupleAccessor accessor, int i, RunFileWriter[] runFileWriters,
-                                      String refName) throws HyracksDataException {
+            String refName) throws HyracksDataException {
         if (bigFrameAppender == null) {
             bigFrameAppender = new FrameTupleAppender(new VSizeFrame(ctx));
         }
@@ -528,7 +537,7 @@ public class OptimizedFlexibleJoinerV2 {
     }
 
     private RunFileWriter getSpillWriterOrCreateNewOneIfNotExist(RunFileWriter[] runFileWriters, String refName,
-                                                                 int pid) throws HyracksDataException {
+            int pid) throws HyracksDataException {
         RunFileWriter writer = runFileWriters[pid];
         if (writer == null) {
             FileReference file = ctx.createManagedWorkspaceFile(refName);
@@ -622,6 +631,7 @@ public class OptimizedFlexibleJoinerV2 {
     public BitSet getPartitionStatus() {
         return spilledStatus;
     }
+
     public RunFileReader getBuildRFReader(int pid) throws HyracksDataException {
         return buildRFWriters[pid] == null ? null : buildRFWriters[pid].createDeleteOnCloseReader();
     }
@@ -659,81 +669,81 @@ public class OptimizedFlexibleJoinerV2 {
         }
         return max;
     }
-//    public void processProbeFrame(ByteBuffer buffer, IFrameWriter writer) throws HyracksDataException {
-//        accessorOuter.reset(buffer);
-//        if (accessorOuter.getTupleCount() <= 0) {
-//            return;
-//        }
-//        if (outerBufferMngr.insertFrame(buffer) < 0) {
-//            join(writer);
-//            outerBufferMngr.reset();
-//            if (outerBufferMngr.insertFrame(buffer) < 0) {
-//                throw new HyracksDataException("The given outer frame of size:" + buffer.capacity()
-//                        + " is too big to cache in the buffer. Please choose a larger buffer memory size");
-//            }
-//        }
-//    }
+    //    public void processProbeFrame(ByteBuffer buffer, IFrameWriter writer) throws HyracksDataException {
+    //        accessorOuter.reset(buffer);
+    //        if (accessorOuter.getTupleCount() <= 0) {
+    //            return;
+    //        }
+    //        if (outerBufferMngr.insertFrame(buffer) < 0) {
+    //            join(writer);
+    //            outerBufferMngr.reset();
+    //            if (outerBufferMngr.insertFrame(buffer) < 0) {
+    //                throw new HyracksDataException("The given outer frame of size:" + buffer.capacity()
+    //                        + " is too big to cache in the buffer. Please choose a larger buffer memory size");
+    //            }
+    //        }
+    //    }
 
-//    public void join(IFrameWriter writer) throws HyracksDataException {
-//        int outerBufferFrameCount = outerBufferMngr.getNumFrames();
-//        if (outerBufferFrameCount == 0) {
-//            return;
-//        }
-//        int currBuildBucketId = 0;
-//        int currProbeBucketId = 0;
-//
-//        int lastBuildBucketId = -1;
-//        int lastProbeBucketId = -1;
-//
-//        boolean first = true;
-//        boolean addToResults = false;
-//        boolean matchResult = false;
-//        IFrameTupleAccessor buildAccessor = inputCursor[BUILD_PARTITION].getAccessor();
-//        int currBuildTupleIdx = 0;
-//        while (buildHasNext()) {
-//            currBuildTupleIdx = inputCursor[BUILD_PARTITION].getTupleId() + 1;
-//            currBuildBucketId = FlexibleJoinsUtil.getBucketId(buildAccessor,currBuildTupleIdx,1);
-//            for (int i = 0; i < outerBufferFrameCount; i++) {
-//                BufferInfo outerBufferInfo = outerBufferMngr.getFrame(i, tempInfo);
-//                accessorOuter.reset(outerBufferInfo.getBuffer(), outerBufferInfo.getStartOffset(),
-//                        outerBufferInfo.getLength());
-//                int probeTupleCount = accessorOuter.getTupleCount();
-//                for(int currProbleTupleIdx = 0; currProbleTupleIdx < probeTupleCount; currProbleTupleIdx++) {
-//                    currProbeBucketId = FlexibleJoinsUtil.getBucketId(accessorOuter, currProbleTupleIdx,1);
-//                    //System.out.println("build: " + currBuildBucketId + "\tprobe:"+currProbeBucketId);
-//                counter++;
-//                if(lastProbeBucketId != currProbeBucketId || lastBuildBucketId != currBuildBucketId) {
-//                    if(!this.bucketIdsMap.containsKey(currBuildBucketId+","+currProbeBucketId)) {
-//                        this.bucketIdsMap.put(
-//                                currBuildBucketId+","+currProbeBucketId ,
-//                                (tpComparator.compare(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx) == 0)
-//                        );
-//                    }
-//                    matchResult = this.bucketIdsMap.get(currBuildBucketId+","+currProbeBucketId);
-//
-//                    lastProbeBucketId = currProbeBucketId;
-//                    lastBuildBucketId = currBuildBucketId;
-//                }
-//                    //matchResult = (tpComparator.compare(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx) == 0);
-//                    if(matchResult) {
-//                        addToResult(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx, writer);
-//                    }
-//                }
-//            }
-//
-//            inputCursor[BUILD_PARTITION].next();
-//        }
-//    }
+    //    public void join(IFrameWriter writer) throws HyracksDataException {
+    //        int outerBufferFrameCount = outerBufferMngr.getNumFrames();
+    //        if (outerBufferFrameCount == 0) {
+    //            return;
+    //        }
+    //        int currBuildBucketId = 0;
+    //        int currProbeBucketId = 0;
+    //
+    //        int lastBuildBucketId = -1;
+    //        int lastProbeBucketId = -1;
+    //
+    //        boolean first = true;
+    //        boolean addToResults = false;
+    //        boolean matchResult = false;
+    //        IFrameTupleAccessor buildAccessor = inputCursor[BUILD_PARTITION].getAccessor();
+    //        int currBuildTupleIdx = 0;
+    //        while (buildHasNext()) {
+    //            currBuildTupleIdx = inputCursor[BUILD_PARTITION].getTupleId() + 1;
+    //            currBuildBucketId = FlexibleJoinsUtil.getBucketId(buildAccessor,currBuildTupleIdx,1);
+    //            for (int i = 0; i < outerBufferFrameCount; i++) {
+    //                BufferInfo outerBufferInfo = outerBufferMngr.getFrame(i, tempInfo);
+    //                accessorOuter.reset(outerBufferInfo.getBuffer(), outerBufferInfo.getStartOffset(),
+    //                        outerBufferInfo.getLength());
+    //                int probeTupleCount = accessorOuter.getTupleCount();
+    //                for(int currProbleTupleIdx = 0; currProbleTupleIdx < probeTupleCount; currProbleTupleIdx++) {
+    //                    currProbeBucketId = FlexibleJoinsUtil.getBucketId(accessorOuter, currProbleTupleIdx,1);
+    //                    //System.out.println("build: " + currBuildBucketId + "\tprobe:"+currProbeBucketId);
+    //                counter++;
+    //                if(lastProbeBucketId != currProbeBucketId || lastBuildBucketId != currBuildBucketId) {
+    //                    if(!this.bucketIdsMap.containsKey(currBuildBucketId+","+currProbeBucketId)) {
+    //                        this.bucketIdsMap.put(
+    //                                currBuildBucketId+","+currProbeBucketId ,
+    //                                (tpComparator.compare(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx) == 0)
+    //                        );
+    //                    }
+    //                    matchResult = this.bucketIdsMap.get(currBuildBucketId+","+currProbeBucketId);
+    //
+    //                    lastProbeBucketId = currProbeBucketId;
+    //                    lastBuildBucketId = currBuildBucketId;
+    //                }
+    //                    //matchResult = (tpComparator.compare(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx) == 0);
+    //                    if(matchResult) {
+    //                        addToResult(buildAccessor, currBuildTupleIdx, accessorOuter, currProbleTupleIdx, writer);
+    //                    }
+    //                }
+    //            }
+    //
+    //            inputCursor[BUILD_PARTITION].next();
+    //        }
+    //    }
 
-//    public void processProbeClose(IFrameWriter writer) throws HyracksDataException {
-//        join(writer);
-//
-//        resultAppender.write(writer, true);
-//        runFileStream.close();
-//        runFileStream.removeRunFile();
-//        System.out.println("join counter"+counter);
-//
-//    }
+    //    public void processProbeClose(IFrameWriter writer) throws HyracksDataException {
+    //        join(writer);
+    //
+    //        resultAppender.write(writer, true);
+    //        runFileStream.close();
+    //        runFileStream.removeRunFile();
+    //        System.out.println("join counter"+counter);
+    //
+    //    }
 
     private boolean buildHasNext() throws HyracksDataException {
         if (!inputCursor[BUILD_PARTITION].hasNext()) {

@@ -66,6 +66,7 @@ import org.apache.asterix.common.annotations.SkipSecondaryIndexSearchExpressionA
 import org.apache.asterix.common.annotations.SpatialJoinAnnotation;
 import org.apache.asterix.common.annotations.TypeDataGen;
 import org.apache.asterix.common.annotations.UndeclaredFieldsDataGen;
+import org.apache.asterix.common.annotations.FlexibleJoinAnnotation;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.config.DatasetConfig.IndexType;
 import org.apache.asterix.common.exceptions.AsterixException;
@@ -653,6 +654,8 @@ class SQLPPParser extends ScopeChecker implements IParser {
         switch (hintToken.hint) {
           case HASH_BROADCAST_JOIN_HINT:
             return new BroadcastExpressionAnnotation(BroadcastExpressionAnnotation.BroadcastSide.RIGHT);
+          case FJ_SHADOW_JOIN_HINT:
+            return new FlexibleJoinAnnotation();
           case INDEXED_NESTED_LOOP_JOIN_HINT:
             if (hintToken.hintParams == null) {
               return IndexedNLJoinExpressionAnnotation.INSTANCE_ANY_INDEX;
@@ -3109,7 +3112,7 @@ FunctionName FunctionName() throws ParseException:
   //       that copy must be kept in sync with this code
   prefix = MultipartIdentifierWithHints(
     SqlppHint.INDEXED_NESTED_LOOP_JOIN_HINT, SqlppHint.RANGE_HINT, SqlppHint.SKIP_SECONDARY_INDEX_SEARCH_HINT,
-    SqlppHint.SPATIAL_JOIN_HINT, SqlppHint.USE_SECONDARY_INDEX_SEARCH_HINT
+    SqlppHint.SPATIAL_JOIN_HINT, SqlppHint.USE_SECONDARY_INDEX_SEARCH_HINT, SqlppHint.FJ_SHADOW_JOIN_HINT
   )
   (<SHARP> suffix = Identifier())?
   {

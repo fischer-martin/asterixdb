@@ -18,8 +18,6 @@
  */
 package org.apache.hyracks.dataflow.std.structures;
 
-import org.apache.hyracks.data.std.accessors.MurmurHash3BinaryHash;
-
 public final class KeyPair implements IResetable<KeyPair> {
     public static final int INVALID_ID = -1;
     private int buildKey;

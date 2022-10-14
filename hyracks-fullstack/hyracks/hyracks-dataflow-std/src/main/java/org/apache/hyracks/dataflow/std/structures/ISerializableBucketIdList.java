@@ -18,18 +18,21 @@
  */
 package org.apache.hyracks.dataflow.std.structures;
 
-import org.apache.hyracks.api.dataflow.value.ITuplePartitionComputer;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.dataflow.std.buffermanager.ITuplePointerAccessor;
 
 public interface ISerializableBucketIdList {
 
-    boolean insert(int bucketId, TuplePointer buildTuplePointer, TuplePointer probeTuplePointer) throws HyracksDataException;
+    boolean insert(int bucketId, TuplePointer buildTuplePointer, TuplePointer probeTuplePointer)
+            throws HyracksDataException;
 
     int size();
+
     int[] getEntry(int index);
+
     int getNumEntries();
+
     void reset();
+
     void close();
 
 }

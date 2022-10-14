@@ -19,6 +19,10 @@
 
 package org.apache.hyracks.dataflow.std.buffermanager;
 
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+
 import org.apache.hyracks.api.comm.FixedSizeFrame;
 import org.apache.hyracks.api.comm.FrameHelper;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
@@ -29,10 +33,6 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.common.comm.io.FixedSizeFrameTupleAppender;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
-
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
 
 /**
  * This buffer manager will divide the buffers into given number of partitions.
@@ -56,7 +56,7 @@ public class BucketBufferManagerAL implements IPartitionedTupleBufferManager {
 
     // In case where a frame pool is shared by one or more buffer manager(s), it can be provided from the caller.
     public BucketBufferManagerAL(IPartitionedMemoryConstrain constrain, int partitions,
-                                 IDeallocatableFramePool framePool) throws HyracksDataException {
+            IDeallocatableFramePool framePool) throws HyracksDataException {
         this.constrain = constrain;
         this.framePool = framePool;
         this.buckets = new ArrayList<>();
@@ -66,8 +66,8 @@ public class BucketBufferManagerAL implements IPartitionedTupleBufferManager {
         this.tempInfo = new BufferInfo(null, -1, -1);
     }
 
-    public BucketBufferManagerAL(IHyracksFrameMgrContext ctx, IPartitionedMemoryConstrain constrain,
-                                 int partitions, int frameLimitInBytes) throws HyracksDataException {
+    public BucketBufferManagerAL(IHyracksFrameMgrContext ctx, IPartitionedMemoryConstrain constrain, int partitions,
+            int frameLimitInBytes) throws HyracksDataException {
         this.constrain = constrain;
         this.framePool = new DeallocatableFramePool(ctx, frameLimitInBytes);
         this.buckets = new ArrayList<>();

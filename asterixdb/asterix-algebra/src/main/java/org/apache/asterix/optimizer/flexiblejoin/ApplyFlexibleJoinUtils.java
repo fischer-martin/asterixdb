@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 
 import org.apache.asterix.algebra.operators.physical.FlexibleJoinPOperator;
+import org.apache.asterix.common.annotations.FlexibleJoinAnnotation;
 import org.apache.asterix.common.functions.FunctionSignature;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.metadata.declared.MetadataProvider;
@@ -149,6 +150,8 @@ public class ApplyFlexibleJoinUtils {
             return false;
         }
 
+        FlexibleJoinAnnotation flexibleJoinAnn = funcExpr.getAnnotation(FlexibleJoinAnnotation.class);
+
         Mutable<ILogicalOperator> leftInputOp = joinOp.getInputs().get(left);
         Mutable<ILogicalOperator> rightInputOp = joinOp.getInputs().get(right);
 
@@ -182,21 +185,8 @@ public class ApplyFlexibleJoinUtils {
         DataverseName dataverseName = functionInfo.getLibraryDataverseName();
         String functionName = functionInfo.getFunctionIdentifier().getName();
 
-        /*
-        String verifyFunctionName = functionInfo.getFunctionIdentifier().getName()+"_fj_verify";
-        FunctionSignature verifyFunctionSignature = new FunctionSignature(dataverseName, verifyFunctionName , functionInfo.getFunctionIdentifier().getArity());
-        Function verifyFunction = metadataProvider.lookupUserDefinedFunction(verifyFunctionSignature);
-        FunctionInfo externalFunctionInfo =
-                (FunctionInfo) ExternalFunctionCompilerUtil.getExternalFunctionInfo(metadataProvider, verifyFunction);
-        
-        Mutable<ILogicalExpression> joinConditionRef = joinOp.getCondition();
-        
-        ScalarFunctionCallExpression updatedJoinCondition = new ScalarFunctionCallExpression(externalFunctionInfo,
-                new MutableObject<>(flexibleJoinLeftArg), new MutableObject<>(flexibleJoinRightArg));
-        updatedJoinCondition.setSourceLocation(joinOp.getSourceLocation());
-        joinConditionRef.setValue(updatedJoinCondition);*/
 
-        //Add a dynamic workflof for the summary one
+        //Add a dynamic workflow for the summary one
         Triple<MutableObject<ILogicalOperator>, List<LogicalVariable>, MutableObject<ILogicalOperator>> leftSummarizer =
                 createSummary(joinOp, context, leftInputOp, leftInputVar, 0, dataverseName, functionName, parameters);
         MutableObject<ILogicalOperator> leftGlobalAgg = leftSummarizer.first;
@@ -204,7 +194,7 @@ public class ApplyFlexibleJoinUtils {
         MutableObject<ILogicalOperator> leftExchToJoinOpRef = leftSummarizer.third;
         LogicalVariable leftSummary = leftGlobalAggResultVars.get(0);
 
-        //Add a dynamic workflof for the summary two
+        //Add a dynamic workflow for the summary two
         Triple<MutableObject<ILogicalOperator>, List<LogicalVariable>, MutableObject<ILogicalOperator>> rightSummarizer =
                 createSummary(joinOp, context, rightInputOp, rightInputVar, 1, dataverseName, functionName, parameters);
         MutableObject<ILogicalOperator> rightGlobalAgg = rightSummarizer.first;
@@ -380,9 +370,8 @@ public class ApplyFlexibleJoinUtils {
         //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
         //        keysLeftBranch, keysRightBranch, ));
 
-
-
-        setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
+        if (!eqMatch && flexibleJoinAnn != null)
+            setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
 
         matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
         matchJoinOp.setSourceLocation(joinOp.getSourceLocation());
@@ -536,7 +525,7 @@ public class ApplyFlexibleJoinUtils {
         ReplicateOperator replicateOperator = createReplicateOperator(inputOp, context, sourceLocation, 2);
 
         // Create one to one exchange operators for the replicator of the input branch
-        ExchangeOperator exchToForward = createRandomPartitionExchangeOp(replicateOperator, context, sourceLocation);
+        ExchangeOperator exchToForward = createOneToOneExchangeOp(replicateOperator, context, sourceLocation);
         MutableObject<ILogicalOperator> exchToForwardRef = new MutableObject<>(exchToForward);
 
         ExchangeOperator exchToLocalAgg = createOneToOneExchangeOp(replicateOperator, context, op.getSourceLocation());
@@ -724,9 +713,10 @@ public class ApplyFlexibleJoinUtils {
 
     private static void setFlexibleJoinOp(AbstractBinaryJoinOperator op, List<LogicalVariable> keysLeftBranch,
             List<LogicalVariable> keysRightBranch, IOptimizationContext context) throws AlgebricksException {
-        op.setPhysicalOperator(new FlexibleJoinPOperator(op.getJoinKind(),
-                AbstractJoinPOperator.JoinPartitioningType.PAIRWISE, keysLeftBranch, keysRightBranch,
-                context.getPhysicalOptimizationConfig().getMaxFramesForJoin(), context.getPhysicalOptimizationConfig().getFudgeFactor()));
+        op.setPhysicalOperator(
+                new FlexibleJoinPOperator(op.getJoinKind(), AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
+                        keysLeftBranch, keysRightBranch, context.getPhysicalOptimizationConfig().getMaxFramesForJoin(),
+                        context.getPhysicalOptimizationConfig().getFudgeFactor()));
         op.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(op);
     }

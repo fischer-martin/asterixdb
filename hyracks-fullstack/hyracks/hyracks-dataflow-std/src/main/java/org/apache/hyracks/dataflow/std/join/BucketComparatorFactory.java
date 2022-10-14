@@ -22,8 +22,6 @@ import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.IBucketPairComparator;
 import org.apache.hyracks.api.dataflow.value.IBucketPairComparatorFactory;
-import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
-import org.apache.hyracks.api.dataflow.value.ITuplePairComparatorFactory;
 
 public class BucketComparatorFactory implements IBucketPairComparatorFactory {
     private static final long serialVersionUID = 1L;

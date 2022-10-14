@@ -18,36 +18,31 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible;
 
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.comm.IFrameWriter;
 import org.apache.hyracks.api.comm.VSizeFrame;
 import org.apache.hyracks.api.context.IHyracksFrameMgrContext;
-import org.apache.hyracks.api.dataflow.value.*;
+import org.apache.hyracks.api.dataflow.value.IPredicateEvaluator;
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
+import org.apache.hyracks.api.dataflow.value.ITuplePartitionComputer;
+import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.dataflow.common.comm.io.ArrayTupleBuilder;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 import org.apache.hyracks.dataflow.common.comm.util.FrameUtils;
 import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.TupleInFrameListAccessor;
-import org.apache.hyracks.dataflow.std.structures.ISerializableTable;
 import org.apache.hyracks.dataflow.std.structures.SerializableHashTable;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.io.DataOutput;
-import java.lang.reflect.Array;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
 
 public class InMemoryFlexibleJoin {
 
@@ -74,19 +69,16 @@ public class InMemoryFlexibleJoin {
     private static final Logger LOGGER = LogManager.getLogger();
 
     public InMemoryFlexibleJoin(IHyracksFrameMgrContext ctx, FrameTupleAccessor accessorProbe,
-                                ITuplePartitionComputer tpcProbe, FrameTupleAccessor accessorBuild, RecordDescriptor rDBuild,
-                                ITuplePartitionComputer tpcBuild,
-                                SerializableHashTable table, IPredicateEvaluator predEval, ISimpleFrameBufferManager bufferManager)
-            throws HyracksDataException {
-        this(ctx, accessorProbe, tpcProbe, accessorBuild, rDBuild, tpcBuild, table,
-                predEval, false, bufferManager);
+            ITuplePartitionComputer tpcProbe, FrameTupleAccessor accessorBuild, RecordDescriptor rDBuild,
+            ITuplePartitionComputer tpcBuild, SerializableHashTable table, IPredicateEvaluator predEval,
+            ISimpleFrameBufferManager bufferManager) throws HyracksDataException {
+        this(ctx, accessorProbe, tpcProbe, accessorBuild, rDBuild, tpcBuild, table, predEval, false, bufferManager);
     }
 
     public InMemoryFlexibleJoin(IHyracksFrameMgrContext ctx, FrameTupleAccessor accessorProbe,
-                                ITuplePartitionComputer tpcProbe, FrameTupleAccessor accessorBuild, RecordDescriptor rDBuild,
-                                ITuplePartitionComputer tpcBuild,
-                                SerializableHashTable table, IPredicateEvaluator predEval, boolean reverse,
-                                ISimpleFrameBufferManager bufferManager) throws HyracksDataException {
+            ITuplePartitionComputer tpcProbe, FrameTupleAccessor accessorBuild, RecordDescriptor rDBuild,
+            ITuplePartitionComputer tpcBuild, SerializableHashTable table, IPredicateEvaluator predEval,
+            boolean reverse, ISimpleFrameBufferManager bufferManager) throws HyracksDataException {
         this.table = table;
         storedTuplePointer = new TuplePointer();
         buffers = new ArrayList<>();
@@ -184,7 +176,7 @@ public class InMemoryFlexibleJoin {
                     accessorBuild.reset(buffers.get(bIndex));
                     int c = tpComparator.compare(accessorProbe, tid, accessorBuild, tIndex);
                     int bId = FlexibleJoinsUtil.getBucketId(accessorBuild, tIndex, 1);
-                    System.out.println("entry:"+currentEntry+"\t"+bId);
+                    System.out.println("entry:" + currentEntry + "\t" + bId);
                     //System.out.println(bId+"\t"+pId);
                     //System.out.println("entry:"+entry+"\t"+bId+"\t"+pId);
                     /*if (c == 0) {

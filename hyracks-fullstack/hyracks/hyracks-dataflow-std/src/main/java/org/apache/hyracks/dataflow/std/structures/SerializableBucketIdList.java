@@ -18,11 +18,11 @@
  */
 package org.apache.hyracks.dataflow.std.structures;
 
+import java.nio.ByteBuffer;
+
 import org.apache.hyracks.api.context.IHyracksFrameMgrContext;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
-
-import java.nio.ByteBuffer;
 
 public class SerializableBucketIdList extends SimpleSerializableBucketIdList {
 
@@ -31,7 +31,7 @@ public class SerializableBucketIdList extends SimpleSerializableBucketIdList {
     protected ISimpleFrameBufferManager bufferManager;
 
     public SerializableBucketIdList(int tableSize, final IHyracksFrameMgrContext ctx,
-                                    ISimpleFrameBufferManager bufferManager) throws HyracksDataException {
+            ISimpleFrameBufferManager bufferManager) throws HyracksDataException {
         super(tableSize, ctx, false);
         this.bufferManager = bufferManager;
         if (tableSize > 0) {
@@ -54,7 +54,6 @@ public class SerializableBucketIdList extends SimpleSerializableBucketIdList {
         }
         return newFrame;
     }
-
 
     @Override
     public void reset() {

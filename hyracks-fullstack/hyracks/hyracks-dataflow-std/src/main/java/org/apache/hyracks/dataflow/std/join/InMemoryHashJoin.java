@@ -18,9 +18,6 @@
  */
 package org.apache.hyracks.dataflow.std.join;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInput;
-import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -43,7 +40,6 @@ import org.apache.hyracks.dataflow.common.comm.io.ArrayTupleBuilder;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 import org.apache.hyracks.dataflow.common.comm.util.FrameUtils;
-import org.apache.hyracks.dataflow.common.data.marshalling.IntegerSerializerDeserializer;
 import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.TupleInFrameListAccessor;
 import org.apache.hyracks.dataflow.std.structures.ISerializableTable;
@@ -224,7 +220,7 @@ public class InMemoryHashJoin {
     public void join(ByteBuffer buffer, IFrameWriter writer) throws HyracksDataException {
         accessorProbe.reset(buffer);
         int tupleCount0 = accessorProbe.getTupleCount();
-        probeCounter+=tupleCount0;
+        probeCounter += tupleCount0;
         for (int i = 0; i < tupleCount0; ++i) {
             join(i, writer);
         }
@@ -236,7 +232,7 @@ public class InMemoryHashJoin {
     }
 
     public void completeJoin(IFrameWriter writer) throws HyracksDataException {
-        System.out.println("Probe Tuple Count: "+probeCounter);
+        System.out.println("Probe Tuple Count: " + probeCounter);
         appender.write(writer, true);
     }
 

@@ -26,7 +26,6 @@ import static org.apache.asterix.lang.common.statement.CreateFullTextFilterState
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -98,9 +97,7 @@ import org.apache.asterix.compiler.provider.ILangCompilationProvider;
 import org.apache.asterix.external.dataset.adapter.AdapterIdentifier;
 import org.apache.asterix.external.indexing.ExternalFile;
 import org.apache.asterix.external.indexing.IndexingConstants;
-import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.asterix.external.operators.FeedIntakeOperatorNodePushable;
-import org.apache.asterix.external.operators.GetLibraryOperatorDescriptor;
 import org.apache.asterix.external.util.ExternalDataConstants;
 import org.apache.asterix.external.util.ExternalDataUtils;
 import org.apache.asterix.lang.common.base.IQueryRewriter;
@@ -2939,7 +2936,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     ExternalLibraryJobUtils.getJavaLibraryJobSpec(dataverseName, libraryName, metadataProvider);
             runJob(appCtx.getHcc(), javaLibraryJobSpec.first);
             JavaLibrary javaLibrary = GetLibraryOperatorDescriptor.javaLibrary;
-
+            
             ClassLoader classLoader = javaLibrary.getClassLoader();
             Class<?> clazz = classLoader.loadClass(externalIdentifier.get(0));
             Method[] methods = clazz.getMethods();

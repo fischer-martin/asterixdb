@@ -21,10 +21,7 @@ package org.apache.asterix.algebra.operators.physical;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 
-import org.apache.asterix.runtime.operators.joins.flexible.FlexibleJoinOperatorDescriptor;
-import org.apache.asterix.runtime.operators.joins.flexible.FlexibleJoinOperatorDescriptorT;
 import org.apache.asterix.runtime.operators.joins.flexible.ThetaFlexibleJoinOperatorDescriptor;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.ListSet;
@@ -46,7 +43,6 @@ import org.apache.hyracks.algebricks.core.algebra.properties.ILocalStructuralPro
 import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningProperty;
 import org.apache.hyracks.algebricks.core.algebra.properties.IPartitioningRequirementsCoordinator;
 import org.apache.hyracks.algebricks.core.algebra.properties.IPhysicalPropertiesVector;
-import org.apache.hyracks.algebricks.core.algebra.properties.LocalGroupingProperty;
 import org.apache.hyracks.algebricks.core.algebra.properties.LocalOrderProperty;
 import org.apache.hyracks.algebricks.core.algebra.properties.OrderColumn;
 import org.apache.hyracks.algebricks.core.algebra.properties.PhysicalRequirements;
@@ -58,7 +54,11 @@ import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenHelper;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.algebricks.runtime.evaluators.TuplePairEvaluatorFactory;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
-import org.apache.hyracks.api.dataflow.value.*;
+import org.apache.hyracks.api.dataflow.value.IBinaryHashFunctionFamily;
+import org.apache.hyracks.api.dataflow.value.IPredicateEvaluatorFactory;
+import org.apache.hyracks.api.dataflow.value.IPredicateEvaluatorFactoryProvider;
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparatorFactory;
+import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 
 /**
@@ -73,7 +73,8 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
     private final double fudgeFactor;
 
     public FlexibleJoinPOperator(JoinKind kind, JoinPartitioningType partitioningType,
-            List<LogicalVariable> keysLeftBranch, List<LogicalVariable> keysRightBranch, int memSizeInFrames, double fudgeFactor) {
+            List<LogicalVariable> keysLeftBranch, List<LogicalVariable> keysRightBranch, int memSizeInFrames,
+            double fudgeFactor) {
         super(kind, partitioningType);
         this.keysLeftBranch = keysLeftBranch;
         this.keysRightBranch = keysRightBranch;
@@ -199,15 +200,8 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
                 recordDescriptor, comparatorFactory, reverseComparatorFactory, leftHashFunFamilies, rightHashFunFamilies, predEvaluatorFactory, fudgeFactor);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);*/
 
-        IOperatorDescriptor opDesc = new ThetaFlexibleJoinOperatorDescriptor(
-                spec,
-                memSizeInFrames,
-                keysBuild,
-                keysProbe,
-                recordDescriptor,
-                comparatorFactory,
-                predEvaluatorFactory,
-                fudgeFactor);
+        IOperatorDescriptor opDesc = new ThetaFlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild,
+                keysProbe, recordDescriptor, comparatorFactory, predEvaluatorFactory, fudgeFactor);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
         ILogicalOperator src1 = op.getInputs().get(0).getValue();
         builder.contributeGraphEdge(src1, 0, op, 0);

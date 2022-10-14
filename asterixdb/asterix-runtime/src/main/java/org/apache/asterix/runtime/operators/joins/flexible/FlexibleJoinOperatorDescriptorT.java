@@ -51,8 +51,8 @@ public class FlexibleJoinOperatorDescriptorT extends AbstractOperatorDescriptor 
     private final ITuplePairComparatorFactory tuplePairComparatorFactory;
 
     public FlexibleJoinOperatorDescriptorT(IOperatorDescriptorRegistry spec, int memoryForJoin, int[] buildKeys,
-                                          int[] probeKeys, RecordDescriptor recordDescriptor,
-                                          ITuplePairComparatorFactory tuplePairComparatorFactory) {
+            int[] probeKeys, RecordDescriptor recordDescriptor,
+            ITuplePairComparatorFactory tuplePairComparatorFactory) {
         super(spec, 2, 1);
         this.tuplePairComparatorFactory = tuplePairComparatorFactory;
         outRecDescs[0] = recordDescriptor;
@@ -98,7 +98,7 @@ public class FlexibleJoinOperatorDescriptorT extends AbstractOperatorDescriptor 
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                                                       IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
             final RecordDescriptor probeRd = recordDescProvider.getInputRecordDescriptor(nljAid, 0);
             final RecordDescriptor buildRd = recordDescProvider.getInputRecordDescriptor(getActivityId(), 0);
 
@@ -144,10 +144,11 @@ public class FlexibleJoinOperatorDescriptorT extends AbstractOperatorDescriptor 
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                                                       IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
             return new AbstractUnaryInputUnaryOutputOperatorNodePushable() {
                 private JoinCacheTaskState state;
                 boolean failed = false;
+
                 @Override
                 public void open() throws HyracksDataException {
                     writer.open();

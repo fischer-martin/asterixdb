@@ -21,7 +21,6 @@ package org.apache.hyracks.dataflow.std.join;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparator;
 import org.apache.hyracks.api.dataflow.value.IBucketPairComparator;
-import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
 public class BucketComparator implements IBucketPairComparator {
@@ -35,11 +34,9 @@ public class BucketComparator implements IBucketPairComparator {
         this.field1 = field1;
     }
 
-    public int compare(int bucketId1, int bucketId2)
-            throws HyracksDataException {
+    public int compare(int bucketId1, int bucketId2) throws HyracksDataException {
 
-        int c = bComparator.compare(intToByteArray(bucketId1), 0, 32,
-                intToByteArray(bucketId2), 0, 32);
+        int c = bComparator.compare(intToByteArray(bucketId1), 0, 32, intToByteArray(bucketId2), 0, 32);
         if (c != 0) {
             return c;
         }
@@ -47,15 +44,12 @@ public class BucketComparator implements IBucketPairComparator {
     }
 
     private byte[] intToByteArray(int value) {
-        return new byte[] {
-                (byte)(value >>> 24),
-                (byte)(value >>> 16),
-                (byte)(value >>> 8),
-                (byte)value};
+        return new byte[] { (byte) (value >>> 24), (byte) (value >>> 16), (byte) (value >>> 8), (byte) value };
     }
 
     @Override
-    public int compare(IFrameTupleAccessor outerRef, int outerIndex, IFrameTupleAccessor innerRef, int innerIndex) throws HyracksDataException {
+    public int compare(IFrameTupleAccessor outerRef, int outerIndex, IFrameTupleAccessor innerRef, int innerIndex)
+            throws HyracksDataException {
         return 0;
     }
 }

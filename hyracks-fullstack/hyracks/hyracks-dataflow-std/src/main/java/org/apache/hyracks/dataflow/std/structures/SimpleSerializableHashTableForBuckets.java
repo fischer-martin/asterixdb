@@ -18,15 +18,15 @@
  */
 package org.apache.hyracks.dataflow.std.structures;
 
-import org.apache.hyracks.api.context.IHyracksFrameMgrContext;
-import org.apache.hyracks.api.dataflow.value.ITuplePartitionComputer;
-import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.dataflow.std.buffermanager.ITuplePointerAccessor;
-
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import org.apache.hyracks.api.context.IHyracksFrameMgrContext;
+import org.apache.hyracks.api.dataflow.value.ITuplePartitionComputer;
+import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.dataflow.std.buffermanager.ITuplePointerAccessor;
 
 /**
  * This table consists of header frames and content frames.
@@ -64,12 +64,13 @@ public class SimpleSerializableHashTableForBuckets implements ISerializableTable
     protected int frameSize;
     protected IHyracksFrameMgrContext ctx;
 
-    public SimpleSerializableHashTableForBuckets(int tableSize, final IHyracksFrameMgrContext ctx) throws HyracksDataException {
+    public SimpleSerializableHashTableForBuckets(int tableSize, final IHyracksFrameMgrContext ctx)
+            throws HyracksDataException {
         this(tableSize, ctx, true);
     }
 
-    public SimpleSerializableHashTableForBuckets(int tableSize, final IHyracksFrameMgrContext ctx, boolean frameInitRequired)
-            throws HyracksDataException {
+    public SimpleSerializableHashTableForBuckets(int tableSize, final IHyracksFrameMgrContext ctx,
+            boolean frameInitRequired) throws HyracksDataException {
         this.ctx = ctx;
         frameSize = ctx.getInitialFrameSize();
         int residual = tableSize * INT_SIZE * 3 % frameSize == 0 ? 0 : 1;

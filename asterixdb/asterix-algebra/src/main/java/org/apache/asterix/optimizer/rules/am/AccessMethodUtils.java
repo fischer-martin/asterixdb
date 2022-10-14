@@ -1828,7 +1828,7 @@ public class AccessMethodUtils {
     }
 
     private static AbstractFunctionCallExpression createGeometryExpression(List<LogicalVariable> pointVars,
-                                                                        SourceLocation sourceLoc) {
+            SourceLocation sourceLoc) {
         List<Mutable<ILogicalExpression>> expressions = new ArrayList<>();
         AbstractFunctionCallExpression createPointExpr1 =
                 new ScalarFunctionCallExpression(FunctionUtil.getFunctionInfo(BuiltinFunctions.CREATE_POINT));
