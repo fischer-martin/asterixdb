@@ -1096,6 +1096,8 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier JEDI = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "jedi", 2);
     public static final FunctionIdentifier SIZE_DIFFERENCE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "size-difference", 2);
+    public static final FunctionIdentifier INTERSECTION_LOWER_BOUND =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "intersection-lower-bound", 2);
 
     // full-text
     public static final FunctionIdentifier FULLTEXT_CONTAINS =
@@ -2279,6 +2281,7 @@ public class BuiltinFunctions {
         // JSON similarity
         addFunction(JEDI, ADoubleTypeComputer.INSTANCE, true);
         addFunction(SIZE_DIFFERENCE, ADoubleTypeComputer.INSTANCE, true);
+        addFunction(INTERSECTION_LOWER_BOUND, ADoubleTypeComputer.INSTANCE, true);
 
         // Full-text function
         addFunction(FULLTEXT_CONTAINS, FullTextContainsResultTypeComputer.INSTANCE, true);
