@@ -20,11 +20,12 @@ package org.apache.asterix.runtime.evaluators.common;
 
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.util.container.IObjectFactory;
+import org.apache.commons.lang3.mutable.MutableInt;
 
-public class LabelTypeTupleFactory implements IObjectFactory<LabelTypeTuple, ATypeTag> {
+public class MutableIntFactory implements IObjectFactory<MutableInt, ATypeTag> {
 
     @Override
-    public LabelTypeTuple create(ATypeTag arg) {
-        return new LabelTypeTuple();
+    public MutableInt create(ATypeTag arg) {
+        return new MutableInt();
     }
 }

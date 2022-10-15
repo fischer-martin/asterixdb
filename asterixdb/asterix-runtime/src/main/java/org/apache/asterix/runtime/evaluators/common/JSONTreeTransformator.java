@@ -18,8 +18,8 @@
  */
 package org.apache.asterix.runtime.evaluators.common;
 
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.asterix.om.pointables.base.IVisitablePointable;
 import org.apache.asterix.runtime.evaluators.visitors.JSONTreeLabelTypeIntersectionVisitor;
@@ -33,7 +33,8 @@ import it.unimi.dsi.fastutil.ints.IntIntPair;
 
 /**
  * Use {@link JSONTreeTransformator} to transform any pointable value, including ordered and unordered lists, record
- * values, etc. into an according JSON tree.
+ * values, etc. into an according JSON tree, to calculate the size of a JSON tree, or to compute the size of a JSON
+ * tree and the bag of its nodes.
  * Example: Let IVisitablePointable pointable be a value reference. To transform them into JSON trees, use
  * JSONTreeTransformator jtt = new JSONTreeTransformator();
  * List<Node> jsonTree = jtt.toTree(pointable, arg);
@@ -62,8 +63,8 @@ public class JSONTreeTransformator {
         return nodeCounter.intValue();
     }
 
-    public MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt> countAndGenerateNodeBag(
-            IVisitablePointable pointable, MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt> arg)
+    public MutablePair<Map<LabelTypeTuple, MutableInt>, MutableInt> countAndGenerateNodeBag(
+            IVisitablePointable pointable, MutablePair<Map<LabelTypeTuple, MutableInt>, MutableInt> arg)
             throws HyracksDataException {
         pointable.accept(jIntersectionVisitor, arg);
 

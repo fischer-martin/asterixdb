@@ -19,10 +19,9 @@
 package org.apache.asterix.runtime.evaluators.functions.records;
 
 import java.io.DataOutput;
-import java.util.HashMap;
-import java.util.List;
+import java.util.Map;
 
-import org.apache.asterix.builders.ArrayListFactory;
+import org.apache.asterix.builders.HashMapFactory;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMutableDouble;
 import org.apache.asterix.om.pointables.PointableAllocator;
@@ -58,7 +57,8 @@ public class IntersectionLowerBoundEvaluator implements IScalarEvaluator {
 
     private final IVisitablePointable pointableLeft;
     private final IVisitablePointable pointableRight;
-    private final IObjectPool<List<Node>, ATypeTag> listAllocator; // TODO replace this with an IObjectPool for HashMap
+    private final IObjectPool<Map<LabelTypeTuple, MutableInt>, ATypeTag> mapAllocator;
+    private final MutablePair<Map<LabelTypeTuple, MutableInt>, MutableInt> transArg = new MutablePair<>(null, new MutableInt());
 
     private final JSONTreeTransformator treeTransformator = new JSONTreeTransformator();
 
@@ -69,7 +69,7 @@ public class IntersectionLowerBoundEvaluator implements IScalarEvaluator {
         secondStringEval = args[1].createScalarEvaluator(context);
         pointableLeft = allocator.allocateFieldValue(type1);
         pointableRight = allocator.allocateFieldValue(type2);
-        listAllocator = new ListObjectPool<>(new ArrayListFactory<Node>());
+        mapAllocator = new ListObjectPool<>(new HashMapFactory<>());
         this.sourceLoc = sourceLoc;
     }
 
@@ -77,32 +77,39 @@ public class IntersectionLowerBoundEvaluator implements IScalarEvaluator {
     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
         resultStorage.reset();
         treeTransformator.reset();
-        listAllocator.reset();
+        mapAllocator.reset();
         firstStringEval.evaluate(tuple, pointableLeft);
         secondStringEval.evaluate(tuple, pointableRight);
 
         // Convert the given data items into node bags of their JSON trees.
-        MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt> temp = treeTransformator
-                .countAndGenerateNodeBag(pointableLeft, new MutablePair<>(new HashMap<>(), new MutableInt()));
+        Map<LabelTypeTuple, MutableInt> nodeBag1 = mapAllocator.allocate(null);
+        nodeBag1.clear();
+        transArg.setLeft(nodeBag1);
+        transArg.right.setValue(0);
+        MutablePair<Map<LabelTypeTuple, MutableInt>, MutableInt> temp = treeTransformator
+                .countAndGenerateNodeBag(pointableLeft, transArg);
+        nodeBag1 = temp.left;
         int treeSize1 = temp.right.intValue();
-        HashMap<LabelTypeTuple, MutableInt> nodeBag1 = temp.left;
 
-        temp = treeTransformator.countAndGenerateNodeBag(pointableRight,
-                new MutablePair<>(new HashMap<>(), new MutableInt()));
+        Map<LabelTypeTuple, MutableInt> nodeBag2 = mapAllocator.allocate(null);
+        nodeBag2.clear();
+        transArg.setLeft(nodeBag2);
+        transArg.right.setValue(0);
+        temp = treeTransformator.countAndGenerateNodeBag(pointableRight, transArg);
+        nodeBag2 = temp.left;
         int treeSize2 = temp.right.intValue();
-        HashMap<LabelTypeTuple, MutableInt> nodeBag2 = temp.left;
 
         writeResult(intersectionLowerBound(treeSize1, nodeBag1, treeSize2, nodeBag2));
         result.set(resultStorage);
     }
 
-    protected void writeResult(double distance) throws HyracksDataException {
-        aDouble.setValue(distance);
+    protected void writeResult(double lowerBound) throws HyracksDataException {
+        aDouble.setValue(lowerBound);
         doubleSerde.serialize(aDouble, out);
     }
 
-    private double intersectionLowerBound(int treeSize1, HashMap<LabelTypeTuple, MutableInt> bag1, int treeSize2,
-            HashMap<LabelTypeTuple, MutableInt> bag2) {
+    private double intersectionLowerBound(int treeSize1, Map<LabelTypeTuple, MutableInt> bag1, int treeSize2,
+            Map<LabelTypeTuple, MutableInt> bag2) {
         int intersectionSize = 0;
 
         MutableInt otherCount;

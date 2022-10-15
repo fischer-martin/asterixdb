@@ -18,17 +18,19 @@
  */
 package org.apache.asterix.runtime.evaluators.visitors;
 
-import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.asterix.om.pointables.AFlatValuePointable;
 import org.apache.asterix.om.pointables.AListVisitablePointable;
 import org.apache.asterix.om.pointables.ARecordVisitablePointable;
 import org.apache.asterix.om.pointables.base.IVisitablePointable;
 import org.apache.asterix.om.pointables.visitor.IVisitablePointableVisitor;
+import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.util.container.IObjectPool;
 import org.apache.asterix.om.util.container.ListObjectPool;
 import org.apache.asterix.runtime.evaluators.common.LabelTypeTuple;
 import org.apache.asterix.runtime.evaluators.common.LabelTypeTupleFactory;
+import org.apache.asterix.runtime.evaluators.common.MutableIntFactory;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -42,24 +44,29 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
  */
 
 public class JSONTreeLabelTypeIntersectionVisitor
-        implements IVisitablePointableVisitor<Void, MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt>> {
-    private final IObjectPool<LabelTypeTuple, Object> labelTypeTupleAllocator;
+        implements IVisitablePointableVisitor<Void, MutablePair<Map<LabelTypeTuple, MutableInt>, MutableInt>> {
+    private final IObjectPool<LabelTypeTuple, ATypeTag> labelTypeTupleAllocator;
+    private final IObjectPool<MutableInt, ATypeTag> mutableIntAllocator;
 
     public JSONTreeLabelTypeIntersectionVisitor() {
-        // Use ListObjectPool to reuse in-memory buffers instead of allocating new memory for each (label, type)).
+        // Use ListObjectPool to reuse in-memory buffers instead of allocating new memory for each (label, type).
         labelTypeTupleAllocator = new ListObjectPool<>(new LabelTypeTupleFactory());
+        mutableIntAllocator = new ListObjectPool<>(new MutableIntFactory());
     }
 
     public void reset() {
         // Free in-memory buffers for reuse.
         labelTypeTupleAllocator.reset();
+        mutableIntAllocator.reset();
     }
 
-    private void addToBag(HashMap<LabelTypeTuple, MutableInt> bag, LabelTypeTuple ltt) {
+    private void addToBag(Map<LabelTypeTuple, MutableInt> bag, LabelTypeTuple ltt) {
         MutableInt count = bag.get(ltt);
 
         if (count == null) {
-            bag.put(ltt, new MutableInt(1));
+            count = mutableIntAllocator.allocate(null);
+            count.setValue(1);
+            bag.put(ltt, count);
         } else {
             count.increment();
         }
@@ -67,7 +74,7 @@ public class JSONTreeLabelTypeIntersectionVisitor
 
     @Override
     public Void visit(AListVisitablePointable pointable,
-            MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt> arg) throws HyracksDataException {
+            MutablePair<Map<LabelTypeTuple, MutableInt>, MutableInt> arg) throws HyracksDataException {
         // Create a new list (label, type) (array or multiset).
         LabelTypeTuple listLTT = labelTypeTupleAllocator.allocate(null);
         listLTT.setLabel(null);
@@ -90,7 +97,7 @@ public class JSONTreeLabelTypeIntersectionVisitor
 
     @Override
     public Void visit(ARecordVisitablePointable pointable,
-            MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt> arg) throws HyracksDataException {
+            MutablePair<Map<LabelTypeTuple, MutableInt>, MutableInt> arg) throws HyracksDataException {
         // Create a new object (label, type).
         LabelTypeTuple objectLTT = labelTypeTupleAllocator.allocate(null);
         objectLTT.setLabel(null);
@@ -117,7 +124,7 @@ public class JSONTreeLabelTypeIntersectionVisitor
     }
 
     @Override
-    public Void visit(AFlatValuePointable pointable, MutablePair<HashMap<LabelTypeTuple, MutableInt>, MutableInt> arg)
+    public Void visit(AFlatValuePointable pointable, MutablePair<Map<LabelTypeTuple, MutableInt>, MutableInt> arg)
             throws HyracksDataException {
         LabelTypeTuple ltt = labelTypeTupleAllocator.allocate(null);
         ltt.setLabel(pointable);

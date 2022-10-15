@@ -16,15 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.runtime.evaluators.common;
+
+package org.apache.asterix.builders;
 
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.util.container.IObjectFactory;
 
-public class LabelTypeTupleFactory implements IObjectFactory<LabelTypeTuple, ATypeTag> {
+import java.util.HashMap;
+import java.util.Map;
+
+public class HashMapFactory<K, V> implements IObjectFactory<Map<K, V>, ATypeTag> {
 
     @Override
-    public LabelTypeTuple create(ATypeTag arg) {
-        return new LabelTypeTuple();
+    public HashMap<K, V> create(ATypeTag arg) {
+        return new HashMap<>();
     }
 }
