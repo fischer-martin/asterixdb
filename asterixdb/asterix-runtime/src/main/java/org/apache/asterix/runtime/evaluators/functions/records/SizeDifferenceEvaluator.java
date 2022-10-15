@@ -84,8 +84,8 @@ public class SizeDifferenceEvaluator implements IScalarEvaluator {
         result.set(resultStorage);
     }
 
-    protected void writeResult(double lengthFilter) throws HyracksDataException {
-        aDouble.setValue(lengthFilter);
+    protected void writeResult(double sizeDiff) throws HyracksDataException {
+        aDouble.setValue(sizeDiff);
         doubleSerde.serialize(aDouble, out);
     }
 
