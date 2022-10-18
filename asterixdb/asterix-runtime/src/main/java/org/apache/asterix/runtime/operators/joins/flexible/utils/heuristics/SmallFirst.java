@@ -39,7 +39,7 @@ public class SmallFirst implements IHeuristicForThetaJoin {
     int numberOfBuckets;
     int buildingBucketPosition = 0;
 
-    ArrayList<Long[]> bucketsFromR;
+    ArrayList<int[]> bucketsFromR;
 
     public SmallFirst(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize)
             throws HyracksDataException {
@@ -63,26 +63,15 @@ public class SmallFirst implements IHeuristicForThetaJoin {
         int totalFramesForBuckets = 0;
         long totalSizeForBuckets = 0;
         int currentFrame = 0;
-        ArrayList<Long[]> removeList = new ArrayList<>();
-        for (Long[] bucket : bucketsFromR) {
-
-            long entryInTable = bucket[2];
+        ArrayList<int[]> removeList = new ArrayList<>();
+        for (int i = 0; i < bucketsFromR.size(); i++) {
+            int[] bucket = bucketsFromR.get(i);
+            long entryInTable = bucket[4];
             int[] bucketInfoFromTable = bucketTable.getEntry((int) entryInTable);
 
-            long bucketSize;
-            long startOffsetInFile = -(((long) (bucketInfoFromTable[1] + 1) * this.frameSize) + bucketInfoFromTable[2]);
-            int endFrame;
-            int endOffset;
-            if (entryInTable + 1 < this.numberOfBuckets) {
-                bucketSize = -((long) (bucketTable.getEntry((int) (entryInTable + 1))[1] + 1) * this.frameSize)
-                        + bucketTable.getEntry((int) (entryInTable + 1))[2] - startOffsetInFile;
-                endFrame = -(bucketTable.getEntry((int) (entryInTable + 1))[1] + 1);
-                endOffset = bucketTable.getEntry((int) (entryInTable + 1))[2];
-            } else {
-                bucketSize = buildFileSize - startOffsetInFile;
-                endFrame = -1;
-                endOffset = -1;
-            }
+            int bucketSize = bucket[1];
+            int endFrame = bucket[2];
+            int endOffset = bucket[3];
 
             if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) < memoryForJoinInFrames)
                 totalSizeForBuckets += bucketSize;
@@ -147,18 +136,32 @@ public class SmallFirst implements IHeuristicForThetaJoin {
             if (bucket[0] == -1 || bucket[1] > -1 || bucket[2] == -1) {
                 continue;
             }
-            long bucketSize;
-            long startOffsetInFile = -((long) (bucket[1] + 1) * this.frameSize) + bucket[2];
+            int bucketSize;
+            int startOffsetInFile = -((bucket[1] + 1) * this.frameSize) + bucket[2];
+            int[] nextBucket = new int[5];
+            int endFrame;
+            int endOffset;
             if (i + 1 < this.numberOfBuckets) {
-                bucketSize = -((long) (bucketTable.getEntry(i + 1)[1] + 1) * this.frameSize)
-                        + bucketTable.getEntry(i + 1)[2] - startOffsetInFile;
+                int nextOnDisk;
+                for(nextOnDisk = i + 1; nextOnDisk < this.numberOfBuckets; nextOnDisk++) {
+                    nextBucket = bucketTable.getEntry(nextOnDisk);
+                    if(nextBucket[1] < 0) break;
+                }
+                endFrame = -(nextBucket[1] + 1);
+                endOffset = nextBucket[2];
+                bucketSize = ((endFrame * this.frameSize) + endOffset) - startOffsetInFile;
+
             } else {
-                bucketSize = (buildFileSize + 5) - startOffsetInFile;
+                endFrame = -1;
+                endOffset = -1;
+                bucketSize = (int) ((buildFileSize + 5) - startOffsetInFile);
             }
-            Long[] newBucket = new Long[3];
-            newBucket[0] = (long) bucket[0];
+            int[] newBucket = new int[5];
+            newBucket[0] = bucket[0];
             newBucket[1] = bucketSize;
-            newBucket[2] = (long) i;
+            newBucket[2] = endFrame;
+            newBucket[3] = endOffset;
+            newBucket[4] = i;
             this.bucketsFromR.add(newBucket);
         }
         bucketsFromR.sort(Comparator.comparingDouble(o -> o[1]));

@@ -130,7 +130,7 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                         ByteArrayInputStream inStream =
                                 new ByteArrayInputStream(inputArg0.getByteArray(), offset0 + 1, len - 1);
                         DataInputStream dataIn = new DataInputStream(inStream);
-                        buckets = flexibleJoin.assign1(getKeyObject(dataIn, tag0), configuration);
+                        buckets = flexibleJoin.assign2(getKeyObject(dataIn, tag0), configuration);
                         pos = 0;
                     }
 

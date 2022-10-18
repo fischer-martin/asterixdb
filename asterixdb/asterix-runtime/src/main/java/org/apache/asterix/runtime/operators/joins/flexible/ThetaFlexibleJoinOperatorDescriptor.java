@@ -24,6 +24,8 @@ import java.util.ArrayList;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IBucket;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IHeuristicForThetaJoin;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.BigFirst;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.FirstFit;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.SmallFirst;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
 import org.apache.hyracks.api.comm.IFrame;
@@ -149,6 +151,8 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                     state = new JoinCacheTaskState(ctx.getJobletContext().getJobId(),
                             new TaskId(getActivityId(), partition));
+
+                    LOGGER.info("Theta Join Starts");
 
                     state.memForJoin = memoryForJoin - 2;
 
@@ -293,7 +297,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         heuristicForThetaJoin.setBucketTable(state.joiner.getBucketTable());
 
                         while (heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
-                            state.joiner.getBucketTable().printInfo();
+                            //state.joiner.getBucketTable().printInfo();
                             //get the building sequence buildSeq
                             ArrayList<IBucket> buildingBuckets = heuristicForThetaJoin.nextBuildingBucketSequence();
                             InMemoryThetaFlexibleJoiner inMemoryThetaFlexibleJoiner = new InMemoryThetaFlexibleJoiner(
@@ -329,7 +333,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                     currentFrame++;
                                 }
                             }
-
+                            //TODO: we need to read only the matching buckets from probe side
                             FrameTupleCursor frameTupleCursor = new FrameTupleCursor(probeRd);
                             int probingSide = 1 - buildingBuckets.get(0).getSide();
                             inMemoryThetaFlexibleJoiner.initProbe(probComp);

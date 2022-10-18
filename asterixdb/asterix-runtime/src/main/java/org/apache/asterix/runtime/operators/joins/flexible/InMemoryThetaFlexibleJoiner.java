@@ -19,6 +19,7 @@
 package org.apache.asterix.runtime.operators.joins.flexible;
 
 import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
 
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
@@ -71,12 +72,13 @@ public class InMemoryThetaFlexibleJoiner {
 
     protected int numberOfBuckets = 0;
 
+
     protected boolean spilled;
 
     protected long numRecordsFromBuild;
-    //private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
-    //    private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
-    //    private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
+//    private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
+//        private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
+//        private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
 
     public InMemoryThetaFlexibleJoiner(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd,
             RecordDescriptor probeRd, int nBuckets) throws HyracksDataException {
@@ -123,7 +125,8 @@ public class InMemoryThetaFlexibleJoiner {
             //                if(accessorBuild.getTupleStartOffset(i) >= endOffset) break;
             //            }
             // b = FlexibleJoinsUtil.getBucketId(accessorBuild,i,1);
-            //bucketMap.merge(bucketId, 1, Integer::sum);
+            int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
+            //bucketMap.merge(bucketIdT, 1, Integer::sum);
             //System.out.println("Start offset of "+ i +":"+accessorBuild.getTupleStartOffset(i));
             // If the memory does not accept the new record join should fail since buildOneBucket shall only be called for the buckets fit into memory
             if (!bufferManager.insertTuple(accessorBuild, i, tempPtr)) {
@@ -145,12 +148,12 @@ public class InMemoryThetaFlexibleJoiner {
     }
 
     public void initProbe(ITuplePairComparator comparator) {
-        //        StringBuilder a = new StringBuilder();
-        //        a.append("Bucket Counter From Build Side\n");
-        //        for(Integer bucketId: bucketMap.keySet()) {
-        //            a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
-        //        }
-        //        System.out.println(a);
+//                StringBuilder a = new StringBuilder();
+//                a.append("Bucket Counter From Build Side\n");
+//                for(Integer bucketId: bucketMap.keySet()) {
+//                    a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
+//                }
+//                System.out.println(a);
         this.tpComparator = comparator;
     }
 
@@ -162,15 +165,18 @@ public class InMemoryThetaFlexibleJoiner {
             throws HyracksDataException {
         accessorProbe.reset(buffer);
         int tupleCount = accessorProbe.getTupleCount();
+        int numberOfBuckets = table.getNumEntries();
         int accessorIndex = 0;
         // for each record from S
         for (int i = 0; i < tupleCount; ++i) {
+            boolean matched = false;
             //            if(accessorProbe.getTupleStartOffset(i) < startOffset) continue;
             //            if(endOffset != -1) {
             //                if(accessorProbe.getTupleStartOffset(i) >= endOffset) break;
             //            }
-            //bucketMatchCount.merge(bucketId, 1, Integer::sum);
-            int numberOfBuckets = table.getNumEntries();
+            int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorProbe, i, 1);
+            //bucketMatchCount.merge(bucketIdT, 1, Integer::sum);
+
             // Iterate over the buckets from bucket table
             for (int bucketIndex = 0; bucketIndex < numberOfBuckets; bucketIndex++) {
                 int[] bucketInfo = table.getEntry(bucketIndex);
@@ -179,7 +185,7 @@ public class InMemoryThetaFlexibleJoiner {
                 // if buckets are matching
                 //TODO Here we are not able to reach the data from memory if the bucket is already spilled
                 if (this.tpComparator.compare(memoryAccessor, accessorIndex, accessorProbe, i) < 1) {
-
+                    matched = true;
                     // if the bucket is in memory join the records
                     int tupleCounter = bucketInfo[2];
                     int frameCounter = bucketInfo[1];
@@ -209,17 +215,18 @@ public class InMemoryThetaFlexibleJoiner {
 
                 }
             }
+            //if(!matched) break;
         }
 
     }
 
     public void completeProbe(IFrameWriter writer) throws HyracksDataException {
-        //        StringBuilder a = new StringBuilder();
-        //        a.append("Bucket Counter From Probe Side\n");
-        //        for(Integer bucketId: bucketMatchCount.keySet()) {
-        //            a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
-        //        }
-        //        System.out.println(a);
+//                StringBuilder a = new StringBuilder();
+//                a.append("Bucket Counter From Probe Side\n");
+//                for(Integer bucketId: bucketMatchCount.keySet()) {
+//                    a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
+//                }
+//                System.out.println(a);
         resultAppender.write(writer, true);
     }
 
