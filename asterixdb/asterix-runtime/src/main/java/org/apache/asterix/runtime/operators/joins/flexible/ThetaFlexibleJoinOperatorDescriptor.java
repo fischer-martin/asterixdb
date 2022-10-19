@@ -26,8 +26,10 @@ import org.apache.asterix.runtime.operators.joins.flexible.utils.IHeuristicForTh
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.BigFirst;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.FirstFit;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.SmallFirst;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.Weighted;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
+import org.apache.http.cookie.SM;
 import org.apache.hyracks.api.comm.IFrame;
 import org.apache.hyracks.api.comm.VSizeFrame;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
@@ -282,6 +284,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                     //If there is spilled records to disk
                     if (state.joiner.isSpilled()) {
+                        //state.joiner.getBucketTable().printInfo();
                         RunFileStream[] runFileStreams = new RunFileStream[2];
                         runFileStreams[0] = state.joiner.getRunFileStreamForBuild();
                         runFileStreams[1] = state.joiner.getRunFileStreamForProbe();
@@ -290,20 +293,21 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         runFileStreams[1].startReadingRunFile();
 
                         //Create an instance of a heuristic with table and two file streams
-                        IHeuristicForThetaJoin heuristicForThetaJoin = new BigFirst(memoryForJoin - 1,
+                        IHeuristicForThetaJoin heuristicForThetaJoin = new SmallFirst(memoryForJoin - 1,
                                 ctx.getInitialFrameSize(), runFileStreams[0].getRunFileReaderSize(),
-                                runFileStreams[1].getRunFileReaderSize());
+                                runFileStreams[1].getRunFileReaderSize(),
+                                buildRd, probeRd);
 
+                        heuristicForThetaJoin.setComparator(probComp);
                         heuristicForThetaJoin.setBucketTable(state.joiner.getBucketTable());
 
                         while (heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
                             //state.joiner.getBucketTable().printInfo();
                             //get the building sequence buildSeq
                             ArrayList<IBucket> buildingBuckets = heuristicForThetaJoin.nextBuildingBucketSequence();
-                            InMemoryThetaFlexibleJoiner inMemoryThetaFlexibleJoiner = new InMemoryThetaFlexibleJoiner(
-                                    ctx, memoryForJoin, buildRd, probeRd, buildingBuckets.size());
+                            if(buildingBuckets != null) {
                             //for each bucket from this sequence
-
+                            InMemoryThetaFlexibleJoiner inMemoryThetaFlexibleJoiner = null;
                             for (IBucket buildingBucket : buildingBuckets) {
                                 int frameSize = ctx.getInitialFrameSize();
                                 IFrame frame = new VSizeFrame(ctx, frameSize);
@@ -328,6 +332,17 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                     else
                                         endOffset = -1;
                                     //TODO: build function should also get the record descriptor since it will not be always R
+                                    if(inMemoryThetaFlexibleJoiner == null) {
+                                        if(buildingBucket.getSide() == 0) {
+                                            inMemoryThetaFlexibleJoiner = new InMemoryThetaFlexibleJoiner(
+                                                    ctx, memoryForJoin, buildRd, probeRd, buildingBuckets.size());
+                                        } else {
+                                            inMemoryThetaFlexibleJoiner = new InMemoryThetaFlexibleJoiner(
+                                                    ctx, memoryForJoin, probeRd, buildRd, buildingBuckets.size());
+                                        }
+                                    }
+
+
                                     inMemoryThetaFlexibleJoiner.buildOneBucket(frame.getBuffer(),
                                             buildingBucket.getBucketId(), startOffset, endOffset);
                                     currentFrame++;
@@ -377,6 +392,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                             //state.joiner.getBucketTable().printInfo();
                         }
 
+                    }
                     }
                     writer.close();
 

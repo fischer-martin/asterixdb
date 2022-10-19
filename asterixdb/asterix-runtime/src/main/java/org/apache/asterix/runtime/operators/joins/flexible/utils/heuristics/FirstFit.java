@@ -18,14 +18,17 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Comparator;
 
 import org.apache.asterix.runtime.operators.joins.flexible.utils.Bucket;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IBucket;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IHeuristicForThetaJoin;
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
+import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
-import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 
 public class FirstFit implements IHeuristicForThetaJoin {
     double CONSTANT = 1;
@@ -39,7 +42,13 @@ public class FirstFit implements IHeuristicForThetaJoin {
     int numberOfBuckets;
     int buildingBucketPosition = 0;
 
-    public FirstFit(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize)
+    ArrayList<int[]> bucketsFromR;
+    ArrayList<int[]> tempBucketsFromR;
+
+    RecordDescriptor buildRd;
+    RecordDescriptor probeRd;
+
+    public FirstFit(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd, RecordDescriptor probeRd)
             throws HyracksDataException {
         this.memoryForJoinInBytes = memoryForJoin * frameSize;
         this.memoryForJoinInFrames = memoryForJoin;
@@ -47,17 +56,14 @@ public class FirstFit implements IHeuristicForThetaJoin {
         this.buildFileSize = buildFileSize;
         this.probeFileSize = probeFileSize;
         this.hasNextBuildingBucketSequence = true;
+        this.buildRd = buildRd;
+        this.probeRd = probeRd;
 
     }
 
     @Override
     public boolean hasNextBuildingBucketSequence() {
-        for (int i = 0; i < this.numberOfBuckets; i++) {
-            int[] bucket = bucketTable.getEntry(i);
-            if (bucket[1] < 0 && bucket[2] > -1)
-                return true;
-        }
-        return false;
+        return !bucketsFromR.isEmpty();
     }
 
     @Override
@@ -66,43 +72,30 @@ public class FirstFit implements IHeuristicForThetaJoin {
         int totalFramesForBuckets = 0;
         long totalSizeForBuckets = 0;
         int currentFrame = 0;
-        for (int i = 0; i < this.numberOfBuckets; i++) {
-            int[] bucket = bucketTable.getEntry(i);
-            //The bucket is pruned in initial run
-            if (bucket[1] > -1 && bucket[2] > -1)
-                continue;
-            //The bucket is loaded in one of the previous iterations
-            if (bucket[1] == -1 && bucket[2] == -1)
-                continue;
-            long bucketSize;
-            long startOffsetInFile = -((long) (bucket[1] + 1) * this.frameSize) + bucket[2];
-            int endFrame;
-            int endOffset;
-            if (i + 1 < this.numberOfBuckets) {
-                bucketSize = -((long) (bucketTable.getEntry(i + 1)[1] + 1) * this.frameSize)
-                        + bucketTable.getEntry(i + 1)[2] - startOffsetInFile;
-                endFrame = -(bucketTable.getEntry(i + 1)[1] + 1);
-                endOffset = bucketTable.getEntry(i + 1)[2];
-            } else {
-                bucketSize = buildFileSize - startOffsetInFile;
-                endFrame = -1;
-                endOffset = -1;
-            }
+        ArrayList<int[]> removeList = new ArrayList<>();
+        for (int i = 0; i < bucketsFromR.size(); i++) {
+            int[] bucket = bucketsFromR.get(i);
+            long entryInTable = bucket[4];
+            int[] bucketInfoFromTable = tempBucketsFromR.get((int) entryInTable);
+
+            int bucketSize = bucket[1];
+            int endFrame = bucket[2];
+            int endOffset = bucket[3];
 
             if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) < memoryForJoinInFrames)
                 totalSizeForBuckets += bucketSize;
             else
                 break;
 
-            Bucket returnBucket = new Bucket(bucket[0], 0, bucket[2], endOffset, -(bucket[1] + 1), endFrame);
+            removeList.add(bucket);
+            Bucket returnBucket = new Bucket(bucketInfoFromTable[0], 0, bucketInfoFromTable[2], endOffset,
+                    -(bucketInfoFromTable[1] + 1), endFrame);
             returnBuckets.add(returnBucket);
-            bucketTable.updateBuildBucket(bucket[0], new TuplePointer(-1, -1));
         }
-
+        bucketsFromR.removeAll(removeList);
         return returnBuckets;
     }
 
-    @Override
     public ArrayList<IBucket> nextProbingBucketSequence() {
         ArrayList<IBucket> returnBuckets = new ArrayList<>();
         int totalSizeOfBuckets = 0;
@@ -145,5 +138,51 @@ public class FirstFit implements IHeuristicForThetaJoin {
     public void setBucketTable(SerializableBucketIdList bucketTable) {
         this.bucketTable = bucketTable;
         this.numberOfBuckets = bucketTable.getNumEntries();
+        this.bucketsFromR = new ArrayList<>();
+        tempBucketsFromR = new ArrayList<>();
+        for(int i = 0; i < this.numberOfBuckets; i++) {
+            int[] bucket = bucketTable.getEntry(i);
+            if (bucket[0] == -1 || bucket[1] > -1 || bucket[2] == -1) {
+                continue;
+            }
+            tempBucketsFromR.add(bucket);
+        }
+        tempBucketsFromR.sort(Comparator.comparingDouble(o -> -o[1]));
+        for (int i = 0; i < tempBucketsFromR.size(); i++) {
+            int[] bucket = tempBucketsFromR.get(i);
+            int bucketSize;
+            int startOffsetInFile = -((bucket[1] + 1) * this.frameSize) + bucket[2];
+            int[] nextBucket = new int[5];
+            int endFrame;
+            int endOffset;
+            if (i + 1 < tempBucketsFromR.size()) {
+                int nextOnDisk;
+                for(nextOnDisk = i + 1; nextOnDisk < tempBucketsFromR.size(); nextOnDisk++) {
+                    nextBucket = tempBucketsFromR.get(nextOnDisk);
+                    if(nextBucket[1] < 0) break;
+                }
+                endFrame = -(nextBucket[1] + 1);
+                endOffset = nextBucket[2];
+                bucketSize = ((endFrame * this.frameSize) + endOffset) - startOffsetInFile;
+
+            } else {
+                endFrame = -1;
+                endOffset = -1;
+                bucketSize = (int) ((buildFileSize + 5) - startOffsetInFile);
+            }
+            int[] newBucket = new int[5];
+            newBucket[0] = bucket[0];
+            newBucket[1] = bucketSize;
+            newBucket[2] = endFrame;
+            newBucket[3] = endOffset;
+            newBucket[4] = i;
+            this.bucketsFromR.add(newBucket);
+        }
+        //bucketsFromR.sort(Comparator.comparingDouble(o -> -o[1]));
+    }
+
+    @Override
+    public void setComparator(ITuplePairComparator comparator) {
+
     }
 }

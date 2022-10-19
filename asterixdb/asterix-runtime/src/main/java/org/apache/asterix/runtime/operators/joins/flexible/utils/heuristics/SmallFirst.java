@@ -18,12 +18,15 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Comparator;
 
 import org.apache.asterix.runtime.operators.joins.flexible.utils.Bucket;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IBucket;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IHeuristicForThetaJoin;
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
+import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
 
@@ -40,8 +43,12 @@ public class SmallFirst implements IHeuristicForThetaJoin {
     int buildingBucketPosition = 0;
 
     ArrayList<int[]> bucketsFromR;
+    ArrayList<int[]> tempBucketsFromR;
 
-    public SmallFirst(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize)
+    RecordDescriptor buildRd;
+    RecordDescriptor probeRd;
+
+    public SmallFirst(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd, RecordDescriptor probeRd)
             throws HyracksDataException {
         this.memoryForJoinInBytes = memoryForJoin * frameSize;
         this.memoryForJoinInFrames = memoryForJoin;
@@ -49,6 +56,9 @@ public class SmallFirst implements IHeuristicForThetaJoin {
         this.buildFileSize = buildFileSize;
         this.probeFileSize = probeFileSize;
         this.hasNextBuildingBucketSequence = true;
+
+        this.buildRd = buildRd;
+        this.probeRd = probeRd;
 
     }
 
@@ -67,7 +77,7 @@ public class SmallFirst implements IHeuristicForThetaJoin {
         for (int i = 0; i < bucketsFromR.size(); i++) {
             int[] bucket = bucketsFromR.get(i);
             long entryInTable = bucket[4];
-            int[] bucketInfoFromTable = bucketTable.getEntry((int) entryInTable);
+            int[] bucketInfoFromTable = tempBucketsFromR.get((int) entryInTable);
 
             int bucketSize = bucket[1];
             int endFrame = bucket[2];
@@ -87,7 +97,6 @@ public class SmallFirst implements IHeuristicForThetaJoin {
         return returnBuckets;
     }
 
-    @Override
     public ArrayList<IBucket> nextProbingBucketSequence() {
         ArrayList<IBucket> returnBuckets = new ArrayList<>();
         int totalSizeOfBuckets = 0;
@@ -131,20 +140,26 @@ public class SmallFirst implements IHeuristicForThetaJoin {
         this.bucketTable = bucketTable;
         this.numberOfBuckets = bucketTable.getNumEntries();
         this.bucketsFromR = new ArrayList<>();
-        for (int i = 0; i < this.numberOfBuckets; i++) {
+        tempBucketsFromR = new ArrayList<>();
+        for(int i = 0; i < this.numberOfBuckets; i++) {
             int[] bucket = bucketTable.getEntry(i);
             if (bucket[0] == -1 || bucket[1] > -1 || bucket[2] == -1) {
                 continue;
             }
+            tempBucketsFromR.add(bucket);
+        }
+        tempBucketsFromR.sort(Comparator.comparingDouble(o -> -o[1]));
+        for (int i = 0; i < tempBucketsFromR.size(); i++) {
+            int[] bucket = tempBucketsFromR.get(i);
             int bucketSize;
             int startOffsetInFile = -((bucket[1] + 1) * this.frameSize) + bucket[2];
             int[] nextBucket = new int[5];
             int endFrame;
             int endOffset;
-            if (i + 1 < this.numberOfBuckets) {
+            if (i + 1 < tempBucketsFromR.size()) {
                 int nextOnDisk;
-                for(nextOnDisk = i + 1; nextOnDisk < this.numberOfBuckets; nextOnDisk++) {
-                    nextBucket = bucketTable.getEntry(nextOnDisk);
+                for(nextOnDisk = i + 1; nextOnDisk < tempBucketsFromR.size(); nextOnDisk++) {
+                    nextBucket = tempBucketsFromR.get(nextOnDisk);
                     if(nextBucket[1] < 0) break;
                 }
                 endFrame = -(nextBucket[1] + 1);
@@ -165,5 +180,10 @@ public class SmallFirst implements IHeuristicForThetaJoin {
             this.bucketsFromR.add(newBucket);
         }
         bucketsFromR.sort(Comparator.comparingDouble(o -> o[1]));
+    }
+
+    @Override
+    public void setComparator(ITuplePairComparator comparator) {
+
     }
 }

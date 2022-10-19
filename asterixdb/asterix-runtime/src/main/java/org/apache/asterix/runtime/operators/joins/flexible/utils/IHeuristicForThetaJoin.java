@@ -20,15 +20,13 @@ package org.apache.asterix.runtime.operators.joins.flexible.utils;
 
 import java.util.ArrayList;
 
+import org.apache.hyracks.api.dataflow.value.ITuplePairComparator;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
 
 public interface IHeuristicForThetaJoin {
     boolean hasNextBuildingBucketSequence();
-
     ArrayList<IBucket> nextBuildingBucketSequence() throws HyracksDataException;
-
-    ArrayList<IBucket> nextProbingBucketSequence();
-
-    void setBucketTable(SerializableBucketIdList bucketTable);
+    void setBucketTable(SerializableBucketIdList bucketTable) throws HyracksDataException;
+    void setComparator(ITuplePairComparator comparator);
 }
