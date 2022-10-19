@@ -72,13 +72,13 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
     private final IPredicateEvaluatorFactory predEvaluatorFactory;
 
-    private final ITuplePairComparatorFactory tuplePairComparatorFactoryProbe2Build; //For HHJ & NLJ in probe
-    //private final ITuplePairComparatorFactory atuplePairComparatorFactoryBuild2Probe; //For HHJ & NLJ in probe
+    private final ITuplePairComparatorFactory tuplePairComparatorFactoryProbe2Build;
+    private final ITuplePairComparatorFactory tuplePairComparatorFactoryBuild2Probe;
 
     private final double fudgeFactor;
 
     public ThetaFlexibleJoinOperatorDescriptor(IOperatorDescriptorRegistry spec, int memoryForJoin, int[] buildKeys,
-            int[] probeKeys, RecordDescriptor recordDescriptor, ITuplePairComparatorFactory tupPaircomparatorFactory01,
+            int[] probeKeys, RecordDescriptor recordDescriptor, ITuplePairComparatorFactory tupPaircomparatorFactory01, ITuplePairComparatorFactory tupPaircomparatorFactory10,
             IPredicateEvaluatorFactory predEvaluatorFactory, double fudgeFactor) {
         super(spec, 2, 1);
 
@@ -89,7 +89,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
         this.memoryForJoin = memoryForJoin;
 
         this.tuplePairComparatorFactoryProbe2Build = tupPaircomparatorFactory01;
-        //this.tuplePairComparatorFactoryBuild2Probe = tupPaircomparatorFactory10;
+        this.tuplePairComparatorFactoryBuild2Probe = tupPaircomparatorFactory10;
 
         this.fudgeFactor = fudgeFactor;
     }
@@ -214,6 +214,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                 boolean failed = false;
                 final ITuplePairComparator probComp =
                         tuplePairComparatorFactoryProbe2Build.createTuplePairComparator(ctx);
+                final ITuplePairComparator buildComp = tuplePairComparatorFactoryBuild2Probe.createTuplePairComparator(ctx);
                 final IPredicateEvaluator predEvaluator =
                         predEvaluatorFactory == null ? null : predEvaluatorFactory.createPredicateEvaluator();
 
@@ -293,7 +294,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         runFileStreams[1].startReadingRunFile();
 
                         //Create an instance of a heuristic with table and two file streams
-                        IHeuristicForThetaJoin heuristicForThetaJoin = new SmallFirst(memoryForJoin - 1,
+                        IHeuristicForThetaJoin heuristicForThetaJoin = new BigFirst(memoryForJoin - 1,
                                 ctx.getInitialFrameSize(), runFileStreams[0].getRunFileReaderSize(),
                                 runFileStreams[1].getRunFileReaderSize(),
                                 buildRd, probeRd);
@@ -308,7 +309,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                             if(buildingBuckets != null) {
                             //for each bucket from this sequence
                             InMemoryThetaFlexibleJoiner inMemoryThetaFlexibleJoiner = null;
-                            for (IBucket buildingBucket : buildingBuckets) {
+                              for (IBucket buildingBucket : buildingBuckets) {
                                 int frameSize = ctx.getInitialFrameSize();
                                 IFrame frame = new VSizeFrame(ctx, frameSize);
                                 int startFrame = buildingBucket.getStartFrame();
@@ -342,7 +343,6 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                         }
                                     }
 
-
                                     inMemoryThetaFlexibleJoiner.buildOneBucket(frame.getBuffer(),
                                             buildingBucket.getBucketId(), startOffset, endOffset);
                                     currentFrame++;
@@ -351,7 +351,8 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                             //TODO: we need to read only the matching buckets from probe side
                             FrameTupleCursor frameTupleCursor = new FrameTupleCursor(probeRd);
                             int probingSide = 1 - buildingBuckets.get(0).getSide();
-                            inMemoryThetaFlexibleJoiner.initProbe(probComp);
+                            if(probingSide == 1) inMemoryThetaFlexibleJoiner.initProbe(probComp);
+                            else inMemoryThetaFlexibleJoiner.initProbe(buildComp);
                             runFileStreams[probingSide].startReadingRunFile(frameTupleCursor);
                             inMemoryThetaFlexibleJoiner.probeOneBucket(frameTupleCursor.getAccessor().getBuffer(),
                                     writer, 5, -1);

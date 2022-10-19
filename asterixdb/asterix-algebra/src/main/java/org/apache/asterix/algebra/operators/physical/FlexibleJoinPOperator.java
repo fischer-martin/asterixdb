@@ -201,7 +201,7 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);*/
 
         IOperatorDescriptor opDesc = new ThetaFlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild,
-                keysProbe, recordDescriptor, comparatorFactory, predEvaluatorFactory, fudgeFactor);
+                keysProbe, recordDescriptor, comparatorFactory, reverseComparatorFactory, predEvaluatorFactory, fudgeFactor);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
         ILogicalOperator src1 = op.getInputs().get(0).getValue();
         builder.contributeGraphEdge(src1, 0, op, 0);

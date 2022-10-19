@@ -120,10 +120,10 @@ public class InMemoryThetaFlexibleJoiner {
         int tupleCount = accessorBuild.getTupleCount();
         for (int i = 0; i < tupleCount; i++) {
 
-            //            if(accessorBuild.getTupleStartOffset(i) < startOffset) continue;
-            //            if(endOffset != -1) {
-            //                if(accessorBuild.getTupleStartOffset(i) >= endOffset) break;
-            //            }
+                        if(accessorBuild.getTupleStartOffset(i) < startOffset) continue;
+                        if(endOffset != -1) {
+                            if(accessorBuild.getTupleStartOffset(i) >= endOffset) break;
+                        }
             // b = FlexibleJoinsUtil.getBucketId(accessorBuild,i,1);
             int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
             //bucketMap.merge(bucketIdT, 1, Integer::sum);
@@ -170,10 +170,10 @@ public class InMemoryThetaFlexibleJoiner {
         // for each record from S
         for (int i = 0; i < tupleCount; ++i) {
             boolean matched = false;
-            //            if(accessorProbe.getTupleStartOffset(i) < startOffset) continue;
-            //            if(endOffset != -1) {
-            //                if(accessorProbe.getTupleStartOffset(i) >= endOffset) break;
-            //            }
+                        if(accessorProbe.getTupleStartOffset(i) < startOffset) continue;
+                        if(endOffset != -1) {
+                            if(accessorProbe.getTupleStartOffset(i) >= endOffset) break;
+                        }
             int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorProbe, i, 1);
             //bucketMatchCount.merge(bucketIdT, 1, Integer::sum);
 
@@ -215,7 +215,7 @@ public class InMemoryThetaFlexibleJoiner {
 
                 }
             }
-            //if(!matched) break;
+            if(!matched) break;
         }
 
     }

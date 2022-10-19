@@ -83,7 +83,7 @@ public class SmallFirst implements IHeuristicForThetaJoin {
             int endFrame = bucket[2];
             int endOffset = bucket[3];
 
-            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) < memoryForJoinInFrames)
+            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames)
                 totalSizeForBuckets += bucketSize;
             else
                 break;
