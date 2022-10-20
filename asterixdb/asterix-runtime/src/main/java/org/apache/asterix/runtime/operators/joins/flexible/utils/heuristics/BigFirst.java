@@ -47,6 +47,7 @@ public class BigFirst implements IHeuristicForThetaJoin {
     ArrayList<int[]> tempBucketsFromR;
     RecordDescriptor buildRd;
     RecordDescriptor probeRd;
+    boolean roleReversal = false;
 
     public BigFirst(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd, RecordDescriptor probeRd)
             throws HyracksDataException {
@@ -58,6 +59,7 @@ public class BigFirst implements IHeuristicForThetaJoin {
         this.hasNextBuildingBucketSequence = true;
         this.buildRd = buildRd;
         this.probeRd = probeRd;
+        if(probeFileSize < buildFileSize) roleReversal = true;
 
     }
 
@@ -136,14 +138,21 @@ public class BigFirst implements IHeuristicForThetaJoin {
     }
 
     public void setBucketTable(SerializableBucketIdList bucketTable) {
+
         this.bucketTable = bucketTable;
         this.numberOfBuckets = bucketTable.getNumEntries();
         this.bucketsFromR = new ArrayList<>();
         tempBucketsFromR = new ArrayList<>();
         for(int i = 0; i < this.numberOfBuckets; i++) {
             int[] bucket = bucketTable.getEntry(i);
-            if (bucket[0] == -1 || bucket[1] > -1 || bucket[2] == -1) {
-                continue;
+            if(!roleReversal) {
+                if (bucket[0] == -1 || bucket[1] > -1 || bucket[2] == -1) {
+                    continue;
+                }
+            } else {
+                if (bucket[0] == -1 || bucket[3] > -1 || bucket[4] == -1) {
+                    continue;
+                }
             }
             tempBucketsFromR.add(bucket);
         }
@@ -151,7 +160,12 @@ public class BigFirst implements IHeuristicForThetaJoin {
         for (int i = 0; i < tempBucketsFromR.size(); i++) {
             int[] bucket = tempBucketsFromR.get(i);
             int bucketSize;
-            int startOffsetInFile = -((bucket[1] + 1) * this.frameSize) + bucket[2];
+            int startOffsetInFile;
+            if(!roleReversal) {
+                startOffsetInFile = -((bucket[1] + 1) * this.frameSize) + bucket[2];
+            } else {
+                startOffsetInFile = -((bucket[3] + 1) * this.frameSize) + bucket[4];
+            }
             int[] nextBucket = new int[5];
             int endFrame;
             int endOffset;
@@ -159,10 +173,19 @@ public class BigFirst implements IHeuristicForThetaJoin {
                 int nextOnDisk;
                 for(nextOnDisk = i + 1; nextOnDisk < tempBucketsFromR.size(); nextOnDisk++) {
                     nextBucket = tempBucketsFromR.get(nextOnDisk);
-                    if(nextBucket[1] < 0) break;
+                    if(!roleReversal) {
+                        if (nextBucket[1] < 0) break;
+                    } else {
+                        if (nextBucket[3] < 0) break;
+                    }
                 }
-                endFrame = -(nextBucket[1] + 1);
-                endOffset = nextBucket[2];
+                if(!roleReversal) {
+                    endFrame = -(nextBucket[1] + 1);
+                    endOffset = nextBucket[2];
+                } else {
+                    endFrame = -(nextBucket[3] + 1);
+                    endOffset = nextBucket[4];
+                }
                 bucketSize = ((endFrame * this.frameSize) + endOffset) - startOffsetInFile;
 
             } else {

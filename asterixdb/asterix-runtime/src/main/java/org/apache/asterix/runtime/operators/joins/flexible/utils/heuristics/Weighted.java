@@ -127,7 +127,7 @@ public class Weighted implements IHeuristicForThetaJoin {
                     -(bucketInfoFromTable[3] + 1), endFrame);
             returnBucketsS.add(returnBucket);
         }
-        if(true) {
+        if(costR > costS) {
             bucketsFromS.removeAll(removeListS);
             reComputeCosts();
             return returnBucketsS;
