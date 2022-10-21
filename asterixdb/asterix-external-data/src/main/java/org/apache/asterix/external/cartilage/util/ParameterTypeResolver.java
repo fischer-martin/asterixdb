@@ -19,6 +19,7 @@
 package org.apache.asterix.external.cartilage.util;
 
 import java.io.DataInputStream;
+import java.io.IOException;
 import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.serde.ABooleanSerializerDeserializer;
@@ -115,6 +116,10 @@ public class ParameterTypeResolver {
 
     public static Object getKeyObject(DataInputStream dataInputStream, ATypeTag dataType) throws HyracksDataException {
         Object returnObject = null;
+        if(dataType == ATypeTag.INTERVAL) {
+            returnObject = new Interval(0, 0);
+        }
+
         switch (dataType) {
             case BOOLEAN:
                 returnObject = ABooleanSerializerDeserializer.INSTANCE.deserialize(dataInputStream).getBoolean();
@@ -155,10 +160,19 @@ public class ParameterTypeResolver {
                 break;
             case INTERVAL: {
                 //returnObject = AIntervalSerializerDeserializer.INSTANCE.deserialize(dataInputStream).toString();
-                AInterval interval = AIntervalSerializerDeserializer.INSTANCE.deserialize(dataInputStream);
-                long start0 = interval.getIntervalStart();
-                long end0 = interval.getIntervalEnd();
-                returnObject = new Interval(start0, end0);
+                try {
+                byte tag = dataInputStream.readByte();
+                if (tag == ATypeTag.DATETIME.serialize()) {
+                    ((Interval) returnObject).start = dataInputStream.readLong();
+                    ((Interval) returnObject).end  = dataInputStream.readLong();
+                } else {
+                    ((Interval) returnObject).start = dataInputStream.readInt();
+                    ((Interval) returnObject).end = dataInputStream.readInt();
+                }
+                } catch (Exception e) {
+                    System.out.println(e.getMessage());
+                }
+
                 break;
             }
             case STRING:
