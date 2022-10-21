@@ -56,6 +56,10 @@ public class Weighted implements IHeuristicForThetaJoin {
     RecordDescriptor buildRd;
     RecordDescriptor probeRd;
 
+    ArrayList<int[]> probingBucketSequence;
+
+    boolean roleReversal = false;
+
     public Weighted(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd, RecordDescriptor probeRd)
             throws HyracksDataException {
         this.memoryForJoinInBytes = memoryForJoin * frameSize;
@@ -96,14 +100,11 @@ public class Weighted implements IHeuristicForThetaJoin {
             if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
                 totalSizeForBuckets += bucketSize;
                 costR += bucket[5];
+                removeListR.add(bucket);
+                Bucket returnBucket = new Bucket(bucketInfoFromTable[0], 0, bucketInfoFromTable[2], endOffset,
+                        -(bucketInfoFromTable[1] + 1), endFrame);
+                returnBucketsR.add(returnBucket);
             }
-            else
-                break;
-
-            removeListR.add(bucket);
-            Bucket returnBucket = new Bucket(bucketInfoFromTable[0], 0, bucketInfoFromTable[2], endOffset,
-                    -(bucketInfoFromTable[1] + 1), endFrame);
-            returnBucketsR.add(returnBucket);
         }
         totalSizeForBuckets = 0;
         for (int i = 0; i < bucketsFromS.size(); i++) {
@@ -118,26 +119,57 @@ public class Weighted implements IHeuristicForThetaJoin {
             if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
                 totalSizeForBuckets += bucketSize;
                 costS += bucket[5];
+                removeListS.add(bucket);
+                Bucket returnBucket = new Bucket(bucketInfoFromTable[0], 1, bucketInfoFromTable[4], endOffset,
+                        -(bucketInfoFromTable[3] + 1), endFrame);
+                returnBucketsS.add(returnBucket);
             }
-            else
-                break;
 
-            removeListS.add(bucket);
-            Bucket returnBucket = new Bucket(bucketInfoFromTable[0], 1, bucketInfoFromTable[4], endOffset,
-                    -(bucketInfoFromTable[3] + 1), endFrame);
-            returnBucketsS.add(returnBucket);
+
         }
-        if(costR > costS) {
+        if(false) {
             bucketsFromS.removeAll(removeListS);
             reComputeCosts();
+            probingBucketSequence = bucketsFromR;
+            roleReversal = true;
             return returnBucketsS;
         } else {
             bucketsFromR.removeAll(removeListR);
             reComputeCosts();
+            probingBucketSequence = bucketsFromS;
             return returnBucketsR;
         }
 //        bucketsFromS.removeAll(removeListS);
 //        return returnBucketsS;
+    }
+
+    public ArrayList<IBucket> nextProbingBucketSequence() throws HyracksDataException {
+        ArrayList<IBucket> returnBuckets = new ArrayList<>();
+        for(int[] bucket: probingBucketSequence) {
+            long entryInTable = bucket[4];
+            int[] bucketInfoFromTable;
+            int startFrame;
+            int starOffset;
+            if(roleReversal) {
+                bucketInfoFromTable = tempBucketsFromR.get((int) entryInTable);
+                startFrame = bucketInfoFromTable[1];
+                starOffset = bucketInfoFromTable[2];
+            }
+            else {
+                bucketInfoFromTable = tempBucketsFromS.get((int) entryInTable);
+                startFrame = bucketInfoFromTable[3];
+                starOffset = bucketInfoFromTable[4];
+            }
+            int endFrame = bucket[2];
+            int endOffset = bucket[3];
+
+            Bucket returnBucket = new Bucket(bucketInfoFromTable[0], 1, starOffset, endOffset,
+                    -(startFrame + 1), endFrame);
+            returnBuckets.add(returnBucket);
+
+        }
+        returnBuckets.sort(Comparator.comparingDouble(IBucket::getStartFrame));
+        return returnBuckets;
     }
 
     public void reComputeCosts() throws HyracksDataException {
@@ -177,13 +209,15 @@ public class Weighted implements IHeuristicForThetaJoin {
                 }
             }
 
+            if(costS == 0) continue;
+
             int[] newBucket = new int[6];
             newBucket[0] = bucketsFromR.get(i)[0];
             newBucket[1] = bucketsFromR.get(i)[1];
             newBucket[2] = bucketsFromR.get(i)[2];
             newBucket[3] = bucketsFromR.get(i)[3];
             newBucket[4] = bucketsFromR.get(i)[4];
-            newBucket[5] = costS / costR;
+            newBucket[5] = (int) Math.ceil(((double) costS / costR) * 10000);
             tempList.add(newBucket);
 
         }
@@ -216,13 +250,15 @@ public class Weighted implements IHeuristicForThetaJoin {
                 }
             }
 
+            if(costR == 0) continue;
+
             int[] newBucket = new int[6];
             newBucket[0] = bucketsFromS.get(i)[0];
             newBucket[1] = bucketsFromS.get(i)[1];
             newBucket[2] = bucketsFromS.get(i)[2];
             newBucket[3] = bucketsFromS.get(i)[3];
             newBucket[4] = bucketsFromS.get(i)[4];
-            newBucket[5] = costR / costS;
+            newBucket[5] = (int) Math.ceil(((double) costR / costS) * 10000);
             tempList.add(newBucket);
 
         }
@@ -357,13 +393,15 @@ public class Weighted implements IHeuristicForThetaJoin {
                 }
             }
 
+            if(costS == 0) continue;
+
             int[] newBucket = new int[6];
             newBucket[0] = tempTwoR.get(i)[0];
             newBucket[1] = tempTwoR.get(i)[1];
             newBucket[2] = tempTwoR.get(i)[2];
             newBucket[3] = tempTwoR.get(i)[3];
             newBucket[4] = tempTwoR.get(i)[4];
-            newBucket[5] = costS / costR;
+            newBucket[5] = (int) Math.ceil(((double) costS / costR) * 10000);
             bucketsFromR.add(newBucket);
 
         }
@@ -392,13 +430,15 @@ public class Weighted implements IHeuristicForThetaJoin {
                 }
             }
 
+            if(costR == 0) continue;
+
             int[] newBucket = new int[6];
             newBucket[0] = tempTwoS.get(i)[0];
             newBucket[1] = tempTwoS.get(i)[1];
             newBucket[2] = tempTwoS.get(i)[2];
             newBucket[3] = tempTwoS.get(i)[3];
             newBucket[4] = tempTwoS.get(i)[4];
-            newBucket[5] = costR / costS;
+            newBucket[5] = (int) Math.ceil(((double) costR / costS) * 10000);
             bucketsFromS.add(newBucket);
 
         }

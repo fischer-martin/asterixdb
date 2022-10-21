@@ -175,7 +175,7 @@ public class ThetaFlexibleJoiner {
             newBucket = false;
             int bucketId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
             TuplePointer tuplePointer = new TuplePointer();
-            if(bucketId != currentBucketId) {
+            //if(bucketId != currentBucketId) {
                 currentBucketId = bucketId;
                 tuplePointer = table.getBuildTuplePointer(bucketId);
                 if (tuplePointer == null) {
@@ -190,16 +190,16 @@ public class ThetaFlexibleJoiner {
                     writeToDisk = false;
                 }
 
-            }
+            //}
 
             if (writeToDisk) {
                 runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer, false);
             } else {
                 while (!bufferManager.insertTuple(accessorBuild, i, tuplePointer)) {
-
                     int lastBucket = table.lastBucket();
                     TuplePointer tuplePointerToSpill = table.getBuildTuplePointer(lastBucket);
                     TuplePointer newTuplePointerForSpilled = spillStartingFrom(tuplePointerToSpill);
+
                     //runFileStreamForBuild.addToRunFile(accessorBuild, i, tuplePointer);
                     table.updateBuildBucket(lastBucket, newTuplePointerForSpilled);
                     //spilledBucketMap.put(lastBucket, runFileStreamForBuild.getTupleCount());

@@ -192,19 +192,26 @@ public class BucketBufferManager implements IBucketBufferManager {
     public boolean removeBucket(TuplePointer tuplePointer) throws HyracksDataException {
         int frameIndex = tuplePointer.getFrameIndex();
 
-        int fIdx = frameIndex;
-        while (fIdx < bufferManager.getNumFrames()) {
-            appendFrame.reset(bufferManager.getFrame(frameIndex, tempInfo).getBuffer());
-            appender.reset(appendFrame, false);
+        int fIdx = bufferManager.getNumFrames() - 1;
+        while (fIdx >= frameIndex) {
             if (fIdx == frameIndex) {
-                for (int i = tuplePointer.getTupleIndex(); i < appender.getTupleCount(); i++) {
+                appendFrame.reset(bufferManager.getFrame(fIdx, tempInfo).getBuffer());
+                appender.reset(appendFrame, false);
+
+                int tCounter = appender.getTupleCount();
+
+                for (int i = tuplePointer.getTupleIndex(); i < tCounter; i++) {
                     appender.cancelAppend();
+                    numTuples--;
                 }
             } else {
-                framePool.deAllocateBuffer(bufferManager.getFrame(fIdx, tempInfo).getBuffer());
+                appendFrame.reset(bufferManager.getFrame(fIdx, tempInfo).getBuffer());
+                appender.reset(appendFrame, false);
+                numTuples -= appender.getTupleCount();
+                framePool.deAllocateBuffer(appendFrame.getBuffer());
                 bufferManager.removeFrame(fIdx);
             }
-            fIdx++;
+            fIdx--;
         }
         return true;
     }

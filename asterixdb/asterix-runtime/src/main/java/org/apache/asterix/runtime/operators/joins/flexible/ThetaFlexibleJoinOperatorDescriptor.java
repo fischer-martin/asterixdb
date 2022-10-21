@@ -295,7 +295,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         runFileStreams[1].startReadingRunFile();
 
                         //Create an instance of a heuristic with table and two file streams
-                        IHeuristicForThetaJoin heuristicForThetaJoin = new Weighted(memoryForJoin - 1,
+                        Weighted heuristicForThetaJoin = new Weighted(memoryForJoin - 1,
                                 ctx.getInitialFrameSize(), runFileStreams[0].getRunFileReaderSize(),
                                 runFileStreams[1].getRunFileReaderSize(),
                                 buildRd, probeRd);
@@ -351,44 +351,55 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                   currentFrame++;
                               }
                           }
-                            //TODO: we need to read only the matching buckets from probe side
-                            FrameTupleCursor frameTupleCursor = new FrameTupleCursor(probeRd);
+//                            //TODO: we need to read only the matching buckets from probe side
+//                            FrameTupleCursor frameTupleCursor = new FrameTupleCursor(probeRd);
+//                            int probingSide = 1 - buildingBuckets.get(0).getSide();
+//                            if(probingSide == 1) inMemoryThetaFlexibleJoiner.initProbe(probComp);
+//                            else inMemoryThetaFlexibleJoiner.initProbe(buildComp);
+//                            runFileStreams[probingSide].startReadingRunFile(frameTupleCursor);
+//                            inMemoryThetaFlexibleJoiner.probeOneBucket(frameTupleCursor.getAccessor().getBuffer(),
+//                                    writer, 5, -1);
+//                            while (runFileStreams[probingSide].loadNextBuffer(frameTupleCursor)) {
+//                                inMemoryThetaFlexibleJoiner.probeOneBucket(frameTupleCursor.getAccessor().getBuffer(),
+//                                        writer, 5, -1);
+//                            }
+
+                            // get the probing sequence
+                            ArrayList<IBucket> probingBuckets = heuristicForThetaJoin.nextProbingBucketSequence();
+
                             int probingSide = 1 - buildingBuckets.get(0).getSide();
                             if(probingSide == 1) inMemoryThetaFlexibleJoiner.initProbe(probComp);
                             else inMemoryThetaFlexibleJoiner.initProbe(buildComp);
-                            runFileStreams[probingSide].startReadingRunFile(frameTupleCursor);
-                            inMemoryThetaFlexibleJoiner.probeOneBucket(frameTupleCursor.getAccessor().getBuffer(),
-                                    writer, 5, -1);
-                            while (runFileStreams[probingSide].loadNextBuffer(frameTupleCursor)) {
-                                inMemoryThetaFlexibleJoiner.probeOneBucket(frameTupleCursor.getAccessor().getBuffer(),
-                                        writer, 5, -1);
-                            }
 
-                            //get the probing sequence
-                            //                            ArrayList<IBucket> probingBuckets = heuristicForThetaJoin.nextProbingBucketSequence();
-                            //                            inMemoryThetaFlexibleJoiner.initProbe(this.probComp);
-                            //                            //for each bucket p in probing sequence
-                            //                            for (IBucket probingBucket:probingBuckets) {
-                            //                                int frameSize = ctx.getInitialFrameSize();
-                            //                                IFrame frame = new VSizeFrame(ctx, frameSize);
-                            //                                int startFrame = probingBucket.getStartFrame();
-                            //                                long endFrame = probingBucket.getEndFrame() == -1?runFileStreams[probingBucket.getSide()].getWriteCount():probingBucket.getEndFrame();
-                            //                                runFileStreams[probingBucket.getSide()].seekToAPosition(startFrame * frameSize);
-                            //                                int currentFrame = startFrame;
-                            //                                int startOffset;
-                            //                                int endOffset;
-                            //                                while(currentFrame <= endFrame) {
-                            //                                    if(!runFileStreams[probingBucket.getSide()].loadNextBuffer(frame)) break;
-                            //                                    if(currentFrame == startFrame) startOffset = probingBucket.getStartOffset();
-                            //                                    else startOffset = 5;
-                            //                                    if(currentFrame == endFrame) endOffset = probingBucket.getEndOffset();
-                            //                                    else endOffset = -1;
-                            //                                    //TODO: build function should also get the record descriptor since it will not be always S
-                            //                                    inMemoryThetaFlexibleJoiner.probeOneBucket(frame.getBuffer(), writer, probingBucket.getBucketId(), startOffset, endOffset);
-                            //                                    currentFrame++;
-                            //                                }
-                            //
-                            //                            }
+                            //for each bucket p in probing sequence
+                            for (IBucket probingBucket : probingBuckets) {
+                                int frameSize = ctx.getInitialFrameSize();
+                                IFrame frame = new VSizeFrame(ctx, frameSize);
+                                int startFrame = probingBucket.getStartFrame();
+                                long endFrame = probingBucket.getEndFrame() == -1
+                                        ? runFileStreams[probingBucket.getSide()].getWriteCount()
+                                        : probingBucket.getEndFrame();
+
+                                runFileStreams[probingBucket.getSide()].seekToAPosition((long) startFrame * frameSize);
+                                int currentFrame = startFrame;
+                                int startOffset;
+                                int endOffset;
+                                while (currentFrame < endFrame) {
+                                    if (!runFileStreams[probingBucket.getSide()].loadNextBuffer(frame))
+                                        break;
+                                    if (currentFrame == startFrame)
+                                        startOffset = probingBucket.getStartOffset();
+                                    else
+                                        startOffset = 5;
+                                    if (currentFrame == endFrame)
+                                        endOffset = probingBucket.getEndOffset();
+                                    else
+                                        endOffset = -1;
+
+                                    inMemoryThetaFlexibleJoiner.probeOneBucket(frame.getBuffer(), writer, startOffset, endOffset);
+                                    currentFrame++;
+                                }
+                            }
 
                             inMemoryThetaFlexibleJoiner.completeProbe(writer);
                             inMemoryThetaFlexibleJoiner.releaseResource();
