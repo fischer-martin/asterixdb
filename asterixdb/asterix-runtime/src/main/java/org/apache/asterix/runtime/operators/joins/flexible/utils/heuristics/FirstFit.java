@@ -48,7 +48,9 @@ public class FirstFit implements IHeuristicForThetaJoin {
     RecordDescriptor buildRd;
     RecordDescriptor probeRd;
 
-    public FirstFit(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd, RecordDescriptor probeRd)
+    boolean roleReversal = false;
+
+    public FirstFit(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd, RecordDescriptor probeRd, boolean checkForRoleReversal)
             throws HyracksDataException {
         this.memoryForJoinInBytes = memoryForJoin * frameSize;
         this.memoryForJoinInFrames = memoryForJoin;
@@ -59,6 +61,7 @@ public class FirstFit implements IHeuristicForThetaJoin {
         this.buildRd = buildRd;
         this.probeRd = probeRd;
 
+        if(checkForRoleReversal && probeFileSize < buildFileSize) this.roleReversal = true;
     }
 
     @Override
@@ -73,24 +76,31 @@ public class FirstFit implements IHeuristicForThetaJoin {
         long totalSizeForBuckets = 0;
         int currentFrame = 0;
         ArrayList<int[]> removeList = new ArrayList<>();
-        for (int i = 0; i < bucketsFromR.size(); i++) {
-            int[] bucket = bucketsFromR.get(i);
-            long entryInTable = bucket[4];
-            int[] bucketInfoFromTable = tempBucketsFromR.get((int) entryInTable);
+        for (int[] bucket : bucketsFromR) {
 
             int bucketSize = bucket[1];
-            int endFrame = bucket[2];
-            int endOffset = bucket[3];
 
-            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames)
+            int endFrame = bucket[4];
+            int endOffset = bucket[5];
+            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
                 totalSizeForBuckets += bucketSize;
-            else
-                break;
+                removeList.add(bucket);
+                Bucket returnBucket;
+                returnBucket = new Bucket(bucket[0], roleReversal?1:0, bucket[3], endOffset,
+                        bucket[2], endFrame);
 
-            removeList.add(bucket);
-            Bucket returnBucket = new Bucket(bucketInfoFromTable[0], 0, bucketInfoFromTable[2], endOffset,
-                    -(bucketInfoFromTable[1] + 1), endFrame);
-            returnBuckets.add(returnBucket);
+                returnBuckets.add(returnBucket);
+            }
+
+//            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames)
+//                totalSizeForBuckets += bucketSize;
+//            else
+//                break;
+
+//            removeList.add(bucket);
+//            Bucket returnBucket = new Bucket(bucketInfoFromTable[0], roleReversal ? 1 : 0, bucketInfoFromTable[2], endOffset,
+//                    -(bucketInfoFromTable[1] + 1), endFrame);
+//            returnBuckets.add(returnBucket);
         }
         bucketsFromR.removeAll(removeList);
         return returnBuckets;
@@ -136,22 +146,41 @@ public class FirstFit implements IHeuristicForThetaJoin {
     }
 
     public void setBucketTable(SerializableBucketIdList bucketTable) {
+
         this.bucketTable = bucketTable;
         this.numberOfBuckets = bucketTable.getNumEntries();
         this.bucketsFromR = new ArrayList<>();
         tempBucketsFromR = new ArrayList<>();
         for(int i = 0; i < this.numberOfBuckets; i++) {
             int[] bucket = bucketTable.getEntry(i);
-            if (bucket[0] == -1 || bucket[1] > -1 || bucket[2] == -1) {
-                continue;
+            if(!roleReversal) {
+                if (bucket[0] == -1 || bucket[1] > -1 || bucket[2] == -1) {
+                    continue;
+                }
+            } else {
+                if (bucket[0] == -1 || bucket[3] > -1 || bucket[4] == -1) {
+                    continue;
+                }
             }
             tempBucketsFromR.add(bucket);
         }
-        tempBucketsFromR.sort(Comparator.comparingDouble(o -> -o[1]));
+        tempBucketsFromR.sort(Comparator.comparingDouble(o -> -o[roleReversal?3:1]));
+
         for (int i = 0; i < tempBucketsFromR.size(); i++) {
             int[] bucket = tempBucketsFromR.get(i);
             int bucketSize;
-            int startOffsetInFile = -((bucket[1] + 1) * this.frameSize) + bucket[2];
+            int startOffsetInFile;
+            int startFrame;
+            int startOffset;
+            if(!roleReversal) {
+                startOffsetInFile = -((bucket[1] + 1) * this.frameSize) + bucket[2];
+                startFrame = bucket[1];
+                startOffset = bucket[2];
+            } else {
+                startOffsetInFile = -((bucket[3] + 1) * this.frameSize) + bucket[4];
+                startFrame = bucket[3];
+                startOffset = bucket[4];
+            }
             int[] nextBucket = new int[5];
             int endFrame;
             int endOffset;
@@ -159,26 +188,57 @@ public class FirstFit implements IHeuristicForThetaJoin {
                 int nextOnDisk;
                 for(nextOnDisk = i + 1; nextOnDisk < tempBucketsFromR.size(); nextOnDisk++) {
                     nextBucket = tempBucketsFromR.get(nextOnDisk);
-                    if(nextBucket[1] < 0) break;
+                    if(!roleReversal) {
+                        if (nextBucket[1] < 0) break;
+                    } else {
+                        if (nextBucket[3] < 0) break;
+                    }
                 }
-                endFrame = -(nextBucket[1] + 1);
-                endOffset = nextBucket[2];
+                if(!roleReversal) {
+                    endFrame = -(nextBucket[1] + 1);
+                    endOffset = nextBucket[2];
+                } else {
+                    endFrame = -(nextBucket[3] + 1);
+                    endOffset = nextBucket[4];
+                }
                 bucketSize = ((endFrame * this.frameSize) + endOffset) - startOffsetInFile;
 
             } else {
                 endFrame = -1;
                 endOffset = -1;
-                bucketSize = (int) ((buildFileSize + 5) - startOffsetInFile);
+                if(!roleReversal) {
+                    bucketSize = (int) ((buildFileSize + 5) - startOffsetInFile);
+                } else {
+                    bucketSize = (int) ((probeFileSize + 5) - startOffsetInFile);
+                }
             }
-            int[] newBucket = new int[5];
-            newBucket[0] = bucket[0];
-            newBucket[1] = bucketSize;
-            newBucket[2] = endFrame;
-            newBucket[3] = endOffset;
-            newBucket[4] = i;
-            this.bucketsFromR.add(newBucket);
+            //This part is implemented by assuming every bucket will start from a new frame
+            if(bucketSize > memoryForJoinInBytes) {
+                int tempBucketSize = bucketSize;
+                while(tempBucketSize > 0) {
+                    int currentBucketSize = Math.min(memoryForJoinInBytes, tempBucketSize);
+                    int[] newBucket = new int[6];
+                    newBucket[0] = bucket[0];
+                    newBucket[1] = currentBucketSize;
+                    newBucket[2] = -(startFrame + 1);
+                    newBucket[3] = 5;
+                    newBucket[4] = (startOffsetInFile + currentBucketSize) / frameSize;
+                    newBucket[5] = 5;
+                    this.bucketsFromR.add(newBucket);
+                    startFrame += currentBucketSize;
+                    tempBucketSize -= memoryForJoinInBytes;
+                }
+            } else {
+                int[] newBucket = new int[6];
+                newBucket[0] = bucket[0];
+                newBucket[1] = bucketSize;
+                newBucket[2] = startFrame;
+                newBucket[3] = startOffset;
+                newBucket[4] = endFrame;
+                newBucket[5] = endOffset;
+                this.bucketsFromR.add(newBucket);
+            }
         }
-        //bucketsFromR.sort(Comparator.comparingDouble(o -> -o[1]));
     }
 
     @Override

@@ -169,7 +169,7 @@ public class ThetaFlexibleJoiner {
         accessorBuild.reset(buffer);
         int tupleCount = accessorBuild.getTupleCount();
         numRecordsFromBuild += tupleCount;
-        currentBucketId = -1;
+        //currentBucketId = -1;
         for (int i = 0; i < tupleCount; i++) {
             boolean inMemory = false;
             boolean writeToDisk = false;
@@ -177,7 +177,7 @@ public class ThetaFlexibleJoiner {
             int bucketId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
             TuplePointer tuplePointer = new TuplePointer();
             //if(bucketId != currentBucketId) {
-                currentBucketId = bucketId;
+                //currentBucketId = bucketId;
                 tuplePointer = table.getBuildTuplePointer(bucketId);
                 if (tuplePointer == null) {
                     newBucket = true;

@@ -285,8 +285,8 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                     //If there is spilled records to disk
                     if (state.joiner.isSpilled()) {
-                        LOGGER.info("Starting to process disk based buckets");
-                        //state.joiner.getBucketTable().printInfo();
+
+                        state.joiner.getBucketTable().printInfo();
                         RunFileStream[] runFileStreams = new RunFileStream[2];
                         runFileStreams[0] = state.joiner.getRunFileStreamForBuild();
                         runFileStreams[1] = state.joiner.getRunFileStreamForProbe();
@@ -294,11 +294,13 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         runFileStreams[0].startReadingRunFile();
                         runFileStreams[1].startReadingRunFile();
 
+                        LOGGER.info("Starting to process disk based buckets. \nBuild & Probe File Sizes: " + runFileStreams[0].getRunFileReaderSize() / 1024 + "KB\t" + runFileStreams[1].getRunFileReaderSize() / 1024 + "KB");
+
                         //Create an instance of a heuristic with table and two file streams
-                        Weighted heuristicForThetaJoin = new Weighted(memoryForJoin - 1,
+                        IHeuristicForThetaJoin heuristicForThetaJoin = new FirstFit(memoryForJoin - 1,
                                 ctx.getInitialFrameSize(), runFileStreams[0].getRunFileReaderSize(),
                                 runFileStreams[1].getRunFileReaderSize(),
-                                buildRd, probeRd);
+                                buildRd, probeRd, true);
 
                         heuristicForThetaJoin.setComparator(probComp);
                         heuristicForThetaJoin.setBucketTable(state.joiner.getBucketTable());
