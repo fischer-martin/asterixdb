@@ -185,7 +185,6 @@ public class ApplyFlexibleJoinUtils {
         DataverseName dataverseName = functionInfo.getLibraryDataverseName();
         String functionName = functionInfo.getFunctionIdentifier().getName();
 
-
         //Add a dynamic workflow for the summary one
         Triple<MutableObject<ILogicalOperator>, List<LogicalVariable>, MutableObject<ILogicalOperator>> leftSummarizer =
                 createSummary(joinOp, context, leftInputOp, leftInputVar, 0, dataverseName, functionName, parameters);

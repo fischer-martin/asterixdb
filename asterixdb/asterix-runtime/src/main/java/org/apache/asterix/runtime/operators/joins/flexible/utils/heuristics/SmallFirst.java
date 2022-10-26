@@ -18,7 +18,6 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Comparator;
 
@@ -50,7 +49,8 @@ public class SmallFirst implements IHeuristicForThetaJoin {
 
     boolean roleReversal = false;
 
-    public SmallFirst(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd, RecordDescriptor probeRd, boolean checkForRoleReversal)
+    public SmallFirst(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize,
+            RecordDescriptor buildRd, RecordDescriptor probeRd, boolean checkForRoleReversal)
             throws HyracksDataException {
         this.memoryForJoinInBytes = memoryForJoin * frameSize;
         this.memoryForJoinInFrames = memoryForJoin;
@@ -61,7 +61,8 @@ public class SmallFirst implements IHeuristicForThetaJoin {
         this.buildRd = buildRd;
         this.probeRd = probeRd;
         //this.roleReversal = true;
-        if(checkForRoleReversal && probeFileSize < buildFileSize) this.roleReversal = true;
+        if (checkForRoleReversal && probeFileSize < buildFileSize)
+            this.roleReversal = true;
     }
 
     @Override
@@ -82,23 +83,24 @@ public class SmallFirst implements IHeuristicForThetaJoin {
 
             int endFrame = bucket[4];
             int endOffset = bucket[5];
-//            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
-//                totalSizeForBuckets += bucketSize;
-//                removeList.add(bucket);
-//                Bucket returnBucket;
-//                returnBucket = new Bucket(bucket[0], roleReversal?1:0, bucket[3], endOffset,
-//                        bucket[2], endFrame);
-//                returnBuckets.add(returnBucket);
-//            }
+            //            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
+            //                totalSizeForBuckets += bucketSize;
+            //                removeList.add(bucket);
+            //                Bucket returnBucket;
+            //                returnBucket = new Bucket(bucket[0], roleReversal?1:0, bucket[3], endOffset,
+            //                        bucket[2], endFrame);
+            //                returnBuckets.add(returnBucket);
+            //            }
 
-            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
+            if (Math.ceil(
+                    ((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
                 totalSizeForBuckets += bucketSize;
 
-            } else break;
+            } else
+                break;
             removeList.add(bucket);
             Bucket returnBucket;
-            returnBucket = new Bucket(bucket[0], roleReversal?1:0, bucket[3], endOffset,
-                    bucket[2], endFrame);
+            returnBucket = new Bucket(bucket[0], roleReversal ? 1 : 0, bucket[3], endOffset, bucket[2], endFrame);
             returnBuckets.add(returnBucket);
         }
         bucketsFromR.removeAll(removeList);
@@ -150,9 +152,9 @@ public class SmallFirst implements IHeuristicForThetaJoin {
         this.numberOfBuckets = bucketTable.getNumEntries();
         this.bucketsFromR = new ArrayList<>();
         tempBucketsFromR = new ArrayList<>();
-        for(int i = 0; i < this.numberOfBuckets; i++) {
+        for (int i = 0; i < this.numberOfBuckets; i++) {
             int[] bucket = bucketTable.getEntry(i);
-            if(!roleReversal) {
+            if (!roleReversal) {
                 if (bucket[0] == -1 || bucket[1] > -1 || bucket[2] == -1) {
                     continue;
                 }
@@ -163,7 +165,7 @@ public class SmallFirst implements IHeuristicForThetaJoin {
             }
             tempBucketsFromR.add(bucket);
         }
-        tempBucketsFromR.sort(Comparator.comparingDouble(o -> -o[roleReversal?3:1]));
+        tempBucketsFromR.sort(Comparator.comparingDouble(o -> -o[roleReversal ? 3 : 1]));
 
         for (int i = 0; i < tempBucketsFromR.size(); i++) {
             int[] bucket = tempBucketsFromR.get(i);
@@ -171,9 +173,9 @@ public class SmallFirst implements IHeuristicForThetaJoin {
             int startOffsetInFile;
             int startFrame;
             int startOffset;
-            if(!roleReversal) {
+            if (!roleReversal) {
                 startOffsetInFile = -((bucket[1] + 1) * this.frameSize) + bucket[2];
-                startFrame = -(bucket[1]+1);
+                startFrame = -(bucket[1] + 1);
                 startOffset = bucket[2];
             } else {
                 startOffsetInFile = -((bucket[3] + 1) * this.frameSize) + bucket[4];
@@ -185,15 +187,17 @@ public class SmallFirst implements IHeuristicForThetaJoin {
             int endOffset;
             if (i + 1 < tempBucketsFromR.size()) {
                 int nextOnDisk;
-                for(nextOnDisk = i + 1; nextOnDisk < tempBucketsFromR.size(); nextOnDisk++) {
+                for (nextOnDisk = i + 1; nextOnDisk < tempBucketsFromR.size(); nextOnDisk++) {
                     nextBucket = tempBucketsFromR.get(nextOnDisk);
-                    if(!roleReversal) {
-                        if (nextBucket[1] < 0) break;
+                    if (!roleReversal) {
+                        if (nextBucket[1] < 0)
+                            break;
                     } else {
-                        if (nextBucket[3] < 0) break;
+                        if (nextBucket[3] < 0)
+                            break;
                     }
                 }
-                if(!roleReversal) {
+                if (!roleReversal) {
                     endFrame = -(nextBucket[1] + 1);
                     endOffset = nextBucket[2];
                 } else {
@@ -205,16 +209,16 @@ public class SmallFirst implements IHeuristicForThetaJoin {
             } else {
                 endFrame = -1;
                 endOffset = -1;
-                if(!roleReversal) {
+                if (!roleReversal) {
                     bucketSize = (int) ((buildFileSize + 5) - startOffsetInFile);
                 } else {
                     bucketSize = (int) ((probeFileSize + 5) - startOffsetInFile);
                 }
             }
             //This part is implemented by assuming every bucket will start from a new frame
-            if(bucketSize > memoryForJoinInBytes) {
+            if (bucketSize > memoryForJoinInBytes) {
                 int tempBucketSize = bucketSize;
-                while(tempBucketSize > 0) {
+                while (tempBucketSize > 0) {
                     int currentBucketSize = Math.min(memoryForJoinInBytes, tempBucketSize);
                     int[] newBucket = new int[6];
                     newBucket[0] = bucket[0];
@@ -224,7 +228,7 @@ public class SmallFirst implements IHeuristicForThetaJoin {
                     newBucket[4] = startFrame + (currentBucketSize / frameSize);
                     newBucket[5] = 5;
                     this.bucketsFromR.add(newBucket);
-                    startFrame += (currentBucketSize/frameSize);
+                    startFrame += (currentBucketSize / frameSize);
                     tempBucketSize -= memoryForJoinInBytes;
                 }
             } else {

@@ -241,14 +241,6 @@ public class InMemoryFlexibleJoin {
         table.close();
     }
 
-    private boolean evaluatePredicate(int tIx1, int tIx2) {
-        if (reverseOutputOrder) { //Role Reversal Optimization is triggered
-            return (predEvaluator == null) || predEvaluator.evaluate(accessorBuild, tIx2, accessorProbe, tIx1);
-        } else {
-            return (predEvaluator == null) || predEvaluator.evaluate(accessorProbe, tIx1, accessorBuild, tIx2);
-        }
-    }
-
     private void appendToResult(int probeSidetIx, int buildSidetIx, IFrameWriter writer) throws HyracksDataException {
         if (reverseOutputOrder) {
             FrameUtils.appendConcatToWriter(writer, appender, accessorBuild, buildSidetIx, accessorProbe, probeSidetIx);

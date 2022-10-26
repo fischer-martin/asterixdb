@@ -18,7 +18,6 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics;
 
-import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -63,9 +62,8 @@ public class Weighted implements IHeuristicForThetaJoin {
     boolean roleReversal = false;
     boolean checkForRoleReversal = false;
 
-
-    public Weighted(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd, RecordDescriptor probeRd, boolean checkForRoleReversal)
-            throws HyracksDataException {
+    public Weighted(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd,
+            RecordDescriptor probeRd, boolean checkForRoleReversal) throws HyracksDataException {
         this.memoryForJoinInBytes = memoryForJoin * frameSize;
         this.memoryForJoinInFrames = memoryForJoin;
         this.frameSize = frameSize;
@@ -104,12 +102,12 @@ public class Weighted implements IHeuristicForThetaJoin {
             int endFrame = bucket[4];
             int endOffset = bucket[5];
 
-            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
+            if (Math.ceil(
+                    ((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
                 totalSizeForBuckets += bucketSize;
                 costR += bucket[6];
                 removeListR.add(bucket);
-                Bucket returnBucket = new Bucket(bucket[0], 0, startOffset, endOffset,
-                        startFrame, endFrame);
+                Bucket returnBucket = new Bucket(bucket[0], 0, startOffset, endOffset, startFrame, endFrame);
                 returnBucketsR.add(returnBucket);
             }
         }
@@ -124,18 +122,17 @@ public class Weighted implements IHeuristicForThetaJoin {
             int endFrame = bucket[4];
             int endOffset = bucket[5];
 
-            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
+            if (Math.ceil(
+                    ((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
                 totalSizeForBuckets += bucketSize;
                 costS += bucket[6];
                 removeListS.add(bucket);
-                Bucket returnBucket = new Bucket(bucket[0], 1, startOffset, endOffset,
-                        startFrame, endFrame);
+                Bucket returnBucket = new Bucket(bucket[0], 1, startOffset, endOffset, startFrame, endFrame);
                 returnBucketsS.add(returnBucket);
             }
 
-
         }
-        if(checkForRoleReversal && costS > costR) {
+        if (checkForRoleReversal && costS > costR) {
             bucketsFromS.removeAll(removeListS);
             probingBucketSequence = bucketsFromR;
             roleReversal = true;
@@ -148,8 +145,8 @@ public class Weighted implements IHeuristicForThetaJoin {
             returnedBuildingBucketSequence = returnBucketsR;
             return returnBucketsR;
         }
-//        bucketsFromS.removeAll(removeListS);
-//        return returnBucketsS;
+        //        bucketsFromS.removeAll(removeListS);
+        //        return returnBucketsS;
     }
 
     public ArrayList<IBucket> nextProbingBucketSequence() throws HyracksDataException {
@@ -166,8 +163,7 @@ public class Weighted implements IHeuristicForThetaJoin {
         byte[] byteArrayForS = new byte[21];
         ByteBuffer buffForS = ByteBuffer.wrap(byteArrayForS);
 
-
-        for(int[] bucket: probingBucketSequence) {
+        for (int[] bucket : probingBucketSequence) {
 
             int startFrame = bucket[2];
             int starOffset = bucket[3];;
@@ -175,7 +171,7 @@ public class Weighted implements IHeuristicForThetaJoin {
             int endFrame = bucket[4];
             int endOffset = bucket[5];
 
-            if(!roleReversal) {
+            if (!roleReversal) {
                 buffForS.position(13);
                 buffForS.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
                 buffForS.putInt(bucket[0]);
@@ -189,8 +185,7 @@ public class Weighted implements IHeuristicForThetaJoin {
                     iFrameTupleAccessorForR.reset(buffForR);
 
                     if (comparator.compare(iFrameTupleAccessorForR, 0, iFrameTupleAccessorForS, 0) < 1) {
-                        Bucket returnBucket = new Bucket(bucket[0], 1, starOffset, endOffset,
-                                startFrame, endFrame);
+                        Bucket returnBucket = new Bucket(bucket[0], 1, starOffset, endOffset, startFrame, endFrame);
                         returnBuckets.add(returnBucket);
                     }
                 }
@@ -208,16 +203,11 @@ public class Weighted implements IHeuristicForThetaJoin {
                     iFrameTupleAccessorForS.reset(buffForS);
 
                     if (comparator.compare(iFrameTupleAccessorForR, 0, iFrameTupleAccessorForS, 0) < 1) {
-                        Bucket returnBucket = new Bucket(bucket[0], 0, starOffset, endOffset,
-                                startFrame, endFrame);
+                        Bucket returnBucket = new Bucket(bucket[0], 0, starOffset, endOffset, startFrame, endFrame);
                         returnBuckets.add(returnBucket);
                     }
                 }
             }
-
-
-
-
 
         }
         reComputeCosts();
@@ -263,7 +253,8 @@ public class Weighted implements IHeuristicForThetaJoin {
                 }
             }
 
-            if (costS == 0) continue;
+            if (costS == 0)
+                continue;
 
             int[] newBucketR = new int[7];
             newBucketR[0] = rBucket[0];
@@ -307,7 +298,8 @@ public class Weighted implements IHeuristicForThetaJoin {
                 }
             }
 
-            if (costR == 0) continue;
+            if (costR == 0)
+                continue;
 
             int[] newBucket = new int[7];
             newBucket[0] = sBucket[0];
@@ -333,7 +325,7 @@ public class Weighted implements IHeuristicForThetaJoin {
         this.bucketsFromS = new ArrayList<>();
 
         tempBucketsFromR = new ArrayList<>();
-        for(int i = 0; i < this.numberOfBuckets; i++) {
+        for (int i = 0; i < this.numberOfBuckets; i++) {
             int[] bucket = bucketTable.getEntry(i);
             if (bucket[0] == -1 || bucket[1] > -1 || bucket[2] == -1) {
                 continue;
@@ -343,7 +335,7 @@ public class Weighted implements IHeuristicForThetaJoin {
         tempBucketsFromR.sort(Comparator.comparingDouble(o -> -o[1]));
 
         tempBucketsFromS = new ArrayList<>();
-        for(int i = 0; i < this.numberOfBuckets; i++) {
+        for (int i = 0; i < this.numberOfBuckets; i++) {
             int[] bucket = bucketTable.getEntry(i);
             if (bucket[0] == -1 || bucket[3] > -1 || bucket[4] == -1) {
                 continue;
@@ -354,7 +346,6 @@ public class Weighted implements IHeuristicForThetaJoin {
 
         ArrayList<int[]> tempTwoR = new ArrayList<>();
         ArrayList<int[]> tempTwoS = new ArrayList<>();
-
 
         for (int i = 0; i < tempBucketsFromR.size(); i++) {
             int[] bucket = tempBucketsFromR.get(i);
@@ -367,9 +358,10 @@ public class Weighted implements IHeuristicForThetaJoin {
             int endOffset;
             if (i + 1 < tempBucketsFromR.size()) {
                 int nextOnDisk;
-                for(nextOnDisk = i + 1; nextOnDisk < tempBucketsFromR.size(); nextOnDisk++) {
+                for (nextOnDisk = i + 1; nextOnDisk < tempBucketsFromR.size(); nextOnDisk++) {
                     nextBucket = tempBucketsFromR.get(nextOnDisk);
-                    if(nextBucket[1] < 0) break;
+                    if (nextBucket[1] < 0)
+                        break;
                 }
                 endFrame = -(nextBucket[1] + 1);
                 endOffset = nextBucket[2];
@@ -382,9 +374,9 @@ public class Weighted implements IHeuristicForThetaJoin {
             }
 
             //This part is implemented by assuming every bucket will start from a new frame
-            if(bucketSize > memoryForJoinInBytes) {
+            if (bucketSize > memoryForJoinInBytes) {
                 int tempBucketSize = bucketSize;
-                while(tempBucketSize > 0) {
+                while (tempBucketSize > 0) {
                     int currentBucketSize = Math.min(memoryForJoinInBytes, tempBucketSize);
                     int[] newBucket = new int[6];
                     newBucket[0] = bucket[0];
@@ -394,7 +386,7 @@ public class Weighted implements IHeuristicForThetaJoin {
                     newBucket[4] = startFrame + (currentBucketSize / frameSize);
                     newBucket[5] = 5;
                     tempTwoR.add(newBucket);
-                    startFrame += (currentBucketSize/frameSize);
+                    startFrame += (currentBucketSize / frameSize);
                     tempBucketSize -= memoryForJoinInBytes;
                 }
             } else {
@@ -407,13 +399,13 @@ public class Weighted implements IHeuristicForThetaJoin {
                 newBucket[5] = endOffset;
                 tempTwoR.add(newBucket);
             }
-//            int[] newBucket = new int[5];
-//            newBucket[0] = bucket[0];
-//            newBucket[1] = bucketSize;
-//            newBucket[2] = endFrame;
-//            newBucket[3] = endOffset;
-//            newBucket[4] = i;
-//            tempTwoR.add(newBucket);
+            //            int[] newBucket = new int[5];
+            //            newBucket[0] = bucket[0];
+            //            newBucket[1] = bucketSize;
+            //            newBucket[2] = endFrame;
+            //            newBucket[3] = endOffset;
+            //            newBucket[4] = i;
+            //            tempTwoR.add(newBucket);
         }
 
         for (int i = 0; i < tempBucketsFromS.size(); i++) {
@@ -427,9 +419,10 @@ public class Weighted implements IHeuristicForThetaJoin {
             int endOffset;
             if (i + 1 < tempBucketsFromS.size()) {
                 int nextOnDisk;
-                for(nextOnDisk = i + 1; nextOnDisk < tempBucketsFromS.size(); nextOnDisk++) {
+                for (nextOnDisk = i + 1; nextOnDisk < tempBucketsFromS.size(); nextOnDisk++) {
                     nextBucket = tempBucketsFromS.get(nextOnDisk);
-                    if(nextBucket[3] < 0) break;
+                    if (nextBucket[3] < 0)
+                        break;
                 }
                 endFrame = -(nextBucket[3] + 1);
                 endOffset = nextBucket[4];
@@ -441,9 +434,9 @@ public class Weighted implements IHeuristicForThetaJoin {
                 bucketSize = (int) ((probeFileSize + 5) - startOffsetInFile);
             }
             //This part is implemented by assuming every bucket will start from a new frame
-            if(bucketSize > memoryForJoinInBytes) {
+            if (bucketSize > memoryForJoinInBytes) {
                 int tempBucketSize = bucketSize;
-                while(tempBucketSize > 0) {
+                while (tempBucketSize > 0) {
                     int currentBucketSize = Math.min(memoryForJoinInBytes, tempBucketSize);
                     int[] newBucket = new int[6];
                     newBucket[0] = bucket[0];
@@ -453,7 +446,7 @@ public class Weighted implements IHeuristicForThetaJoin {
                     newBucket[4] = startFrame + (currentBucketSize / frameSize);
                     newBucket[5] = 5;
                     tempTwoS.add(newBucket);
-                    startFrame += (currentBucketSize/frameSize);
+                    startFrame += (currentBucketSize / frameSize);
                     tempBucketSize -= memoryForJoinInBytes;
                 }
             } else {
@@ -466,13 +459,13 @@ public class Weighted implements IHeuristicForThetaJoin {
                 newBucket[5] = endOffset;
                 tempTwoS.add(newBucket);
             }
-//            int[] newBucket = new int[5];
-//            newBucket[0] = bucket[0];
-//            newBucket[1] = bucketSize;
-//            newBucket[2] = endFrame;
-//            newBucket[3] = endOffset;
-//            newBucket[4] = i;
-//            tempTwoS.add(newBucket);
+            //            int[] newBucket = new int[5];
+            //            newBucket[0] = bucket[0];
+            //            newBucket[1] = bucketSize;
+            //            newBucket[2] = endFrame;
+            //            newBucket[3] = endOffset;
+            //            newBucket[4] = i;
+            //            tempTwoS.add(newBucket);
         }
 
         IFrameTupleAccessor iFrameTupleAccessorForR =
@@ -487,7 +480,7 @@ public class Weighted implements IHeuristicForThetaJoin {
         byte[] byteArrayForS = new byte[21];
         ByteBuffer buffForS = ByteBuffer.wrap(byteArrayForS);
 
-        for(int i = 0; i < tempTwoR.size(); i++) {
+        for (int i = 0; i < tempTwoR.size(); i++) {
             int costR = tempTwoR.get(i)[1];
             int costS = 0;
             int prev = 0;
@@ -497,14 +490,14 @@ public class Weighted implements IHeuristicForThetaJoin {
             buffForR.putInt(tempTwoR.get(i)[0]);
             iFrameTupleAccessorForR.reset(buffForR);
 
-            for(int j = 0; j < tempTwoS.size(); j++) {
+            for (int j = 0; j < tempTwoS.size(); j++) {
 
                 buffForS.position(13);
                 buffForS.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
                 buffForS.putInt(tempTwoS.get(j)[0]);
                 iFrameTupleAccessorForS.reset(buffForS);
 
-                if(comparator.compare(iFrameTupleAccessorForR, 0, iFrameTupleAccessorForS, 0) < 1) {
+                if (comparator.compare(iFrameTupleAccessorForR, 0, iFrameTupleAccessorForS, 0) < 1) {
                     costS += tempTwoS.get(j)[1];
                     /*if(prev + 1 != j) {
                         costS += SEEK_PENALTY;
@@ -512,7 +505,8 @@ public class Weighted implements IHeuristicForThetaJoin {
                 }
             }
 
-            if(costS == 0) continue;
+            if (costS == 0)
+                continue;
 
             int[] newBucket = new int[7];
             newBucket[0] = tempTwoR.get(i)[0];
@@ -527,7 +521,7 @@ public class Weighted implements IHeuristicForThetaJoin {
         }
         bucketsFromR.sort(Comparator.comparingDouble(o -> -o[6]));
 
-        for(int i = 0; i < tempTwoS.size(); i++) {
+        for (int i = 0; i < tempTwoS.size(); i++) {
             int costS = tempTwoS.get(i)[1];
             int costR = 0;
             int prev = 0;
@@ -537,14 +531,14 @@ public class Weighted implements IHeuristicForThetaJoin {
             buffForS.putInt(tempTwoS.get(i)[0]);
             iFrameTupleAccessorForS.reset(buffForS);
 
-            for(int j = 0; j < tempTwoR.size(); j++) {
+            for (int j = 0; j < tempTwoR.size(); j++) {
 
                 buffForR.position(13);
                 buffForR.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
                 buffForR.putInt(tempTwoR.get(j)[0]);
                 iFrameTupleAccessorForR.reset(buffForR);
 
-                if(comparator.compare(iFrameTupleAccessorForR, 0, iFrameTupleAccessorForS, 0) < 1) {
+                if (comparator.compare(iFrameTupleAccessorForR, 0, iFrameTupleAccessorForS, 0) < 1) {
                     costR += tempTwoR.get(j)[1];
                     /*if(prev + 1 != j) {
                         costR += SEEK_PENALTY;
@@ -552,7 +546,8 @@ public class Weighted implements IHeuristicForThetaJoin {
                 }
             }
 
-            if(costR == 0) continue;
+            if (costR == 0)
+                continue;
 
             int[] newBucket = new int[7];
             newBucket[0] = tempTwoS.get(i)[0];
@@ -568,6 +563,7 @@ public class Weighted implements IHeuristicForThetaJoin {
         bucketsFromS.sort(Comparator.comparingDouble(o -> -o[6]));
         //System.out.println("test");
     }
+
     @Override
     public void setComparator(ITuplePairComparator comparator) {
         this.comparator = comparator;
