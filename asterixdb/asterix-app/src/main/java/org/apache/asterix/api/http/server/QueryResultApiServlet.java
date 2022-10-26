@@ -21,7 +21,6 @@ package org.apache.asterix.api.http.server;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentMap;
 
-import org.apache.asterix.api.common.ResultMetadata;
 import org.apache.asterix.app.result.ResponseMetrics;
 import org.apache.asterix.app.result.ResponsePrinter;
 import org.apache.asterix.app.result.ResultHandle;
@@ -31,6 +30,7 @@ import org.apache.asterix.app.result.fields.ProfilePrinter;
 import org.apache.asterix.app.result.fields.ResultsPrinter;
 import org.apache.asterix.common.api.IApplicationContext;
 import org.apache.asterix.translator.IStatementExecutor.Stats;
+import org.apache.asterix.translator.ResultMetadata;
 import org.apache.asterix.translator.SessionConfig;
 import org.apache.asterix.translator.SessionOutput;
 import org.apache.hyracks.api.exceptions.ErrorCode;
@@ -102,7 +102,7 @@ public class QueryResultApiServlet extends AbstractQueryApiServlet {
                 printer.printResults();
                 ResponseMetrics metrics = ResponseMetrics.of(System.nanoTime() - elapsedStart,
                         metadata.getJobDuration(), stats.getCount(), stats.getSize(), metadata.getProcessedObjects(), 0,
-                        metadata.getTotalWarningsCount());
+                        metadata.getTotalWarningsCount(), stats.getCompileTime());
                 printer.addFooterPrinter(new MetricsPrinter(metrics, HttpUtil.getPreferredCharset(request)));
                 if (metadata.getJobProfile() != null) {
                     printer.addFooterPrinter(new ProfilePrinter(metadata.getJobProfile()));

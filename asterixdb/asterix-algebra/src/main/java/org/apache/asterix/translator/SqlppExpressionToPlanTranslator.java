@@ -18,11 +18,9 @@
  */
 package org.apache.asterix.translator;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +37,7 @@ import org.apache.asterix.lang.common.base.Clause.ClauseType;
 import org.apache.asterix.lang.common.base.Expression;
 import org.apache.asterix.lang.common.base.Expression.Kind;
 import org.apache.asterix.lang.common.base.ILangExpression;
+import org.apache.asterix.lang.common.base.IVisitorExtension;
 import org.apache.asterix.lang.common.base.Literal;
 import org.apache.asterix.lang.common.clause.GroupbyClause;
 import org.apache.asterix.lang.common.clause.LetClause;
@@ -125,6 +124,7 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractUnne
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AggregateOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AssignOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.DistinctOperator;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.EmptyTupleSourceOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.InnerJoinOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.LeftOuterUnnestOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.NestedTupleSourceOperator;
@@ -137,6 +137,7 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.WindowOperat
 import org.apache.hyracks.algebricks.core.algebra.plan.ALogicalPlanImpl;
 import org.apache.hyracks.algebricks.core.algebra.util.OperatorManipulationUtil;
 import org.apache.hyracks.api.exceptions.SourceLocation;
+import org.apache.hyracks.util.LogRedactionUtil;
 
 /**
  * Each visit returns a pair of an operator and a variable. The variable
@@ -155,7 +156,6 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
     public static final String REWRITE_IN_AS_OR_OPTION = "rewrite_in_as_or";
     private static final boolean REWRITE_IN_AS_OR_OPTION_DEFAULT = true;
 
-    private Deque<Mutable<ILogicalOperator>> uncorrelatedRightBranchStack = new ArrayDeque<>();
     private final Map<VarIdentifier, IAObject> externalVars;
     private final boolean translateInAsOr;
 
@@ -303,12 +303,10 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
             throws CompilationException {
         Mutable<ILogicalOperator> inputSrc = arg;
         Pair<ILogicalOperator, LogicalVariable> topUnnest = null;
-        uncorrelatedRightBranchStack.push(inputSrc);
         for (FromTerm fromTerm : fromClause.getFromTerms()) {
             topUnnest = fromTerm.accept(this, inputSrc);
             inputSrc = new MutableObject<>(topUnnest.first);
         }
-        uncorrelatedRightBranchStack.pop();
         return topUnnest;
     }
 
@@ -345,8 +343,10 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
     public Pair<ILogicalOperator, LogicalVariable> visit(JoinClause joinClause, Mutable<ILogicalOperator> leftInputRef)
             throws CompilationException {
         SourceLocation sourceLoc = joinClause.getSourceLocation();
-        if (joinClause.getJoinType() == JoinType.INNER) {
-            Mutable<ILogicalOperator> rightInputRef = uncorrelatedRightBranchStack.peek();
+        if (joinClause.getJoinType() == JoinType.INNER && !hasFreeVariables(joinClause.getRightExpression())) {
+            EmptyTupleSourceOperator ets = new EmptyTupleSourceOperator();
+            ets.setSourceLocation(joinClause.getSourceLocation());
+            Mutable<ILogicalOperator> rightInputRef = new MutableObject<>(ets);
             Pair<ILogicalOperator, LogicalVariable> rightBranch =
                     generateUnnestForBinaryCorrelateRightBranch(joinClause, rightInputRef, false, null);
             // A join operator with condition TRUE.
@@ -362,7 +362,7 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
             filter.getInputs().add(conditionExprOpPair.second);
             filter.setSourceLocation(conditionExprOpPair.first.getSourceLocation());
             return new Pair<>(filter, rightBranch.second);
-        } else if (joinClause.getJoinType() == JoinType.LEFTOUTER) {
+        } else if (joinClause.getJoinType() == JoinType.INNER || joinClause.getJoinType() == JoinType.LEFTOUTER) {
             // Creates a subplan operator.
             SubplanOperator subplanOp = new SubplanOperator();
             subplanOp.getInputs().add(leftInputRef);
@@ -442,21 +442,22 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
             ILogicalPlan subplan = new ALogicalPlanImpl(new MutableObject<>(aggOp));
             subplanOp.getNestedPlans().add(subplan);
 
-            // Outer unnest the aggregated var from the subplan.
-            LogicalVariable outerUnnestVar = context.newVar();
+            // Unnest the aggregated var from the subplan.
+            LogicalVariable unnestVar = context.newVar();
             VariableReferenceExpression aggVarRefExpr = new VariableReferenceExpression(aggVar);
             aggVarRefExpr.setSourceLocation(aggOp.getSourceLocation());
             Pair<ILogicalExpression, Mutable<ILogicalOperator>> pUnnestExpr =
                     makeUnnestExpression(aggVarRefExpr, new MutableObject<>(subplanOp));
-            LeftOuterUnnestOperator outerUnnestOp =
-                    new LeftOuterUnnestOperator(outerUnnestVar, new MutableObject<>(pUnnestExpr.first),
+            AbstractUnnestOperator unnestOp = joinClause.getJoinType() == JoinType.INNER
+                    ? new UnnestOperator(unnestVar, new MutableObject<>(pUnnestExpr.first))
+                    : new LeftOuterUnnestOperator(unnestVar, new MutableObject<>(pUnnestExpr.first),
                             translateLeftOuterMissingValue(joinClause.getOuterJoinMissingValueType()));
-            outerUnnestOp.getInputs().add(pUnnestExpr.second);
-            outerUnnestOp.setSourceLocation(aggOp.getSourceLocation());
-            currentTopOp = outerUnnestOp;
+            unnestOp.getInputs().add(pUnnestExpr.second);
+            unnestOp.setSourceLocation(aggOp.getSourceLocation());
+            currentTopOp = unnestOp;
 
             if (hasRightPosVar) {
-                VariableReferenceExpression outerUnnestVarRef1 = new VariableReferenceExpression(outerUnnestVar);
+                VariableReferenceExpression outerUnnestVarRef1 = new VariableReferenceExpression(unnestVar);
                 outerUnnestVarRef1.setSourceLocation(joinClause.getRightVariable().getSourceLocation());
                 ScalarFunctionCallExpression fieldAccessForRightUnnestVar = new ScalarFunctionCallExpression(
                         FunctionUtil.getFunctionInfo(BuiltinFunctions.FIELD_ACCESS_BY_INDEX),
@@ -464,7 +465,7 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
                         new MutableObject<>(new ConstantExpression(new AsterixConstantValue(new AInt32(0)))));
                 fieldAccessForRightUnnestVar.setSourceLocation(joinClause.getRightVariable().getSourceLocation());
 
-                VariableReferenceExpression outerUnnestVarRef2 = new VariableReferenceExpression(outerUnnestVar);
+                VariableReferenceExpression outerUnnestVarRef2 = new VariableReferenceExpression(unnestVar);
                 outerUnnestVarRef2.setSourceLocation(joinClause.getPositionalVariable().getSourceLocation());
                 ScalarFunctionCallExpression fieldAccessForRightPosVar = new ScalarFunctionCallExpression(
                         FunctionUtil.getFunctionInfo(BuiltinFunctions.FIELD_ACCESS_BY_INDEX),
@@ -496,7 +497,7 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
                 assignOp.setSourceLocation(joinClause.getRightVariable().getSourceLocation());
                 currentTopOp = assignOp;
             } else {
-                context.setVar(joinClause.getRightVariable(), outerUnnestVar);
+                context.setVar(joinClause.getRightVariable(), unnestVar);
             }
             return new Pair<>(currentTopOp, null);
         } else if (joinClause.getJoinType() == JoinType.RIGHTOUTER) {
@@ -506,6 +507,16 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
             throw new CompilationException(ErrorCode.COMPILATION_ILLEGAL_STATE, joinClause.getSourceLocation(),
                     String.valueOf(joinClause.getJoinType().toString()));
         }
+    }
+
+    private boolean hasFreeVariables(Expression expr) throws CompilationException {
+        Set<VariableExpr> freeVars = SqlppRewriteUtil.getFreeVariable(expr);
+        for (VariableExpr varRef : freeVars) {
+            if (!SqlppVariableUtil.isExternalVariableReference(varRef)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static IAlgebricksConstantValue translateLeftOuterMissingValue(Literal.Type type)
@@ -1000,7 +1011,8 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
     private FieldBinding generateFieldBinding(String fieldName, Expression fieldValueExpr, Set<String> outFieldNames,
             SourceLocation sourceLoc) throws CompilationException {
         if (!outFieldNames.add(fieldName)) {
-            throw new CompilationException(ErrorCode.DUPLICATE_FIELD_NAME, sourceLoc, fieldName);
+            throw new CompilationException(ErrorCode.DUPLICATE_FIELD_NAME, sourceLoc,
+                    LogRedactionUtil.userData(fieldName));
         }
         return new FieldBinding(new LiteralExpr(new StringLiteral(fieldName)), fieldValueExpr);
     }
@@ -1016,6 +1028,13 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
             throws CompilationException {
         return translateInAsOr && isInOperatorWithStaticList(qe) ? translateInOperatorWithStaticList(qe, tupSource)
                 : super.visit(qe, tupSource);
+    }
+
+    @Override
+    public Pair<ILogicalOperator, LogicalVariable> visit(IVisitorExtension ve, Mutable<ILogicalOperator> arg)
+            throws CompilationException {
+        // Language extensions should create a child of this class.
+        throw new CompilationException(ErrorCode.COMPILATION_ILLEGAL_STATE, "Extension dispatch not implemented!");
     }
 
     // At this point "$x in list_expr" is a quantified expression:

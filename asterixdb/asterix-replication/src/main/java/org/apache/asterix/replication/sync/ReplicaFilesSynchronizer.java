@@ -70,9 +70,11 @@ public class ReplicaFilesSynchronizer {
         if (!deltaRecovery) {
             deletePartitionFromReplica(partition);
         }
+        LOGGER.trace("getting replica files");
         PartitionResourcesListResponse replicaResourceResponse = getReplicaFiles(partition);
+        LOGGER.trace("got replica files");
         Map<ResourceReference, Long> resourceReferenceLongMap = getValidReplicaResources(
-                replicaResourceResponse.getPartitionReplicatedResources(), replicaResourceResponse.isOwner());
+                replicaResourceResponse.getPartitionReplicatedResources(), replicaResourceResponse.isOrigin());
         // clean up files for invalid resources (deleted or recreated while the replica was down)
         Set<String> deletedReplicaFiles =
                 cleanupReplicaInvalidResources(replicaResourceResponse, resourceReferenceLongMap);
@@ -82,6 +84,7 @@ public class ReplicaFilesSynchronizer {
         final Set<String> masterFiles =
                 localResourceRepository.getPartitionReplicatedFiles(partition, replicationStrategy).stream()
                         .map(StoragePathUtil::getFileRelativePath).collect(Collectors.toSet());
+        LOGGER.trace("got master partition files");
         // exclude from the replica files the list of invalid deleted files
         final Set<String> replicaFiles = new HashSet<>(replicaResourceResponse.getFiles());
         replicaFiles.removeAll(deletedReplicaFiles);
@@ -131,8 +134,8 @@ public class ReplicaFilesSynchronizer {
         // sort files to ensure index metadata files starting with "." are deleted last
         files.sort(String::compareTo);
         Collections.reverse(files);
-        LOGGER.info("deleting {}", files);
         files.forEach(sync::delete);
+        LOGGER.debug("completed invalid files deletion");
     }
 
     private long getResourceMasterValidSeq(ResourceReference rr) throws HyracksDataException {
@@ -155,7 +158,7 @@ public class ReplicaFilesSynchronizer {
             if (!validReplicaResources.containsKey(replicaRes)) {
                 LOGGER.debug("replica invalid file {} to be deleted", replicaRes.getFileRelativePath());
                 invalidFiles.add(replicaResPath);
-            } else if (replicaResourceResponse.isOwner() && !replicaRes.isMetadataResource()) {
+            } else if (replicaResourceResponse.isOrigin() && !replicaRes.isMetadataResource()) {
                 // find files where the owner generated and failed before replicating
                 Long masterValidSeq = validReplicaResources.get(replicaRes);
                 IndexComponentFileReference componentFileReference =
@@ -169,7 +172,7 @@ public class ReplicaFilesSynchronizer {
             }
         }
         if (!invalidFiles.isEmpty()) {
-            LOGGER.info("will delete the following files from replica {}", invalidFiles);
+            LOGGER.debug("will delete the following files from replica {}", invalidFiles);
             deleteInvalidFiles(new ArrayList<>(invalidFiles));
         }
         return invalidFiles;
@@ -184,7 +187,7 @@ public class ReplicaFilesSynchronizer {
     }
 
     private Map<ResourceReference, Long> getValidReplicaResources(Map<String, Long> partitionReplicatedResources,
-            boolean owner) throws HyracksDataException {
+            boolean origin) throws HyracksDataException {
         Map<ResourceReference, Long> resource2ValidSeqMap = new HashMap<>();
         for (Map.Entry<String, Long> resourceEntry : partitionReplicatedResources.entrySet()) {
             ResourceReference rr = ResourceReference.of(resourceEntry.getKey());
@@ -196,7 +199,7 @@ public class ReplicaFilesSynchronizer {
                     LOGGER.info("replica has resource {} but with different resource id; ours {}, theirs {}", rr,
                             localResource.getId(), resourceEntry.getValue());
                 } else {
-                    long resourceMasterValidSeq = owner ? getResourceMasterValidSeq(rr) : Integer.MAX_VALUE;
+                    long resourceMasterValidSeq = origin ? getResourceMasterValidSeq(rr) : Integer.MAX_VALUE;
                     resource2ValidSeqMap.put(rr, resourceMasterValidSeq);
                 }
             }

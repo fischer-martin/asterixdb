@@ -18,6 +18,7 @@
  */
 package org.apache.asterix.external.input.record.reader.azure.datalake;
 
+import static org.apache.asterix.external.util.azure.blob_storage.AzureUtils.buildAzureDatalakeClient;
 import static org.apache.hyracks.api.util.ExceptionUtils.getMessageOrToString;
 
 import java.io.IOException;
@@ -25,30 +26,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
+import org.apache.asterix.common.api.IApplicationContext;
 import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.common.exceptions.RuntimeDataException;
 import org.apache.asterix.external.input.record.reader.abstracts.AbstractExternalInputStream;
 import org.apache.asterix.external.util.ExternalDataConstants;
-import org.apache.asterix.external.util.ExternalDataUtils;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.util.LogRedactionUtil;
 
 import com.azure.storage.blob.models.BlobErrorCode;
+import com.azure.storage.blob.models.BlobStorageException;
 import com.azure.storage.file.datalake.DataLakeFileClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.azure.storage.file.datalake.DataLakeServiceClient;
-import com.azure.storage.file.datalake.models.DataLakeStorageException;
 
 public class AzureDataLakeInputStream extends AbstractExternalInputStream {
 
     private final DataLakeServiceClient client;
     private final String container;
 
-    public AzureDataLakeInputStream(Map<String, String> configuration, List<String> filePaths)
-            throws HyracksDataException {
+    public AzureDataLakeInputStream(IApplicationContext appCtx, Map<String, String> configuration,
+            List<String> filePaths) throws HyracksDataException {
         super(configuration, filePaths);
-        this.client = buildAzureClient(configuration);
+        this.client = buildAzureClient(appCtx, configuration);
         this.container = configuration.get(ExternalDataConstants.CONTAINER_NAME_FIELD_NAME);
     }
 
@@ -67,8 +68,7 @@ public class AzureDataLakeInputStream extends AbstractExternalInputStream {
             if (lowerCaseFileName.endsWith(".gz") || lowerCaseFileName.endsWith(".gzip")) {
                 in = new GZIPInputStream(in, ExternalDataConstants.DEFAULT_BUFFER_SIZE);
             }
-        } catch (DataLakeStorageException ex) {
-            // TODO(htowaileb): need to find the right error for Azure Data Lake
+        } catch (BlobStorageException ex) {
             if (ex.getErrorCode().equals(BlobErrorCode.BLOB_NOT_FOUND)) {
                 LOGGER.debug(() -> "Key " + LogRedactionUtil.userData(filePaths.get(nextFileIndex)) + " was not "
                         + "found in container " + container);
@@ -83,9 +83,10 @@ public class AzureDataLakeInputStream extends AbstractExternalInputStream {
         return true;
     }
 
-    private DataLakeServiceClient buildAzureClient(Map<String, String> configuration) throws HyracksDataException {
+    private DataLakeServiceClient buildAzureClient(IApplicationContext appCtx, Map<String, String> configuration)
+            throws HyracksDataException {
         try {
-            return ExternalDataUtils.Azure.buildAzureDatalakeClient(configuration);
+            return buildAzureDatalakeClient(appCtx, configuration);
         } catch (CompilationException ex) {
             throw HyracksDataException.create(ex);
         }

@@ -168,6 +168,7 @@ class Wrapper(object):
 
     def quit(self):
         self.alive = False
+        self.disconnect_sock()
         return True
 
     def handle_call(self):

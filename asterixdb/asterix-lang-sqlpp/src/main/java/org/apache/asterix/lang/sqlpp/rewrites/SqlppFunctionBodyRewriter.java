@@ -61,7 +61,7 @@ import org.apache.hyracks.api.exceptions.SourceLocation;
 /**
  * This rewriter is used to rewrite body expression of user defined functions and views
  */
-class SqlppFunctionBodyRewriter extends SqlppQueryRewriter {
+public class SqlppFunctionBodyRewriter extends SqlppQueryRewriter {
 
     public SqlppFunctionBodyRewriter(IParserFactory parserFactory) {
         super(parserFactory);
@@ -96,6 +96,9 @@ class SqlppFunctionBodyRewriter extends SqlppQueryRewriter {
 
         // Inlines column aliases.
         inlineColumnAlias();
+
+        // Rewrite SELECT EXCLUDE to use OBJECT_REMOVE_FIELDS.
+        rewriteSelectExcludeSugar();
 
         // Window expression core rewrites.
         rewriteWindowExpressions();

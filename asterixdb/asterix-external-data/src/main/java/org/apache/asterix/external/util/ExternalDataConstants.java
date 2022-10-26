@@ -21,9 +21,11 @@ package org.apache.asterix.external.util;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
+import org.apache.asterix.om.types.ATypeTag;
 import org.apache.hyracks.util.StorageUtil;
 
 public class ExternalDataConstants {
@@ -255,6 +257,7 @@ public class ExternalDataConstants {
     public static final char OPEN_BRACKET = '[';
     public static final char CLOSING_BRACKET = ']';
     public static final char COMMA = ',';
+    public static final char BYTE_ORDER_MARK = '\uFEFF';
 
     /**
      * Constant byte characters
@@ -295,106 +298,39 @@ public class ExternalDataConstants {
     public static final String DEFINITION_FIELD_NAME = "definition";
     public static final String CONTAINER_NAME_FIELD_NAME = "container";
 
-    public static class AwsS3 {
-        private AwsS3() {
-            throw new AssertionError("do not instantiate");
+    public static class ParquetOptions {
+        private ParquetOptions() {
         }
 
-        public static final String REGION_FIELD_NAME = "region";
-        public static final String ACCESS_KEY_ID_FIELD_NAME = "accessKeyId";
-        public static final String SECRET_ACCESS_KEY_FIELD_NAME = "secretAccessKey";
-        public static final String SESSION_TOKEN_FIELD_NAME = "sessionToken";
-        public static final String SERVICE_END_POINT_FIELD_NAME = "serviceEndpoint";
+        //Prefix for hadoop configurations
+        private static final String ASTERIX_HADOOP_PREFIX = "org.apache.asterix.";
 
-        // AWS S3 specific error codes
-        public static final String ERROR_INTERNAL_ERROR = "InternalError";
-        public static final String ERROR_SLOW_DOWN = "SlowDown";
-        public static final String ERROR_METHOD_NOT_IMPLEMENTED = "NotImplemented";
-
-        public static boolean isRetryableError(String errorCode) {
-            return errorCode.equals(ERROR_INTERNAL_ERROR) || errorCode.equals(ERROR_SLOW_DOWN);
-        }
-
-        /*
-         * Hadoop-AWS
-         * AWS connectors for s3 and s3n are deprecated.
+        /**
+         * Parse Parquet's String JSON type into ADM
+         * Default: false
          */
-        public static final String HADOOP_ACCESS_KEY_ID = "fs.s3a.access.key";
-        public static final String HADOOP_SECRET_ACCESS_KEY = "fs.s3a.secret.key";
-        public static final String HADOOP_SESSION_TOKEN = "fs.s3a.session.token";
-        public static final String HADOOP_REGION = "fs.s3a.region";
-        public static final String HADOOP_SERVICE_END_POINT = "fs.s3a.endpoint";
+        public static final String PARSE_JSON_STRING = "parse-json-string";
+        public static final String HADOOP_PARSE_JSON_STRING = ASTERIX_HADOOP_PREFIX + PARSE_JSON_STRING;
 
-        /*
-         * Internal configurations
+        /**
+         * Rebase Decimal and parse it as {@link ATypeTag#DOUBLE}
+         * Default: false
          */
-        //Allows accessing directories as file system path
-        public static final String HADOOP_PATH_STYLE_ACCESS = "fs.s3a.path.style.access";
-        //The number of maximum HTTP connections in connection pool
-        public static final String HADOOP_S3_CONNECTION_POOL_SIZE = "fs.s3a.connection.maximum";
-        //S3 used protocol
-        public static final String HADOOP_S3_PROTOCOL = "s3a";
+        public static final String DECIMAL_TO_DOUBLE = "decimal-to-double";
+        public static final String HADOOP_DECIMAL_TO_DOUBLE = ASTERIX_HADOOP_PREFIX + DECIMAL_TO_DOUBLE;
 
-        //Hadoop credentials provider key
-        public static final String HADOOP_CREDENTIAL_PROVIDER_KEY = "fs.s3a.aws.credentials.provider";
-        //Anonymous credential provider
-        public static final String HADOOP_ANONYMOUS_ACCESS = "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider";
-        //Temporary credential provider
-        public static final String HADOOP_TEMP_ACCESS = "org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider";
-
-    }
-
-    /*
-     * Note: Azure Blob and Azure Datalake use identical authentication, so they are using the same properties.
-     * If they end up diverging, then properties for AzureBlob and AzureDataLake need to be created.
-     */
-    public static class Azure {
-        private Azure() {
-            throw new AssertionError("do not instantiate");
-        }
-
-        /*
-         * Asterix Configuration Keys
+        /**
+         * Time Zone ID to convert UTC time and timestamp {@link ATypeTag#TIME} and {@link ATypeTag#DATETIME}
+         * Default: ""
+         * Note: If a UTC adjusted time and/or timestamp exist in the parquet file, and no time zone id is provided,
+         * then we will return the UTC time and issue a warning about that.
          */
-        public static final String MANAGED_IDENTITY_ID_FIELD_NAME = "managedIdentityId";
-        public static final String ACCOUNT_NAME_FIELD_NAME = "accountName";
-        public static final String ACCOUNT_KEY_FIELD_NAME = "accountKey";
-        public static final String SHARED_ACCESS_SIGNATURE_FIELD_NAME = "sharedAccessSignature";
-        public static final String TENANT_ID_FIELD_NAME = "tenantId";
-        public static final String CLIENT_ID_FIELD_NAME = "clientId";
-        public static final String CLIENT_SECRET_FIELD_NAME = "clientSecret";
-        public static final String CLIENT_CERTIFICATE_FIELD_NAME = "clientCertificate";
-        public static final String CLIENT_CERTIFICATE_PASSWORD_FIELD_NAME = "clientCertificatePassword";
-        public static final String ENDPOINT_FIELD_NAME = "endpoint";
+        public static final String TIMEZONE = "timezone";
+        public static final String HADOOP_TIMEZONE = ASTERIX_HADOOP_PREFIX + TIMEZONE;
 
-        // Specific Azure data lake property
-        /*
-        The behavior of Data Lake (true file system) is to read the files of the specified prefix only, example:
-        storage/myData/personal/file1.json
-        storage/myData/personal/file2.json
-        storage/myData/file3.json
-        If the prefix used is "myData", then only the file file3.json is read. However, if the property "recursive"
-        is set to "true" when creating the external dataset, then it goes recursively overall the paths, and the result
-        is file1.json, file2.json and file3.json.
+        /**
+         * Valid time zones that are supported by Java
          */
-        public static final String RECURSIVE_FIELD_NAME = "recursive";
-
-        /*
-         * Hadoop-Azure
-         */
-        //Used when accountName and accessKey are provided
-        public static final String HADOOP_AZURE_FS_ACCOUNT_KEY = "fs.azure.account.key";
-        //Used when a connectionString is provided
-        public static final String HADOOP_AZURE_FS_SAS = "fs.azure.sas";
-        public static final String HADOOP_AZURE_BLOB_PROTOCOL = "wasbs";
-        public static final String HADOOP_AZURE_DATALAKE_PROTOCOL = "abfss";
-    }
-
-    public static class GCS {
-        private GCS() {
-            throw new AssertionError("do not instantiate");
-        }
-
-        public static final String JSON_CREDENTIALS_FIELD_NAME = "jsonCredentials";
+        public static final Set<String> VALID_TIME_ZONES = Set.of(TimeZone.getAvailableIDs());
     }
 }

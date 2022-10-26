@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.hyracks</groupId>
     <artifactId>hyracks</artifactId>
-    <version>0.3.7-SNAPSHOT</version>
+    <version>0.3.8-SNAPSHOT</version>
   </parent>
 
   <properties>
@@ -148,6 +148,10 @@
       <scope>test</scope>
       <exclusions>
         <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-all</artifactId>
+        </exclusion>
+        <exclusion>
           <groupId>log4j</groupId>
           <artifactId>log4j</artifactId>
         </exclusion>
@@ -158,6 +162,15 @@
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <!-- TODO(htowaileb): Remove after updating to hadoop 3.3.4 -->
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-util</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-util-ajax</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -180,6 +193,11 @@
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <!-- TODO(htowaileb): Remove after updating to hadoop 3.3.4 -->
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-util</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
