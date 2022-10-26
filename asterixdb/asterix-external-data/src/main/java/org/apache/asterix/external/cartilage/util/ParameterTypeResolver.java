@@ -19,7 +19,6 @@
 package org.apache.asterix.external.cartilage.util;
 
 import java.io.DataInputStream;
-import java.io.IOException;
 import java.util.List;
 
 import org.apache.asterix.dataflow.data.nontagged.serde.ABooleanSerializerDeserializer;
@@ -34,7 +33,6 @@ import org.apache.asterix.dataflow.data.nontagged.serde.AInt16SerializerDeserial
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt64SerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt8SerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.AIntervalSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
 import org.apache.asterix.external.cartilage.base.types.Interval;
@@ -116,7 +114,7 @@ public class ParameterTypeResolver {
 
     public static Object getKeyObject(DataInputStream dataInputStream, ATypeTag dataType) throws HyracksDataException {
         Object returnObject = null;
-        if(dataType == ATypeTag.INTERVAL) {
+        if (dataType == ATypeTag.INTERVAL) {
             returnObject = new Interval(0, 0);
         }
 
@@ -161,14 +159,14 @@ public class ParameterTypeResolver {
             case INTERVAL: {
                 //returnObject = AIntervalSerializerDeserializer.INSTANCE.deserialize(dataInputStream).toString();
                 try {
-                byte tag = dataInputStream.readByte();
-                if (tag == ATypeTag.DATETIME.serialize()) {
-                    ((Interval) returnObject).start = dataInputStream.readLong();
-                    ((Interval) returnObject).end  = dataInputStream.readLong();
-                } else {
-                    ((Interval) returnObject).start = dataInputStream.readInt();
-                    ((Interval) returnObject).end = dataInputStream.readInt();
-                }
+                    byte tag = dataInputStream.readByte();
+                    if (tag == ATypeTag.DATETIME.serialize()) {
+                        ((Interval) returnObject).start = dataInputStream.readLong();
+                        ((Interval) returnObject).end = dataInputStream.readLong();
+                    } else {
+                        ((Interval) returnObject).start = dataInputStream.readInt();
+                        ((Interval) returnObject).end = dataInputStream.readInt();
+                    }
                 } catch (Exception e) {
                     System.out.println(e.getMessage());
                 }

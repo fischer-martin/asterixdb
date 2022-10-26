@@ -193,15 +193,19 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
 
         IPredicateEvaluatorFactoryProvider predEvaluatorFactoryProvider =
                 context.getPredicateEvaluatorFactoryProvider();
-        IPredicateEvaluatorFactory predEvaluatorFactory = predEvaluatorFactoryProvider == null ? null
-                : predEvaluatorFactoryProvider.getPredicateEvaluatorFactory(keysBuild, keysProbe);
 
+        //        IPredicateEvaluatorFactory predEvaluatorFactory = predEvaluatorFactoryProvider == null ? null
+        //                : predEvaluatorFactoryProvider.getPredicateEvaluatorFactory(keysBuild, keysProbe);
+
+        IPredicateEvaluatorFactory predEvaluatorFactory = predEvaluatorFactoryProvider == null ? null
+                : predEvaluatorFactoryProvider.getPredicateEvaluatorFactory(keysBuild);
         /*IOperatorDescriptor opDesc = new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe,
                 recordDescriptor, comparatorFactory, reverseComparatorFactory, leftHashFunFamilies, rightHashFunFamilies, predEvaluatorFactory, fudgeFactor);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);*/
 
-        IOperatorDescriptor opDesc = new ThetaFlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild,
-                keysProbe, recordDescriptor, comparatorFactory, reverseComparatorFactory, predEvaluatorFactory, fudgeFactor);
+        IOperatorDescriptor opDesc =
+                new ThetaFlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe, recordDescriptor,
+                        comparatorFactory, reverseComparatorFactory, predEvaluatorFactory, fudgeFactor);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
         ILogicalOperator src1 = op.getInputs().get(0).getValue();
         builder.contributeGraphEdge(src1, 0, op, 0);

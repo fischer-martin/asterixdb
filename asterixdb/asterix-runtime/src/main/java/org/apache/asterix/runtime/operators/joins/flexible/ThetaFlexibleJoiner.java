@@ -20,7 +20,6 @@ package org.apache.asterix.runtime.operators.joins.flexible;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsSideTuple;
@@ -101,9 +100,9 @@ public class ThetaFlexibleJoiner {
     private int latestBucketInMemory;
     private Integer previousLatestBucketInMemory;
 
-//        private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
-//        private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
-//    //    private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
+    //        private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
+    //        private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
+    //    //    private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
 
     protected int numberOfBuckets = 0;
 
@@ -112,8 +111,8 @@ public class ThetaFlexibleJoiner {
     protected long numRecordsFromBuild;
 
     public ThetaFlexibleJoiner(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd,
-                               RecordDescriptor probeRd, String probeRelName, String buildRelName, IPredicateEvaluator predEval,
-                               int nBuckets) throws HyracksDataException {
+            RecordDescriptor probeRd, String probeRelName, String buildRelName, IPredicateEvaluator predEval,
+            int nBuckets) throws HyracksDataException {
 
         // Memory (probe buffer)
         if (memorySize < 5) {
@@ -177,19 +176,19 @@ public class ThetaFlexibleJoiner {
             int bucketId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
             TuplePointer tuplePointer = new TuplePointer();
             //if(bucketId != currentBucketId) {
-                //currentBucketId = bucketId;
-                tuplePointer = table.getBuildTuplePointer(bucketId);
-                if (tuplePointer == null) {
-                    newBucket = true;
-                    tuplePointer = new TuplePointer();
-                    writeToDisk = false;
-                } else if (tuplePointer.getFrameIndex() < 0) {
-                    newBucket = false;
-                    writeToDisk = true;
-                } else {
-                    newBucket = false;
-                    writeToDisk = false;
-                }
+            //currentBucketId = bucketId;
+            tuplePointer = table.getBuildTuplePointer(bucketId);
+            if (tuplePointer == null) {
+                newBucket = true;
+                tuplePointer = new TuplePointer();
+                writeToDisk = false;
+            } else if (tuplePointer.getFrameIndex() < 0) {
+                newBucket = false;
+                writeToDisk = true;
+            } else {
+                newBucket = false;
+                writeToDisk = false;
+            }
 
             //}
 
@@ -239,14 +238,14 @@ public class ThetaFlexibleJoiner {
     }
 
     public void closeBuild() throws HyracksDataException {
-//                System.out.println("Number of records from build side: " + numRecordsFromBuild);
-//
-//                StringBuilder a = new StringBuilder();
-//                a.append("Bucket Counter From Build Side\n");
-//                for(Integer bucketId: bucketMap.keySet()) {
-//                    a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
-//                }
-//                System.out.println(a);
+        //                System.out.println("Number of records from build side: " + numRecordsFromBuild);
+        //
+        //                StringBuilder a = new StringBuilder();
+        //                a.append("Bucket Counter From Build Side\n");
+        //                for(Integer bucketId: bucketMap.keySet()) {
+        //                    a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
+        //                }
+        //                System.out.println(a);
         /*System.out.println("\nSpilled Map");
         StringBuilder b = new StringBuilder();
         for(Integer bucketId: spilledBucketMap.keySet()) {
@@ -275,7 +274,7 @@ public class ThetaFlexibleJoiner {
             else {
                 runFileStreamForBuild.addToRunFile(memoryAccessor, i);
             }
-
+        
         }*/
         int writeCounter = 0;
         FrameTupleAccessor frameTupleAccessor = new FrameTupleAccessor(buildRd);
@@ -301,8 +300,8 @@ public class ThetaFlexibleJoiner {
         /*tupleAccessor.reset(tuplePointer);
         for(int i = 0; i < tupleAccessor.getTupleCount(); i++) {
             bufferManager.deleteTuple();
-
-
+        
+        
         }*/
         //bufferManager.reOrganizeFrames();
         //System.out.println(writeCounter);
@@ -333,7 +332,7 @@ public class ThetaFlexibleJoiner {
         for (int i = 0; i < tupleCount; ++i) {
 
             int probeBucketId = FlexibleJoinsUtil.getBucketId(accessorProbe, i, 1);
-            if(probeBucketId != currentBucketId) {
+            if (probeBucketId != currentBucketId) {
                 bucketCheck = 0;
                 currentBucketId = probeBucketId;
             }
@@ -347,7 +346,7 @@ public class ThetaFlexibleJoiner {
                 if (bucketInfo[2] == -1)
                     continue;
 
-                if(matched == 0) {
+                if (matched == 0) {
 
                     //Below we need to create appropriate accessor to use it in comparator
                     byte[] dumpArray = new byte[21];
@@ -429,13 +428,13 @@ public class ThetaFlexibleJoiner {
             //runFileStreamForProbe.startReadingRunFile(inputCursor[BUILD_PARTITION]);
         }
 
-//                table.printInfo();
-//                StringBuilder a = new StringBuilder();
-//                a.append("Bucket Counter From Probe Side\n");
-//                for(Integer bucketId: bucketMatchCount.keySet()) {
-//                    a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
-//                }
-//                System.out.println(a);
+        //                table.printInfo();
+        //                StringBuilder a = new StringBuilder();
+        //                a.append("Bucket Counter From Probe Side\n");
+        //                for(Integer bucketId: bucketMatchCount.keySet()) {
+        //                    a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
+        //                }
+        //                System.out.println(a);
         resultAppender.write(writer, true);
     }
 
@@ -448,7 +447,7 @@ public class ThetaFlexibleJoiner {
     }
 
     private void addToResult(IFrameTupleAccessor buildAccessor, int buildTupleId, IFrameTupleAccessor probeAccessor,
-                             int probeTupleId, IFrameWriter writer) throws HyracksDataException {
+            int probeTupleId, IFrameWriter writer) throws HyracksDataException {
 
         FrameUtils.appendConcatToWriter(writer, resultAppender, buildAccessor, buildTupleId, probeAccessor,
                 probeTupleId);

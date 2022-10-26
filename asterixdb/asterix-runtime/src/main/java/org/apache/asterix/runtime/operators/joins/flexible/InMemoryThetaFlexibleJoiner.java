@@ -19,7 +19,6 @@
 package org.apache.asterix.runtime.operators.joins.flexible;
 
 import java.nio.ByteBuffer;
-import java.util.LinkedHashMap;
 
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
@@ -72,13 +71,12 @@ public class InMemoryThetaFlexibleJoiner {
 
     protected int numberOfBuckets = 0;
 
-
     protected boolean spilled;
 
     protected long numRecordsFromBuild;
-//    private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
-//        private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
-//        private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
+    //    private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
+    //        private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
+    //        private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
 
     public InMemoryThetaFlexibleJoiner(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd,
             RecordDescriptor probeRd, int nBuckets) throws HyracksDataException {
@@ -120,10 +118,10 @@ public class InMemoryThetaFlexibleJoiner {
         int tupleCount = accessorBuild.getTupleCount();
         for (int i = 0; i < tupleCount; i++) {
 
-//                        if(accessorBuild.getTupleStartOffset(i) < startOffset) continue;
-//                        if(endOffset != -1) {
-//                            if(accessorBuild.getTupleStartOffset(i) >= endOffset) break;
-//                        }
+            //                        if(accessorBuild.getTupleStartOffset(i) < startOffset) continue;
+            //                        if(endOffset != -1) {
+            //                            if(accessorBuild.getTupleStartOffset(i) >= endOffset) break;
+            //                        }
             // b = FlexibleJoinsUtil.getBucketId(accessorBuild,i,1);
             //int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
             //bucketMap.merge(bucketIdT, 1, Integer::sum);
@@ -148,12 +146,12 @@ public class InMemoryThetaFlexibleJoiner {
     }
 
     public void initProbe(ITuplePairComparator comparator) {
-//                StringBuilder a = new StringBuilder();
-//                a.append("Bucket Counter From Build Side\n");
-//                for(Integer bucketId: bucketMap.keySet()) {
-//                    a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
-//                }
-//                System.out.println(a);
+        //                StringBuilder a = new StringBuilder();
+        //                a.append("Bucket Counter From Build Side\n");
+        //                for(Integer bucketId: bucketMap.keySet()) {
+        //                    a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
+        //                }
+        //                System.out.println(a);
         this.tpComparator = comparator;
     }
 
@@ -170,11 +168,11 @@ public class InMemoryThetaFlexibleJoiner {
         // for each record from S
         for (int i = 0; i < tupleCount; ++i) {
             boolean matched = false;
-//                        if(accessorProbe.getTupleStartOffset(i) < startOffset) continue;
-//                        if(endOffset != -1) {
-//                            if(accessorProbe.getTupleStartOffset(i) >= endOffset) break;
-//                        }
-//            //int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorProbe, i, 1);
+            //                        if(accessorProbe.getTupleStartOffset(i) < startOffset) continue;
+            //                        if(endOffset != -1) {
+            //                            if(accessorProbe.getTupleStartOffset(i) >= endOffset) break;
+            //                        }
+            //            //int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorProbe, i, 1);
             //bucketMatchCount.merge(bucketIdT, 1, Integer::sum);
 
             // Iterate over the buckets from bucket table
@@ -215,18 +213,19 @@ public class InMemoryThetaFlexibleJoiner {
 
                 }
             }
-            if(!matched) break;
+            if (!matched)
+                break;
         }
 
     }
 
     public void completeProbe(IFrameWriter writer) throws HyracksDataException {
-//                StringBuilder a = new StringBuilder();
-//                a.append("Bucket Counter From Probe Side\n");
-//                for(Integer bucketId: bucketMatchCount.keySet()) {
-//                    a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
-//                }
-//                System.out.println(a);
+        //                StringBuilder a = new StringBuilder();
+        //                a.append("Bucket Counter From Probe Side\n");
+        //                for(Integer bucketId: bucketMatchCount.keySet()) {
+        //                    a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
+        //                }
+        //                System.out.println(a);
         resultAppender.write(writer, true);
     }
 
