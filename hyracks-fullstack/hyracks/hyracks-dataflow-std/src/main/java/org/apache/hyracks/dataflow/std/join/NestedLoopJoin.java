@@ -133,7 +133,7 @@ public class NestedLoopJoin {
      *
      * @param comparator the comparator to use for comparing the probe tuples against the build tuples
      */
-    void setComparator(ITuplePairComparator comparator) {
+    public void setComparator(ITuplePairComparator comparator) {
         tpComparator = comparator;
     }
 

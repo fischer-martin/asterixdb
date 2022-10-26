@@ -46,6 +46,7 @@ import org.apache.asterix.lang.common.statement.CreateAdapterStatement;
 import org.apache.asterix.lang.common.statement.CreateDataverseStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedStatement;
 import org.apache.asterix.lang.common.statement.CreateFunctionStatement;
+import org.apache.asterix.lang.common.statement.CreateJoinStatement;
 import org.apache.asterix.lang.common.statement.CreateLibraryStatement;
 import org.apache.asterix.lang.common.statement.CreateSynonymStatement;
 import org.apache.asterix.lang.common.statement.CreateViewStatement;
@@ -319,6 +320,18 @@ public abstract class AbstractLangTranslator {
                 invalidOperation = isMetadataDataverse(dataverseName);
                 if (invalidOperation) {
                     message = String.format(BAD_DATAVERSE_OBJECT_DDL_MESSAGE, "create", "function", dataverseName);
+                }
+                break;
+
+            case CREATE_JOIN:
+                CreateJoinStatement fjCreateStmt = (CreateJoinStatement) stmt;
+                FunctionSignature fjCreateSignature = fjCreateStmt.getFunctionSignature();
+                if (fjCreateSignature.getDataverseName() != null) {
+                    dataverseName = fjCreateSignature.getDataverseName();
+                }
+                invalidOperation = isMetadataDataverse(dataverseName);
+                if (invalidOperation) {
+                    message = String.format(BAD_DATAVERSE_OBJECT_DDL_MESSAGE, "create", "flexible join", dataverseName);
                 }
                 break;
 

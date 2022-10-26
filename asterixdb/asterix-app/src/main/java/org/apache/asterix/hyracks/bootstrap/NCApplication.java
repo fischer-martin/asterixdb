@@ -233,6 +233,11 @@ public class NCApplication extends BaseNCApplication {
                         new NCUdfApiServlet(apiServer.ctx(), new String[] { UDF }, getApplicationContext(),
                                 apiServer.getScheme(), apiServer.getAddress().getPort()),
                         auth.getFirst(), auth.getSecond()));
+        /*apiServer
+                .addServlet(new BasicAuthServlet(apiServer.ctx(),
+                        new NCFlexibleJoinApiServlet(apiServer.ctx(), new String[] { JOIN }, getApplicationContext(),
+                                apiServer.getScheme(), apiServer.getAddress().getPort()),
+                        auth.getFirst(), auth.getSecond()));*/
         apiServer.addServlet(new BasicAuthServlet(
                 apiServer.ctx(), new NCUdfRecoveryServlet(apiServer.ctx(), new String[] { UDF_RECOVERY },
                         getApplicationContext(), apiServer.getScheme(), apiServer.getAddress().getPort()),

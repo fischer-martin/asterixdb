@@ -29,6 +29,8 @@ import org.apache.asterix.common.functions.ExternalFunctionLanguage;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.BuiltinTypeMap;
 import org.apache.asterix.metadata.entities.Function;
+import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.typecomputer.base.IResultTypeComputer;
 import org.apache.asterix.om.types.BuiltinType;
@@ -58,6 +60,8 @@ public class ExternalFunctionCompilerUtil {
             finfo = getStatefulFunctionInfo(metadataProvider, function);
         } else if (FunctionKind.UNNEST.toString().equalsIgnoreCase(functionKind)) {
             finfo = getUnnestFunctionInfo(metadataProvider, function);
+        } else {
+            finfo = getFJFunctionInfo(metadataProvider, function, null);
         }
         return finfo;
     }
@@ -94,6 +98,29 @@ public class ExternalFunctionCompilerUtil {
 
     private static IFunctionInfo getAggregateFunctionInfo(MetadataProvider metadataProvider, Function function) {
         return null;
+    }
+
+    public static ExternalFJFunctionInfo getFJFunctionInfo(MetadataProvider metadataProvider, Function function,
+            List<IAObject> parameters) throws AlgebricksException {
+
+        List<IAType> paramTypes = getParameterTypes(function, metadataProvider);
+
+        IAType returnType = getType(function.getReturnType(), metadataProvider);
+
+        IResultTypeComputer typeComputer = new ExternalTypeComputer(returnType, paramTypes, function.getNullCall());
+
+        ExternalFunctionLanguage lang = getExternalFunctionLanguage(function.getLanguage());
+
+        Boolean deterministic = function.getDeterministic();
+        if (deterministic == null) {
+            // all external functions should store 'deterministic' property
+            throw new AsterixException(ErrorCode.METADATA_ERROR, function.getSignature().toString());
+        }
+
+        return new ExternalFJFunctionInfo(function.getSignature().createFunctionIdentifier(), paramTypes, returnType,
+                typeComputer, lang, function.getLibraryDataverseName(), function.getLibraryName(),
+                function.getExternalIdentifier(), function.getResources(), deterministic, function.getNullCall(),
+                FunctionKind.valueOf(function.getKind()), parameters);
     }
 
     private static List<IAType> getParameterTypes(Function function, MetadataProvider metadataProvider)

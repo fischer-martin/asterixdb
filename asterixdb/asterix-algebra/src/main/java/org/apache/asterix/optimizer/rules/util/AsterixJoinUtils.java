@@ -18,6 +18,7 @@
  */
 package org.apache.asterix.optimizer.rules.util;
 
+import org.apache.asterix.optimizer.flexiblejoin.ApplyFlexibleJoinUtils;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
@@ -40,8 +41,13 @@ public class AsterixJoinUtils {
         }
 
         boolean intervalJoinChosen = IntervalJoinUtils.tryIntervalJoinAssignment(op, context, joinCondition, 0, 1);
+        boolean spatialJOinChosen = false;
         if (!intervalJoinChosen) {
-            SpatialJoinUtils.trySpatialJoinAssignment(op, context, joinCondition, 0, 1);
+            spatialJOinChosen = SpatialJoinUtils.trySpatialJoinAssignment(op, context, joinCondition, 0, 1);
         }
+        if (!spatialJOinChosen && !intervalJoinChosen) {
+            ApplyFlexibleJoinUtils.tryFlexibleJoin(op, context, joinCondition, 0, 1);
+        }
+
     }
 }

@@ -285,6 +285,9 @@ public final class RuleCollections {
         fieldLoads.add(new RemoveLeftOuterUnnestForLeftOuterJoinRule());
         fieldLoads.add(new FilterRefineSpatialJoinRuleForSTFunctions());
         fieldLoads.add(new FilterRefineSpatialJoinRuleForSTDistanceFunction());
+        //fieldLoads.add(new ApplyFlexibleJoinRule());
+        //fieldLoads.add(new ApplyFlexibleJoinRuleTest());
+
         return fieldLoads;
     }
 

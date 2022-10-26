@@ -35,12 +35,14 @@ public final class CreateLibraryRequestMessage extends AbstractInternalRequestMe
     final String hash;
     final URI location;
     final boolean replaceIfExists;
+    final boolean isFlexibleJoin;
     final String authToken;
     private static final long serialVersionUID = 1L;
 
     public CreateLibraryRequestMessage(String nodeRequestId, long requestMessageId, DataverseName dataverseName,
             String libraryName, ExternalFunctionLanguage lang, String hash, URI location, boolean replaceIfExists,
-            String authToken, IRequestReference requestReference, Map<String, String> additionalParams) {
+            String authToken, IRequestReference requestReference, Map<String, String> additionalParams,
+            boolean isFlexibleJoin) {
         super(nodeRequestId, requestMessageId, requestReference, additionalParams);
         this.dataverseName = dataverseName;
         this.libraryName = libraryName;
@@ -49,9 +51,11 @@ public final class CreateLibraryRequestMessage extends AbstractInternalRequestMe
         this.location = location;
         this.replaceIfExists = replaceIfExists;
         this.authToken = authToken;
+        this.isFlexibleJoin = isFlexibleJoin;
     }
 
     protected Statement produceStatement() {
-        return new CreateLibraryStatement(dataverseName, libraryName, lang, hash, location, replaceIfExists, authToken);
+        return new CreateLibraryStatement(dataverseName, libraryName, lang, hash, location, replaceIfExists, authToken,
+                isFlexibleJoin);
     }
 }

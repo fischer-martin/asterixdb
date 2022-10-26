@@ -943,7 +943,9 @@ abstract class LangExpressionToPlanTranslator
                 throw new CompilationException(ErrorCode.COMPILATION_ILLEGAL_STATE, sourceLoc, signature);
             }
             IFunctionInfo finfo = ExternalFunctionCompilerUtil.getExternalFunctionInfo(metadataProvider, function);
-            AbstractFunctionCallExpression f = new ScalarFunctionCallExpression(finfo, args);
+            AbstractFunctionCallExpression f = null;
+
+            f = new ScalarFunctionCallExpression(finfo, args);
             f.setSourceLocation(sourceLoc);
             return f;
         } catch (CompilationException e) {

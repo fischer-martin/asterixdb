@@ -1931,7 +1931,7 @@ public class BuiltinFunctions {
         addFunction(POINT_CONSTRUCTOR, APointTypeComputer.INSTANCE, true);
         addFunction(POINT3D_CONSTRUCTOR, APoint3DTypeComputer.INSTANCE, true);
         addFunction(POLYGON_CONSTRUCTOR, APolygonTypeComputer.INSTANCE, true);
-        addPrivateFunction(PREFIX_LEN_JACCARD, AInt32TypeComputer.INSTANCE, true);
+        addFunction(PREFIX_LEN_JACCARD, AInt32TypeComputer.INSTANCE, true);
         addFunction(RANGE, AInt64TypeComputer.INSTANCE, true);
         addFunction(RECTANGLE_CONSTRUCTOR, ARectangleTypeComputer.INSTANCE, true);
 
@@ -2364,7 +2364,7 @@ public class BuiltinFunctions {
         addFunction(BINARY_HEX_CONSTRUCTOR, ABinaryTypeComputer.INSTANCE_NULLABLE, true);
         addFunction(BINARY_BASE64_CONSTRUCTOR, ABinaryTypeComputer.INSTANCE_NULLABLE, true);
 
-        addPrivateFunction(SUBSET_COLLECTION, SubsetCollectionTypeComputer.INSTANCE, true);
+        addFunction(SUBSET_COLLECTION, SubsetCollectionTypeComputer.INSTANCE, true);
         addFunction(SWITCH_CASE, SwitchCaseComputer.INSTANCE, true);
         addFunction(SLEEP, SleepTypeComputer.INSTANCE, false);
         addPrivateFunction(INJECT_FAILURE, InjectFailureTypeComputer.INSTANCE, true);

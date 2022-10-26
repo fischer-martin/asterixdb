@@ -267,6 +267,7 @@ public class SpatialJoinUtils {
             AbstractFunctionCallExpression spatialJoinFuncExpr, List<Mutable<ILogicalExpression>> conditionExprs,
             Mutable<ILogicalOperator> leftInputOp, Mutable<ILogicalOperator> rightInputOp, LogicalVariable leftInputVar,
             LogicalVariable rightInputVar) throws AlgebricksException {
+
         // Add a dynamic workflow to compute MBR of the left branch
         Triple<MutableObject<ILogicalOperator>, List<LogicalVariable>, MutableObject<ILogicalOperator>> leftMBRCalculator =
                 createDynamicMBRCalculator(op, context, leftInputOp, leftInputVar);

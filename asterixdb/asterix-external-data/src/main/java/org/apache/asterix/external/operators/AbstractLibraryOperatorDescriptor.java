@@ -29,6 +29,7 @@ import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.library.ILibraryManager;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.external.library.ExternalLibraryManager;
+import org.apache.asterix.external.library.JavaLibrary;
 import org.apache.hyracks.api.comm.IFrameWriter;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
@@ -99,6 +100,10 @@ abstract class AbstractLibraryOperatorDescriptor extends AbstractSingleActivityO
 
         protected FileReference getStageDir() {
             return libraryDir.getChild(ExternalLibraryManager.STAGE_DIR_NAME);
+        }
+
+        protected JavaLibrary getJavaLibrary() throws HyracksDataException {
+            return (JavaLibrary) libraryManager.getLibrary(dataverseName, libraryName);
         }
 
         // does not flush any directories

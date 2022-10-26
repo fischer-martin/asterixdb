@@ -47,6 +47,9 @@ public enum SqlppHint {
     VAL_FILE_HINT("val-files"),
     VAL_FILE_SAME_INDEX_HINT("val-file-same-idx"),
     GEN_FIELDS_HINT("gen-fields"),
+
+    FJ_SHADOW_JOIN_HINT("shadow-join"),
+
     SINGLE_DATASET_PREDICATE_SELECTIVITY_HINT("selectivity"),
     JOIN_PREDICATE_PRODUCTIVITY_HINT("productivity"),
 

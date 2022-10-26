@@ -138,7 +138,7 @@ public class NCUdfApiServlet extends AbstractNCUdfServlet {
         MessageFuture responseFuture = ncMb.registerMessageFuture();
         CreateLibraryRequestMessage req = new CreateLibraryRequestMessage(srvCtx.getNodeId(),
                 responseFuture.getFutureId(), dataverseName, libraryName, language, hash, downloadURI, replaceIfExists,
-                sysAuthHeader, requestReference, additionalHttpHeadersFromRequest(request));
+                sysAuthHeader, requestReference, additionalHttpHeadersFromRequest(request), false);
         sendMessage(req, responseFuture);
     }
 

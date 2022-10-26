@@ -18,13 +18,15 @@
  */
 package org.apache.asterix.om.base;
 
+import java.io.Serializable;
+
 import org.apache.asterix.om.types.IAType;
 import org.apache.hyracks.api.dataflow.value.JSONSerializable;
 
 /**
  * Represents an object in Asterix.
  */
-public interface IAObject extends JSONSerializable {
+public interface IAObject extends JSONSerializable, Serializable {
     public IAType getType();
 
     public boolean deepEqual(IAObject obj);

@@ -45,7 +45,20 @@ public abstract class AbstractFunctionCallExpression extends AbstractLogicalExpr
         SCALAR,
         STATEFUL,
         AGGREGATE,
-        UNNEST
+        UNNEST,
+        FJ_CALLER,
+        FJ_AGGREGATE,
+        FJ_LOCAL_SUMMARY_ONE,
+        FJ_LOCAL_SUMMARY_TWO,
+        FJ_GLOBAL_SUMMARY_ONE,
+        FJ_GLOBAL_SUMMARY_TWO,
+        FJ_UNNEST,
+        FJ_ASSIGN_ONE,
+        FJ_ASSIGN_TWO,
+        FJ_MATCH,
+        FJ_VERIFY,
+        FJ_DIVIDE,
+        FJ_SCALAR
     }
 
     protected IFunctionInfo finfo;

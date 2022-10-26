@@ -1273,6 +1273,10 @@ public class AccessMethodUtils {
                     skVarAssignOpInRightPath = new AssignOperator(restoredSKVarFromRTree, restoredSKFromRTreeExprs);
                     skVarAssignOpInRightPath.setSourceLocation(sourceLoc);
                     break;
+                case GEOMETRY:
+                    //AbstractFunctionCallExpression expr1 = createGeometryExpression()
+
+                    break;
                 default:
                     break;
             }
@@ -1841,6 +1845,22 @@ public class AccessMethodUtils {
         expressions.add(new MutableObject<ILogicalExpression>(createPointExpr2));
         createRectangleExpr.getArguments().addAll(expressions);
         return createRectangleExpr;
+    }
+
+    private static AbstractFunctionCallExpression createGeometryExpression(List<LogicalVariable> pointVars,
+            SourceLocation sourceLoc) {
+        List<Mutable<ILogicalExpression>> expressions = new ArrayList<>();
+        AbstractFunctionCallExpression createPointExpr1 =
+                new ScalarFunctionCallExpression(FunctionUtil.getFunctionInfo(BuiltinFunctions.CREATE_POINT));
+        createPointExpr1.setSourceLocation(sourceLoc);
+        VariableReferenceExpression pointVarRef0 = new VariableReferenceExpression(pointVars.get(0));
+        pointVarRef0.setSourceLocation(sourceLoc);
+        expressions.add(new MutableObject<ILogicalExpression>(pointVarRef0));
+        VariableReferenceExpression pointVarRef1 = new VariableReferenceExpression(pointVars.get(1));
+        pointVarRef1.setSourceLocation(sourceLoc);
+        expressions.add(new MutableObject<ILogicalExpression>(pointVarRef1));
+        createPointExpr1.getArguments().addAll(expressions);
+        return createPointExpr1;
     }
 
     private static ScalarFunctionCallExpression getNestedIsMissingNullCall(AbstractFunctionCallExpression call,

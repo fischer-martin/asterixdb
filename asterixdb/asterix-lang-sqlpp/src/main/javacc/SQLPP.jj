@@ -66,6 +66,7 @@ import org.apache.asterix.common.annotations.SkipSecondaryIndexSearchExpressionA
 import org.apache.asterix.common.annotations.SpatialJoinAnnotation;
 import org.apache.asterix.common.annotations.TypeDataGen;
 import org.apache.asterix.common.annotations.UndeclaredFieldsDataGen;
+import org.apache.asterix.common.annotations.FlexibleJoinAnnotation;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.config.DatasetConfig.IndexType;
 import org.apache.asterix.common.exceptions.AsterixException;
@@ -136,6 +137,8 @@ import org.apache.asterix.lang.common.statement.CreateDataverseStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedPolicyStatement;
 import org.apache.asterix.lang.common.statement.CreateFeedStatement;
 import org.apache.asterix.lang.common.statement.CreateFunctionStatement;
+import org.apache.asterix.lang.common.statement.CreateJoinStatement;
+import org.apache.asterix.lang.common.statement.JoinDropStatement;
 import org.apache.asterix.lang.common.statement.CreateIndexStatement;
 import org.apache.asterix.lang.common.statement.CreateSynonymStatement;
 import org.apache.asterix.lang.common.statement.CreateFullTextFilterStatement;
@@ -693,8 +696,13 @@ class SQLPPParser extends ScopeChecker implements IParser {
             return new JoinProductivityAnnotation (productivity, leftSideDataSet);
           case HASH_BROADCAST_JOIN_HINT:
             return new BroadcastExpressionAnnotation(BroadcastExpressionAnnotation.BroadcastSide.RIGHT);
+
+          case FJ_SHADOW_JOIN_HINT:
+            return new FlexibleJoinAnnotation();
+
           case HASH_JOIN_HINT:
             return new HashJoinExpressionAnnotation(HashJoinExpressionAnnotation.BuildSide.RIGHT);
+
           case INDEXED_NESTED_LOOP_JOIN_HINT:
             if (hintToken.hintParams == null) {
               return IndexedNLJoinExpressionAnnotation.INSTANCE_ANY_INDEX;
@@ -918,6 +926,7 @@ Statement CreateStatement() throws ParseException:
     | stmt = CreateIndexStatement(startToken)
     | stmt = CreateDataverseStatement(startToken)
     | stmt = CreateFunctionStatement(startToken, false)
+    | stmt = CreateJoinStatement(startToken, false)
     | stmt = CreateAdapterStatement(startToken)
     | stmt = CreateSynonymStatement(startToken)
     | stmt = CreateFeedStatement(startToken)
@@ -1665,6 +1674,92 @@ Pair<Map<String, String>, Boolean> CastDefaultNull() throws ParseException:
   }
 }
 
+CreateJoinStatement CreateJoinStatement(Token startStmtToken, boolean orReplace) throws ParseException:
+{
+  CreateJoinStatement stmt = null;
+}
+{
+  <JOIN> stmt = JoinSpecification(startStmtToken, orReplace)
+  {
+    return stmt;
+  }
+}
+
+CreateJoinStatement JoinSpecification(Token startStmtToken, boolean orReplace) throws ParseException:
+{
+  FunctionSignature signature = null;
+  FunctionName fctName = null;
+  Pair<Integer, List<Pair<VarIdentifier,TypeExpression>>> paramsWithArity = null;
+  List<Pair<VarIdentifier,TypeExpression>> params = null;
+  int arity = 0;
+  TypeExpression returnType = null;
+  Token beginPos = null, endPos = null;
+  Expression functionBodyExpr = null;
+  Pair<DataverseName,Identifier> libraryName = null;
+  List<String> externalIdentifier = null;
+  RecordConstructor withOptions = null;
+  boolean ifNotExists = false;
+  CreateJoinStatement stmt = null;
+  DataverseName currentDataverse = defaultDataverse;
+}
+{
+  fctName = FunctionName()
+  {
+     defaultDataverse = fctName.dataverse;
+  }
+  paramsWithArity = FunctionParameters()
+  {
+    arity = paramsWithArity.first;
+    params = paramsWithArity.second;
+    signature = new FunctionSignature(fctName.dataverse, fctName.function, arity);
+  }
+  ifNotExists = IfNotExists()
+  {
+    if (orReplace && ifNotExists) {
+      throw new SqlppParseException(getSourceLocation(token), "Unexpected IF NOT EXISTS");
+    }
+  }
+  returnType = FunctionReturnType()
+  (
+    (
+      <LEFTBRACE>
+      {
+        beginPos = token;
+        createNewScope();
+      }
+      functionBodyExpr = FunctionBody()
+      <RIGHTBRACE>
+      {
+        endPos = token;
+        String functionBody = extractFragment(beginPos.beginLine, beginPos.beginColumn, endPos.beginLine,
+          endPos.beginColumn);
+        getCurrentScope().addFunctionDescriptor(signature, false);
+        removeCurrentScope();
+        ensureNoTypeDeclsInFunction(fctName.function, params, returnType, startStmtToken);
+        stmt = new CreateJoinStatement(signature, params, functionBody, functionBodyExpr, orReplace, ifNotExists);
+      }
+    )
+  |
+    (
+      <AS> externalIdentifier = FunctionExternalIdentifier()
+      <AT> libraryName = QualifiedName()
+      (<WITH> withOptions = RecordConstructor())?
+      {
+        try {
+          stmt = new CreateJoinStatement(signature, params, returnType, libraryName.first,
+            libraryName.second.getValue(), externalIdentifier, withOptions, orReplace, ifNotExists);
+        } catch (AlgebricksException e) {
+            throw new SqlppParseException(getSourceLocation(startStmtToken), e.getMessage());
+        }
+      }
+    )
+  )
+  {
+    defaultDataverse = currentDataverse;
+    return addSourceLocation(stmt, startStmtToken);
+  }
+}
+
 CreateFunctionStatement CreateFunctionStatement(Token startStmtToken, boolean orReplace) throws ParseException:
 {
   CreateFunctionStatement stmt = null;
@@ -2145,6 +2240,7 @@ Statement DropStatement() throws ParseException:
     | stmt = DropDataverseStatement(startToken)
     | stmt = DropAdapterStatement(startToken)
     | stmt = DropFunctionStatement(startToken)
+    | stmt = JoinDropStatement(startToken)
     | stmt = DropFeedStatement(startToken)
     | stmt = DropFeedPolicyStatement(startToken)
     | stmt = DropSynonymStatement(startToken)
@@ -2364,6 +2460,30 @@ AdapterDropStatement DropAdapterSpecification(Token startStmtToken) throws Parse
   adapterName = QualifiedName() ifExists = IfExists()
   {
     AdapterDropStatement stmt = new AdapterDropStatement(adapterName.first, adapterName.second.getValue(), ifExists);
+    return addSourceLocation(stmt, startStmtToken);
+  }
+}
+
+JoinDropStatement JoinDropStatement(Token startStmtToken) throws ParseException:
+{
+  JoinDropStatement stmt = null;
+}
+{
+  <JOIN> stmt = JoinDropSpecification(startStmtToken)
+  {
+    return stmt;
+  }
+}
+
+JoinDropStatement JoinDropSpecification(Token startStmtToken) throws ParseException:
+{
+  FunctionSignature funcSig = null;
+  boolean ifExists = false;
+}
+{
+  funcSig = FunctionSignature() ifExists = IfExists()
+  {
+    JoinDropStatement stmt = new JoinDropStatement(funcSig, ifExists);
     return addSourceLocation(stmt, startStmtToken);
   }
 }
@@ -3083,8 +3203,10 @@ FunctionName FunctionName() throws ParseException:
   // Note: there's a copy of this production in PrimaryExpr() (LOOKAHEAD for FunctionCallExpr())
   //       that copy must be kept in sync with this code
   prefix = MultipartIdentifierWithHints(
+
     SqlppHint.INDEXED_NESTED_LOOP_JOIN_HINT, SqlppHint.RANGE_HINT, SqlppHint.HASH_JOIN_HINT, SqlppHint.SKIP_SECONDARY_INDEX_SEARCH_HINT,
-    SqlppHint.SPATIAL_JOIN_HINT, SqlppHint.USE_SECONDARY_INDEX_SEARCH_HINT
+    SqlppHint.SPATIAL_JOIN_HINT, SqlppHint.USE_SECONDARY_INDEX_SEARCH_HINT, SqlppHint.FJ_SHADOW_JOIN_HINT
+
   )
   (<SHARP> suffix = Identifier())?
   {
@@ -5495,6 +5617,7 @@ TOKEN [IGNORE_CASE]:
   | <FULL : "full">
   | <FULLTEXT : "fulltext">
   | <FUNCTION : "function">
+  | <FLEXIBLE_JOIN : "flexiblejoin">
   | <GROUP : "group">
   | <HAVING : "having">
   | <HINTS : "hints">

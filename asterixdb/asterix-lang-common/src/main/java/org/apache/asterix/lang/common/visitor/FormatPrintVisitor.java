@@ -77,6 +77,7 @@ import org.apache.asterix.lang.common.statement.CreateFullTextConfigStatement;
 import org.apache.asterix.lang.common.statement.CreateFullTextFilterStatement;
 import org.apache.asterix.lang.common.statement.CreateFunctionStatement;
 import org.apache.asterix.lang.common.statement.CreateIndexStatement;
+import org.apache.asterix.lang.common.statement.CreateJoinStatement;
 import org.apache.asterix.lang.common.statement.CreateLibraryStatement;
 import org.apache.asterix.lang.common.statement.CreateSynonymStatement;
 import org.apache.asterix.lang.common.statement.CreateViewStatement;
@@ -96,6 +97,7 @@ import org.apache.asterix.lang.common.statement.FunctionDropStatement;
 import org.apache.asterix.lang.common.statement.IndexDropStatement;
 import org.apache.asterix.lang.common.statement.InsertStatement;
 import org.apache.asterix.lang.common.statement.InternalDetailsDecl;
+import org.apache.asterix.lang.common.statement.JoinDropStatement;
 import org.apache.asterix.lang.common.statement.LibraryDropStatement;
 import org.apache.asterix.lang.common.statement.LoadStatement;
 import org.apache.asterix.lang.common.statement.NodeGroupDropStatement;
@@ -885,6 +887,31 @@ public abstract class FormatPrintVisitor implements ILangVisitor<Void, Integer> 
         out.println(cfs.getFunctionBody());
         out.println("}" + SEMICOLON);
         out.println();
+        return null;
+    }
+
+    @Override
+    public Void visit(CreateJoinStatement cfjs, Integer step) throws CompilationException {
+        out.print(skip(step) + CREATE + generateOrReplace(cfjs.getReplaceIfExists()) + " flexible join ");
+        out.print(generateIfNotExists(cfjs.getIfNotExists()));
+        out.print(this.generateFullName(cfjs.getFunctionSignature().getDataverseName(),
+                cfjs.getFunctionSignature().getName()));
+        out.print("(");
+        printDelimitedStrings(
+                cfjs.getParameters().stream().map(v -> v.getFirst().getValue()).collect(Collectors.toList()), COMMA);
+        out.println(") {");
+        out.println(cfjs.getFunctionBody());
+        out.println("}" + SEMICOLON);
+        out.println();
+        return null;
+    }
+
+    @Override
+    public Void visit(JoinDropStatement del, Integer step) throws CompilationException {
+        out.print(skip(step) + "drop join ");
+        FunctionSignature funcSignature = del.getFunctionSignature();
+        out.print(funcSignature.toString());
+        out.println(SEMICOLON);
         return null;
     }
 

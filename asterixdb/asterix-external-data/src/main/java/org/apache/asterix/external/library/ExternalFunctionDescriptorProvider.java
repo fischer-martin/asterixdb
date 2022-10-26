@@ -22,6 +22,15 @@ import org.apache.asterix.common.api.IApplicationContext;
 import org.apache.asterix.common.config.CompilerProperties;
 import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.exceptions.ErrorCode;
+import org.apache.asterix.external.cartilage.functions.FJAssignOneDescriptor;
+import org.apache.asterix.external.cartilage.functions.FJAssignTwoDescriptor;
+import org.apache.asterix.external.cartilage.functions.FJDivideDescriptor;
+import org.apache.asterix.external.cartilage.functions.FJMatchDescriptor;
+import org.apache.asterix.external.cartilage.functions.FJVerifyDescriptor;
+import org.apache.asterix.external.cartilage.functions.GlobalSummaryOneAggregateDescriptor;
+import org.apache.asterix.external.cartilage.functions.GlobalSummaryTwoAggregateDescriptor;
+import org.apache.asterix.external.cartilage.functions.LocalSummaryOneAggregateDescriptor;
+import org.apache.asterix.external.cartilage.functions.LocalSummaryTwoAggregateDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionDescriptor;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.runtime.functions.FunctionTypeInferers;
@@ -46,6 +55,24 @@ public class ExternalFunctionDescriptorProvider {
         switch (finfo.getKind()) {
             case SCALAR:
                 return new ExternalScalarFunctionDescriptor(finfo);
+            case FJ_MATCH:
+                return new FJMatchDescriptor(finfo);
+            case FJ_VERIFY:
+                return new FJVerifyDescriptor(finfo);
+            case FJ_DIVIDE:
+                return new FJDivideDescriptor(finfo);
+            case FJ_LOCAL_SUMMARY_ONE:
+                return new LocalSummaryOneAggregateDescriptor(finfo);
+            case FJ_LOCAL_SUMMARY_TWO:
+                return new LocalSummaryTwoAggregateDescriptor(finfo);
+            case FJ_GLOBAL_SUMMARY_ONE:
+                return new GlobalSummaryOneAggregateDescriptor(finfo);
+            case FJ_GLOBAL_SUMMARY_TWO:
+                return new GlobalSummaryTwoAggregateDescriptor(finfo);
+            case FJ_ASSIGN_ONE:
+                return new FJAssignOneDescriptor(finfo);
+            case FJ_ASSIGN_TWO:
+                return new FJAssignTwoDescriptor(finfo);
             case AGGREGATE:
             case UNNEST:
                 throw new AsterixException(ErrorCode.LIBRARY_EXTERNAL_FUNCTION_UNSUPPORTED_KIND, finfo.getKind());
