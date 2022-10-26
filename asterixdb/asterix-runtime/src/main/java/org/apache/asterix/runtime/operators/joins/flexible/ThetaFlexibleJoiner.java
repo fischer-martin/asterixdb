@@ -253,7 +253,7 @@ public class ThetaFlexibleJoiner {
             b.append(bucketId).append("\t").append(spilledBucketMap.get(bucketId)).append("\n");
         }
         System.out.println(b);*/
-        //table.printInfo();
+        table.printInfo();
         runFileStreamForBuild.flushRunFile();
     }
 

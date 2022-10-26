@@ -60,7 +60,7 @@ public class FirstFit implements IHeuristicForThetaJoin {
         this.hasNextBuildingBucketSequence = true;
         this.buildRd = buildRd;
         this.probeRd = probeRd;
-
+        //this.roleReversal = true;
         if(checkForRoleReversal && probeFileSize < buildFileSize) this.roleReversal = true;
     }
 
@@ -88,18 +88,17 @@ public class FirstFit implements IHeuristicForThetaJoin {
                 Bucket returnBucket;
                 returnBucket = new Bucket(bucket[0], roleReversal?1:0, bucket[3], endOffset,
                         bucket[2], endFrame);
-
                 returnBuckets.add(returnBucket);
             }
 
-//            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames)
+//            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
 //                totalSizeForBuckets += bucketSize;
-//            else
-//                break;
-
+//
+//            } else break;
 //            removeList.add(bucket);
-//            Bucket returnBucket = new Bucket(bucketInfoFromTable[0], roleReversal ? 1 : 0, bucketInfoFromTable[2], endOffset,
-//                    -(bucketInfoFromTable[1] + 1), endFrame);
+//            Bucket returnBucket;
+//            returnBucket = new Bucket(bucket[0], roleReversal?1:0, bucket[3], endOffset,
+//                    bucket[2], endFrame);
 //            returnBuckets.add(returnBucket);
         }
         bucketsFromR.removeAll(removeList);
@@ -174,11 +173,11 @@ public class FirstFit implements IHeuristicForThetaJoin {
             int startOffset;
             if(!roleReversal) {
                 startOffsetInFile = -((bucket[1] + 1) * this.frameSize) + bucket[2];
-                startFrame = bucket[1];
+                startFrame = -(bucket[1]+1);
                 startOffset = bucket[2];
             } else {
                 startOffsetInFile = -((bucket[3] + 1) * this.frameSize) + bucket[4];
-                startFrame = bucket[3];
+                startFrame = -(bucket[3] + 1);
                 startOffset = bucket[4];
             }
             int[] nextBucket = new int[5];
@@ -220,12 +219,12 @@ public class FirstFit implements IHeuristicForThetaJoin {
                     int[] newBucket = new int[6];
                     newBucket[0] = bucket[0];
                     newBucket[1] = currentBucketSize;
-                    newBucket[2] = -(startFrame + 1);
+                    newBucket[2] = startFrame;
                     newBucket[3] = 5;
-                    newBucket[4] = (startOffsetInFile + currentBucketSize) / frameSize;
+                    newBucket[4] = startFrame + (currentBucketSize / frameSize);
                     newBucket[5] = 5;
                     this.bucketsFromR.add(newBucket);
-                    startFrame += currentBucketSize;
+                    startFrame += (currentBucketSize/frameSize);
                     tempBucketSize -= memoryForJoinInBytes;
                 }
             } else {
