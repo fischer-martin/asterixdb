@@ -52,6 +52,9 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
+import org.apache.asterix.om.pointables.PointableAllocator;
+import org.apache.asterix.om.pointables.base.IVisitablePointable;
+import org.apache.asterix.om.pointables.ARecordVisitablePointable;
 
 public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggregateFunction {
 
@@ -63,7 +66,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
 
     protected ATypeTag typeTag;
     private IExternalFunctionInfo finfo;
-
+    private final PointableAllocator pointableAllocator = new PointableAllocator();
     private ClassLoader classLoader;
 
     @SuppressWarnings("unchecked")
@@ -102,6 +105,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
 
     public void processDataValues(IFrameTupleReference tuple) throws HyracksDataException {
         eval.evaluate(tuple, inputVal);
+
         byte[] data = inputVal.getByteArray();
         int offset = inputVal.getStartOffset();
         int len = inputVal.getLength();
@@ -110,6 +114,10 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
 
         if (typeTag == ATypeTag.NULL || typeTag == ATypeTag.MISSING) {
             processNull(typeTag);
+        } if (typeTag == ATypeTag.OBJECT) {
+            //IVisitablePointable obj = pointableAllocator.allocateFieldValue(typeTag, data, offset);
+            //summary.add(obj);
+            //pointableAllocator.freeRecord((ARecordVisitablePointable) obj);
         } else {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len - 1);
             DataInputStream dataIn = new DataInputStream(inStream);
