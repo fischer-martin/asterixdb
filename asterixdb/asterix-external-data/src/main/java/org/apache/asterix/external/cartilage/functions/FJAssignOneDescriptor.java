@@ -54,13 +54,10 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
-import org.apache.asterix.om.pointables.PointableAllocator;
-import org.apache.asterix.om.pointables.base.IVisitablePointable;
 
 public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescriptor
         implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 1L;
-    private PointableAllocator pointableAllocator = new PointableAllocator();
 
     private final IExternalFunctionInfo finfo;
 
@@ -132,15 +129,11 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
                                 e.printStackTrace();
                             }
                         }
-                        if(tag0 == ATypeTag.OBJECT) {
-                            IVisitablePointable obj1 = pointableAllocator.allocateFieldValue(tag0, bytes0, offset0);
-                            buckets = flexibleJoin.assign1(obj1, configuration);
-                        } else {
-                            ByteArrayInputStream inStream =
-                                    new ByteArrayInputStream(inputArg0.getByteArray(), offset0 + 1, len - 1);
-                            DataInputStream dataIn = new DataInputStream(inStream);
-                            buckets = flexibleJoin.assign1(getKeyObject(dataIn, tag0), configuration);
-                        }
+                        ByteArrayInputStream inStream =
+                                new ByteArrayInputStream(inputArg0.getByteArray(), offset0 + 1, len - 1);
+                        DataInputStream dataIn = new DataInputStream(inStream);
+                        buckets = flexibleJoin.assign1(getKeyObject(dataIn, tag0), configuration);
+
                         pos = 0;
 
                     }

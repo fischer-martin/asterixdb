@@ -41,7 +41,6 @@ import org.apache.asterix.om.functions.IExternalFunctionInfo;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
-import org.apache.asterix.om.pointables.base.IVisitablePointable;
 import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
@@ -55,13 +54,10 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
-import org.apache.asterix.om.pointables.PointableAllocator;
 
 public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor implements IExternalFunctionDescriptor {
     private static final long serialVersionUID = 2L;
     private final IExternalFunctionInfo finfo;
-
-    private PointableAllocator pointableAllocator = new PointableAllocator();
 
     public FJVerifyDescriptor(IExternalFunctionInfo finfo) {
         this.finfo = finfo;
@@ -158,21 +154,13 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             ATypeTag tag1 = eser.deserialize(bytes1[offset1]);
                             ATypeTag tag3 = eser.deserialize(bytes3[offset3]);
 
+                            ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1 + 1, len1 - 1);
+                            DataInputStream dataIn1 = new DataInputStream(inStream1);
+                            ByteArrayInputStream inStream3 = new ByteArrayInputStream(bytes3, offset3 + 1, len3 - 1);
+                            DataInputStream dataIn3 = new DataInputStream(inStream3);
 
-
-                            if(tag1 == ATypeTag.OBJECT) {
-                                //IVisitablePointable obj1 = pointableAllocator.allocateFieldValue(tag1, bytes1, offset1);
-                                //IVisitablePointable obj2 = pointableAllocator.allocateFieldValue(tag3, bytes3, offset3);
-                                //res = flexibleJoin.verify(bucketID0, obj1, bucketID1,
-                                //        obj2, configuration) ? ABoolean.TRUE : ABoolean.FALSE;
-                            } else {
-                                ByteArrayInputStream inStream1 = new ByteArrayInputStream(bytes1, offset1 + 1, len1 - 1);
-                                DataInputStream dataIn1 = new DataInputStream(inStream1);
-                                ByteArrayInputStream inStream3 = new ByteArrayInputStream(bytes3, offset3 + 1, len3 - 1);
-                                DataInputStream dataIn3 = new DataInputStream(inStream3);
-                                res = flexibleJoin.verify(bucketID0, getKeyObject(dataIn1, tag1), bucketID1,
-                                        getKeyObject(dataIn3, tag3), configuration) ? ABoolean.TRUE : ABoolean.FALSE;
-                            }
+                            res = flexibleJoin.verify(bucketID0, getKeyObject(dataIn1, tag1), bucketID1,
+                                    getKeyObject(dataIn3, tag3), configuration) ? ABoolean.TRUE : ABoolean.FALSE;
 
                         } catch (Exception e) {
                             e.printStackTrace();
