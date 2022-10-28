@@ -35,6 +35,7 @@ import org.apache.asterix.dataflow.data.nontagged.serde.AInt64SerializerDeserial
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt8SerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ARecordSerializerDeserializer;
 import org.apache.asterix.external.cartilage.base.types.Interval;
 import org.apache.asterix.external.cartilage.base.types.Rectangle;
 import org.apache.asterix.om.base.ABoolean;
@@ -186,7 +187,7 @@ public class ParameterTypeResolver {
                 break;
             }
             case OBJECT:
-                returnObject = dataInputStream;
+                returnObject = ARecordSerializerDeserializer.SCHEMALESS_INSTANCE.deserialize(dataInputStream).toJSON();
                 break;
             case ANY:
                 returnObject = dataInputStream;
