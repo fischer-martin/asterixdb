@@ -55,10 +55,10 @@ public class FileSynchronizer {
             final IIOManager ioManager = appCtx.getIoManager();
             final ISocketChannel channel = replica.getChannel();
             final FileReference filePath = ioManager.resolve(file);
-            String masterNode = appCtx.getReplicaManager().isPartitionOwner(replica.getIdentifier().getPartition())
+            String masterNode = appCtx.getReplicaManager().isPartitionOrigin(replica.getIdentifier().getPartition())
                     ? appCtx.getServiceContext().getNodeId() : null;
             ReplicateFileTask task = new ReplicateFileTask(file, filePath.getFile().length(), metadata, masterNode);
-            LOGGER.info("attempting to replicate {} to replica {}", task, replica);
+            LOGGER.trace("attempting {} to replica {}", task, replica);
             ReplicationProtocol.sendTo(replica, task);
             // send the file itself
             try (RandomAccessFile fromFile = new RandomAccessFile(filePath.getFile(), "r");
@@ -66,6 +66,7 @@ public class FileSynchronizer {
                 NetworkingUtil.sendFile(fileChannel, channel);
             }
             ReplicationProtocol.waitForAck(replica);
+            LOGGER.debug("completed {} to replica {}", task, replica);
         } catch (IOException e) {
             throw new ReplicationException(e);
         }
@@ -74,8 +75,10 @@ public class FileSynchronizer {
     public void delete(String file) {
         try {
             final DeleteFileTask task = new DeleteFileTask(file);
+            LOGGER.trace("attempting {} from replica {}", task, replica);
             ReplicationProtocol.sendTo(replica, task);
             ReplicationProtocol.waitForAck(replica);
+            LOGGER.debug("completed {} from replica {}", task, replica);
         } catch (IOException e) {
             throw new ReplicationException(e);
         }

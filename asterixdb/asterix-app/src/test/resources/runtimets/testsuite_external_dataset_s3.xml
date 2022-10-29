@@ -172,6 +172,54 @@
         <expected-warn>The provided external dataset configuration returned no files from the external source</expected-warn>
       </compilation-unit>
     </test-case>
+    <test-case FilePath="external-dataset">
+      <compilation-unit name="common/parquet/invalid-parquet-files">
+        <placeholder name="adapter" value="S3" />
+        <output-dir compare="Text">none</output-dir>
+        <source-location>false</source-location>
+        <expected-error>20-records.json. Reason: not a Parquet file</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="external-dataset" check-warnings="true">
+      <compilation-unit name="common/parquet/parquet-types/unset-flags">
+        <placeholder name="adapter" value="S3" />
+        <output-dir compare="Text">common/parquet/parquet-types/unset-flags</output-dir>
+        <source-location>false</source-location>
+        <expected-warn>Parquet file(s) contain unsigned integer that is larger than the 'bigint' range</expected-warn>
+        <expected-warn>Parquet file(s) contain values of the temporal type 'datetime' that are adjusted to UTC. Recreate the external dataset and set the option 'timezone' to get the local-adjusted 'datetime' value</expected-warn>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="external-dataset" check-warnings="true">
+      <compilation-unit name="common/parquet/parquet-types/decimal">
+        <placeholder name="adapter" value="S3" />
+        <output-dir compare="Text">common/parquet/parquet-types/decimal</output-dir>
+        <source-location>false</source-location>
+        <expected-error>ASX0054: Parquet type 'required int32 decimal32_field (DECIMAL(5,4))' is not supported by default. To enable type conversion, recreate the external dataset with the option 'decimal-to-double' enabled</expected-error>
+        <expected-warn>Parquet decimal precision loss: precision '22' is greater than the maximum supported precision '20'</expected-warn>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="external-dataset" check-warnings="true">
+      <compilation-unit name="common/parquet/parquet-types/temporal">
+        <placeholder name="adapter" value="S3" />
+        <output-dir compare="Text">common/parquet/parquet-types/temporal</output-dir>
+        <source-location>false</source-location>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="external-dataset">
+      <compilation-unit name="common/parquet/parquet-types/invalid-timezone">
+        <placeholder name="adapter" value="S3" />
+        <output-dir compare="Text">common/parquet/parquet-types/invalid-timezone</output-dir>
+        <source-location>false</source-location>
+        <expected-error>Provided timezone is invalid: 'invalid-timezone'</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="external-dataset" check-warnings="true">
+      <compilation-unit name="common/parquet/parquet-types/disable-json-parsing">
+        <placeholder name="adapter" value="S3" />
+        <output-dir compare="Text">common/parquet/parquet-types/disable-json-parsing</output-dir>
+        <source-location>false</source-location>
+      </compilation-unit>
+    </test-case>
     <!-- Parquet Tests End -->
     <test-case FilePath="external-dataset">
       <compilation-unit name="common/empty-string-definition">
@@ -265,28 +313,28 @@
       <compilation-unit name="common/include-exclude/bad-name-1">
         <placeholder name="adapter" value="S3" />
         <output-dir compare="Text">common/include-exclude/bad-name-1</output-dir>
-        <expected-error>Invalid format for property "exclude1"</expected-error>
+        <expected-error>Invalid format for property 'exclude1'</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="external-dataset">
       <compilation-unit name="common/include-exclude/bad-name-2">
         <placeholder name="adapter" value="S3" />
         <output-dir compare="Text">common/include-exclude/bad-name-2</output-dir>
-        <expected-error>Invalid format for property "exclude#"</expected-error>
+        <expected-error>Invalid format for property 'exclude#'</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="external-dataset">
       <compilation-unit name="common/include-exclude/bad-name-3">
         <placeholder name="adapter" value="S3" />
         <output-dir compare="Text">common/include-exclude/bad-name-3</output-dir>
-        <expected-error>Invalid format for property "exclude#hello"</expected-error>
+        <expected-error>Invalid format for property 'exclude#hello'</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="external-dataset">
       <compilation-unit name="common/include-exclude/both">
         <placeholder name="adapter" value="S3" />
         <output-dir compare="Text">common/include-exclude/both</output-dir>
-        <expected-error>The parameters "include" and "exclude" cannot be provided at the same time</expected-error>
+        <expected-error>The parameters 'include' and 'exclude' cannot be provided at the same time</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="external-dataset">
@@ -408,6 +456,26 @@
       <compilation-unit name="common/include-exclude/include-12">
         <placeholder name="adapter" value="S3" />
         <output-dir compare="Text">common/include-exclude/include-12</output-dir>
+      </compilation-unit>
+    </test-case>
+  </test-group>
+  <test-group name="bom">
+    <test-case FilePath="external-dataset">
+      <compilation-unit name="common/byte_order_mark/json">
+        <placeholder name="adapter" value="S3" />
+        <output-dir compare="Text">common/byte_order_mark/json</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="external-dataset">
+      <compilation-unit name="common/byte_order_mark/csv">
+        <placeholder name="adapter" value="S3" />
+        <output-dir compare="Text">common/byte_order_mark/csv</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="external-dataset">
+      <compilation-unit name="common/byte_order_mark/tsv">
+        <placeholder name="adapter" value="S3" />
+        <output-dir compare="Text">common/byte_order_mark/tsv</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>

@@ -105,6 +105,19 @@ public class FrameTupleAppender extends AbstractFrameAppender implements IFrameT
         return false;
     }
 
+    public boolean append(int startOffset, byte[] bytes, int offset, int length) throws HyracksDataException {
+        if (canHoldNewTuple(0, length)) {
+            System.arraycopy(bytes, offset, getBuffer().array(), tupleDataEndOffset, length);
+            tupleDataEndOffset += length;
+            IntSerDeUtils.putInt(array, FrameHelper.getTupleCountOffset(frame.getFrameSize()) - 4 * (tupleCount + 1),
+                    tupleDataEndOffset);
+            ++tupleCount;
+            IntSerDeUtils.putInt(array, FrameHelper.getTupleCountOffset(frame.getFrameSize()), tupleCount);
+            return true;
+        }
+        return false;
+    }
+
     @Override
     public boolean appendSkipEmptyField(int[] fieldSlots, byte[] bytes, int offset, int length)
             throws HyracksDataException {

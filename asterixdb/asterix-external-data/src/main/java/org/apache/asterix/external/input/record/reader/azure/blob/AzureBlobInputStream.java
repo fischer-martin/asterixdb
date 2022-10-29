@@ -18,6 +18,7 @@
  */
 package org.apache.asterix.external.input.record.reader.azure.blob;
 
+import static org.apache.asterix.external.util.azure.blob_storage.AzureUtils.buildAzureBlobClient;
 import static org.apache.hyracks.api.util.ExceptionUtils.getMessageOrToString;
 
 import java.io.IOException;
@@ -25,12 +26,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
+import org.apache.asterix.common.api.IApplicationContext;
 import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.common.exceptions.RuntimeDataException;
 import org.apache.asterix.external.input.record.reader.abstracts.AbstractExternalInputStream;
 import org.apache.asterix.external.util.ExternalDataConstants;
-import org.apache.asterix.external.util.ExternalDataUtils;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.util.LogRedactionUtil;
 
@@ -45,9 +46,10 @@ public class AzureBlobInputStream extends AbstractExternalInputStream {
     private final BlobServiceClient client;
     private final String container;
 
-    public AzureBlobInputStream(Map<String, String> configuration, List<String> filePaths) throws HyracksDataException {
+    public AzureBlobInputStream(IApplicationContext appCtx, Map<String, String> configuration, List<String> filePaths)
+            throws HyracksDataException {
         super(configuration, filePaths);
-        this.client = buildAzureClient(configuration);
+        this.client = buildAzureClient(appCtx, configuration);
         this.container = configuration.get(ExternalDataConstants.CONTAINER_NAME_FIELD_NAME);
     }
 
@@ -81,9 +83,10 @@ public class AzureBlobInputStream extends AbstractExternalInputStream {
         return true;
     }
 
-    private BlobServiceClient buildAzureClient(Map<String, String> configuration) throws HyracksDataException {
+    private BlobServiceClient buildAzureClient(IApplicationContext appCtx, Map<String, String> configuration)
+            throws HyracksDataException {
         try {
-            return ExternalDataUtils.Azure.buildAzureBlobClient(configuration);
+            return buildAzureBlobClient(appCtx, configuration);
         } catch (CompilationException ex) {
             throw HyracksDataException.create(ex);
         }

@@ -131,10 +131,6 @@ public class FJDivideDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             throw HyracksDataException.create(e);
                         }
 
-                        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
-                            AlgebricksConfig.ALGEBRICKS_LOGGER
-                                    .info("\nFJ DIVIDE: ID: " + ctx.getServiceContext().getControllerService().getId());
-                        }
                         Configuration C = (Configuration) flexibleJoin.divide(summaryOne, summaryTwo);
                         try {
                             resultStorage.getDataOutput().write(SerializationUtils.serialize(C));

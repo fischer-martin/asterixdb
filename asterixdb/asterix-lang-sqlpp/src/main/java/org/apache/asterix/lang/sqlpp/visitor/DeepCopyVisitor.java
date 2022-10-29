@@ -28,6 +28,7 @@ import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.lang.common.base.AbstractClause;
 import org.apache.asterix.lang.common.base.Expression;
 import org.apache.asterix.lang.common.base.ILangExpression;
+import org.apache.asterix.lang.common.base.IVisitorExtension;
 import org.apache.asterix.lang.common.clause.GroupbyClause;
 import org.apache.asterix.lang.common.clause.LetClause;
 import org.apache.asterix.lang.common.clause.LimitClause;
@@ -193,7 +194,14 @@ public class DeepCopyVisitor extends AbstractSqlppQueryExpressionVisitor<ILangEx
         if (selectClause.selectRegular()) {
             selectRegular = (SelectRegular) selectClause.getSelectRegular().accept(this, arg);
         }
-        SelectClause copy = new SelectClause(selectElement, selectRegular, selectClause.distinct());
+        List<List<String>> fieldExclusions = new ArrayList<>();
+        if (!selectClause.getFieldExclusions().isEmpty()) {
+            for (List<String> fieldExclusion : selectClause.getFieldExclusions()) {
+                List<String> fieldExclusionCopy = new ArrayList<>(fieldExclusion);
+                fieldExclusions.add(fieldExclusionCopy);
+            }
+        }
+        SelectClause copy = new SelectClause(selectElement, selectRegular, fieldExclusions, selectClause.distinct());
         copy.setSourceLocation(selectClause.getSourceLocation());
         return copy;
     }
@@ -504,6 +512,11 @@ public class DeepCopyVisitor extends AbstractSqlppQueryExpressionVisitor<ILangEx
         copy.setSourceLocation(expression.getSourceLocation());
         copy.addHints(expression.getHints());
         return copy;
+    }
+
+    @Override
+    public ILangExpression visit(IVisitorExtension ve, Void arg) throws CompilationException {
+        return ve.deepCopyDispatch(this);
     }
 
     @Override

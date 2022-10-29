@@ -58,6 +58,7 @@ import org.apache.asterix.lang.sqlpp.rewrites.visitor.GenerateColumnNameVisitor;
 import org.apache.asterix.lang.sqlpp.rewrites.visitor.InlineColumnAliasVisitor;
 import org.apache.asterix.lang.sqlpp.rewrites.visitor.InlineWithExpressionVisitor;
 import org.apache.asterix.lang.sqlpp.rewrites.visitor.OperatorExpressionVisitor;
+import org.apache.asterix.lang.sqlpp.rewrites.visitor.SelectExcludeRewriteSugarVisitor;
 import org.apache.asterix.lang.sqlpp.rewrites.visitor.SetOperationVisitor;
 import org.apache.asterix.lang.sqlpp.rewrites.visitor.SqlCompatRewriteVisitor;
 import org.apache.asterix.lang.sqlpp.rewrites.visitor.SqlppCaseAggregateExtractionVisitor;
@@ -139,14 +140,16 @@ public class SqlppQueryRewriter implements IQueryRewriter {
         // Sets up parameters.
         setup(context, topStatement, externalVars, allowNonStoredUdfCalls, inlineUdfsAndViews);
 
-        // Initial SQL-compat mode rewrites
-        rewriteSqlCompat();
-
         // Resolves function calls
         resolveFunctionCalls();
 
         // Generates column names.
         generateColumnNames();
+
+        // SQL-compat mode rewrites
+        // Must run after generateColumnNames() because it might need to generate new column names
+        // for the new projections that it introduces
+        rewriteSqlCompat();
 
         // Substitutes group-by key expressions.
         substituteGroupbyKeyExpression();
@@ -159,6 +162,9 @@ public class SqlppQueryRewriter implements IQueryRewriter {
 
         // Inlines column aliases.
         inlineColumnAlias();
+
+        // Rewrite SELECT EXCLUDE to use OBJECT_REMOVE_FIELDS.
+        rewriteSelectExcludeSugar();
 
         // Window expression core rewrites.
         rewriteWindowExpressions();
@@ -346,6 +352,12 @@ public class SqlppQueryRewriter implements IQueryRewriter {
                 // loop until no more changes
             }
         }
+    }
+
+    protected void rewriteSelectExcludeSugar() throws CompilationException {
+        SelectExcludeRewriteSugarVisitor selectExcludeRewriteSugarVisitor =
+                new SelectExcludeRewriteSugarVisitor(context);
+        rewriteTopExpr(selectExcludeRewriteSugarVisitor, null);
     }
 
     private <R, T> R rewriteTopExpr(ILangVisitor<R, T> visitor, T arg) throws CompilationException {

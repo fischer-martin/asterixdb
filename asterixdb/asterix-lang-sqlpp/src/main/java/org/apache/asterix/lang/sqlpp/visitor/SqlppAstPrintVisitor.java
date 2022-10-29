@@ -22,12 +22,14 @@ import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.common.functions.FunctionSignature;
 import org.apache.asterix.common.metadata.DatasetFullyQualifiedName;
 import org.apache.asterix.lang.common.base.AbstractClause;
 import org.apache.asterix.lang.common.base.Expression;
+import org.apache.asterix.lang.common.base.IVisitorExtension;
 import org.apache.asterix.lang.common.base.Literal;
 import org.apache.asterix.lang.common.clause.GroupbyClause;
 import org.apache.asterix.lang.common.clause.LetClause;
@@ -178,6 +180,11 @@ public class SqlppAstPrintVisitor extends QueryPrintVisitor implements ISqlppVis
     public Void visit(SelectClause selectClause, Integer step) throws CompilationException {
         if (selectClause.selectRegular()) {
             selectClause.getSelectRegular().accept(this, step);
+            if (!selectClause.getFieldExclusions().isEmpty()) {
+                out.print(skip(step) + "EXCLUDE ");
+                out.println(selectClause.getFieldExclusions().stream().map(e -> String.join(".", e))
+                        .collect(Collectors.joining(",")));
+            }
         }
         if (selectClause.selectElement()) {
             selectClause.getSelectElement().accept(this, step);
@@ -369,6 +376,12 @@ public class SqlppAstPrintVisitor extends QueryPrintVisitor implements ISqlppVis
             expression.getEndIndexExpression().accept(this, step + 1);
         }
         out.println(skip(step) + "]");
+        return null;
+    }
+
+    @Override
+    public Void visit(IVisitorExtension ve, Integer arg) throws CompilationException {
+        // Language extensions should create a child of this class.
         return null;
     }
 

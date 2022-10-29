@@ -93,7 +93,9 @@ import org.apache.asterix.metadata.feeds.FeedMetadataUtil;
 import org.apache.asterix.metadata.lock.ExternalDatasetsRegistry;
 import org.apache.asterix.metadata.utils.DatasetUtil;
 import org.apache.asterix.metadata.utils.FullTextUtil;
+import org.apache.asterix.metadata.utils.IndexUtil;
 import org.apache.asterix.metadata.utils.MetadataConstants;
+import org.apache.asterix.metadata.utils.MetadataUtil;
 import org.apache.asterix.metadata.utils.SplitsAndConstraintsUtil;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionExtensionManager;
@@ -115,6 +117,7 @@ import org.apache.hyracks.algebricks.common.constraints.AlgebricksPartitionConst
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.common.utils.Pair;
 import org.apache.hyracks.algebricks.common.utils.Triple;
+import org.apache.hyracks.algebricks.core.algebra.base.Counter;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import org.apache.hyracks.algebricks.core.algebra.expressions.IExpressionRuntimeProvider;
@@ -169,6 +172,7 @@ import org.apache.hyracks.storage.am.lsm.invertedindex.fulltext.IFullTextConfigE
 import org.apache.hyracks.storage.am.lsm.invertedindex.tokenizers.IBinaryTokenizerFactory;
 import org.apache.hyracks.storage.am.rtree.dataflow.RTreeSearchOperatorDescriptor;
 import org.apache.hyracks.storage.common.IStorageManager;
+import org.apache.hyracks.storage.common.projection.ITupleProjectorFactory;
 
 public class MetadataProvider implements IMetadataProvider<DataSourceId, String> {
 
@@ -182,12 +186,11 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
     private Dataverse defaultDataverse;
     private MetadataTransactionContext mdTxnCtx;
     private boolean isWriteTransaction;
-    private IAWriterFactory writerFactory;
     private FileSplit outputFile;
     private boolean asyncResults;
     private long maxResultReads;
     private ResultSetId resultSetId;
-    private IResultSerializerFactoryProvider resultSerializerFactoryProvider;
+    private Counter resultSetIdCounter;
     private TxnId txnId;
     private Map<String, Integer> externalDataLocks;
     private boolean blockingOperatorDisabled = false;
@@ -262,20 +265,12 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
         this.isWriteTransaction = writeTransaction;
     }
 
-    public void setWriterFactory(IAWriterFactory writerFactory) {
-        this.writerFactory = writerFactory;
-    }
-
     public void setMetadataTxnContext(MetadataTransactionContext mdTxnCtx) {
         this.mdTxnCtx = mdTxnCtx;
     }
 
     public MetadataTransactionContext getMetadataTxnContext() {
         return mdTxnCtx;
-    }
-
-    public IAWriterFactory getWriterFactory() {
-        return this.writerFactory;
     }
 
     public FileSplit getOutputFile() {
@@ -310,12 +305,12 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
         this.resultSetId = resultSetId;
     }
 
-    public void setResultSerializerFactoryProvider(IResultSerializerFactoryProvider rafp) {
-        this.resultSerializerFactoryProvider = rafp;
+    public Counter getResultSetIdCounter() {
+        return resultSetIdCounter;
     }
 
-    public IResultSerializerFactoryProvider getResultSerializerFactoryProvider() {
-        return resultSerializerFactoryProvider;
+    public void setResultSetIdCounter(Counter resultSetIdCounter) {
+        this.resultSetIdCounter = resultSetIdCounter;
     }
 
     public boolean isWriteTransaction() {
@@ -437,6 +432,16 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
         return MetadataManagerUtil.getDatasetIndexes(mdTxnCtx, dataverseName, datasetName);
     }
 
+    public Index findSampleIndex(DataverseName dataverseName, String datasetName) throws AlgebricksException {
+        Pair<String, String> sampleIndexNames = IndexUtil.getSampleIndexNames(datasetName);
+        Index sampleIndex = getIndex(dataverseName, datasetName, sampleIndexNames.first);
+        if (sampleIndex != null && sampleIndex.getPendingOp() == MetadataUtil.PENDING_NO_OP) {
+            return sampleIndex;
+        }
+        sampleIndex = getIndex(dataverseName, datasetName, sampleIndexNames.second);
+        return sampleIndex != null && sampleIndex.getPendingOp() == MetadataUtil.PENDING_NO_OP ? sampleIndex : null;
+    }
+
     public Triple<DataverseName, String, Boolean> resolveDatasetNameUsingSynonyms(DataverseName dataverseName,
             String datasetName, boolean includingViews) throws AlgebricksException {
         DataverseName dvName = getActiveDataverseName(dataverseName);
@@ -542,7 +547,8 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
             int[] lowKeyFields, int[] highKeyFields, boolean lowKeyInclusive, boolean highKeyInclusive,
             boolean propagateFilter, IMissingWriterFactory nonFilterWriterFactory, int[] minFilterFieldIndexes,
             int[] maxFilterFieldIndexes, ITupleFilterFactory tupleFilterFactory, long outputLimit,
-            boolean isIndexOnlyPlan, boolean isPrimaryIndexPointSearch) throws AlgebricksException {
+            boolean isIndexOnlyPlan, boolean isPrimaryIndexPointSearch, ITupleProjectorFactory tupleProjectorFactory)
+            throws AlgebricksException {
         boolean isSecondary = true;
         Index primaryIndex = MetadataManager.INSTANCE.getIndex(mdTxnCtx, dataset.getDataverseName(),
                 dataset.getDatasetName(), dataset.getDatasetName());
@@ -560,6 +566,12 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
                 break;
             case BTREE:
                 numSecondaryKeys = ((Index.ValueIndexDetails) theIndex.getIndexDetails()).getKeyFieldNames().size();
+                break;
+            case SAMPLE:
+                if (isIndexOnlyPlan) {
+                    throw new CompilationException(ErrorCode.COMPILATION_ILLEGAL_STATE, "");
+                }
+                numSecondaryKeys = 0;
                 break;
             default:
                 throw new CompilationException(ErrorCode.COMPILATION_UNKNOWN_INDEX_TYPE,
@@ -601,12 +613,13 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
                     ? new LSMBTreeBatchPointSearchOperatorDescriptor(jobSpec, outputRecDesc, lowKeyFields,
                             highKeyFields, lowKeyInclusive, highKeyInclusive, indexHelperFactory, retainInput,
                             retainMissing, nonMatchWriterFactory, searchCallbackFactory, minFilterFieldIndexes,
-                            maxFilterFieldIndexes, tupleFilterFactory, outputLimit)
+                            maxFilterFieldIndexes, tupleFilterFactory, outputLimit, tupleProjectorFactory)
                     : new BTreeSearchOperatorDescriptor(jobSpec, outputRecDesc, lowKeyFields, highKeyFields,
                             lowKeyInclusive, highKeyInclusive, indexHelperFactory, retainInput, retainMissing,
                             nonMatchWriterFactory, searchCallbackFactory, minFilterFieldIndexes, maxFilterFieldIndexes,
                             propagateFilter, nonFilterWriterFactory, tupleFilterFactory, outputLimit,
-                            proceedIndexOnlyPlan, failValueForIndexOnlyPlan, successValueForIndexOnlyPlan);
+                            proceedIndexOnlyPlan, failValueForIndexOnlyPlan, successValueForIndexOnlyPlan,
+                            tupleProjectorFactory);
         } else {
             btreeSearchOp = new ExternalBTreeSearchOperatorDescriptor(jobSpec, outputRecDesc, lowKeyFields,
                     highKeyFields, lowKeyInclusive, highKeyInclusive, indexHelperFactory, retainInput, retainMissing,
@@ -683,7 +696,8 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
 
     @Override
     public Pair<IPushRuntimeFactory, AlgebricksPartitionConstraint> getWriteFileRuntime(IDataSink sink,
-            int[] printColumns, IPrinterFactory[] printerFactories, RecordDescriptor inputDesc) {
+            int[] printColumns, IPrinterFactory[] printerFactories, IAWriterFactory writerFactory,
+            RecordDescriptor inputDesc) {
         FileSplitDataSink fsds = (FileSplitDataSink) sink;
         FileSplitSinkId fssi = fsds.getId();
         FileSplit fs = fssi.getFileSplit();
@@ -691,14 +705,15 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
         String nodeId = fs.getNodeName();
 
         SinkWriterRuntimeFactory runtime =
-                new SinkWriterRuntimeFactory(printColumns, printerFactories, outFile, getWriterFactory(), inputDesc);
+                new SinkWriterRuntimeFactory(printColumns, printerFactories, outFile, writerFactory, inputDesc);
         AlgebricksPartitionConstraint apc = new AlgebricksAbsolutePartitionConstraint(new String[] { nodeId });
         return new Pair<>(runtime, apc);
     }
 
     @Override
     public Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> getResultHandleRuntime(IDataSink sink,
-            int[] printColumns, IPrinterFactory[] printerFactories, RecordDescriptor inputDesc,
+            int[] printColumns, IPrinterFactory[] printerFactories, IAWriterFactory writerFactory,
+            IResultSerializerFactoryProvider resultSerializerFactoryProvider, RecordDescriptor inputDesc,
             IResultMetadata metadata, JobSpecification spec) throws AlgebricksException {
         ResultSetDataSink rsds = (ResultSetDataSink) sink;
         ResultSetSinkId rssId = rsds.getId();
@@ -706,7 +721,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
         ResultWriterOperatorDescriptor resultWriter = null;
         try {
             IResultSerializerFactory resultSerializedAppenderFactory = resultSerializerFactoryProvider
-                    .getAqlResultSerializerFactoryProvider(printColumns, printerFactories, getWriterFactory());
+                    .getResultSerializerFactoryProvider(printColumns, printerFactories, writerFactory);
             resultWriter = new ResultWriterOperatorDescriptor(spec, rsId, metadata, getResultAsyncMode(),
                     resultSerializedAppenderFactory, getMaxResultReads());
         } catch (IOException e) {
@@ -859,7 +874,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
      *
      * @param dataset
      * @return Number of elements that will be used to create a bloom filter per
-     *         dataset per partition
+     * dataset per partition
      * @throws AlgebricksException
      */
     public long getCardinalityPerPartitionHint(Dataset dataset) throws AlgebricksException {

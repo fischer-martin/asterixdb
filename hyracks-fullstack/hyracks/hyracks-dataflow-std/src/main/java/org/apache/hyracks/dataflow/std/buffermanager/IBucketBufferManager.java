@@ -20,8 +20,6 @@
 package org.apache.hyracks.dataflow.std.buffermanager;
 
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
-import org.apache.hyracks.api.comm.IFrameWriter;
-import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 
@@ -65,7 +63,5 @@ public interface IBucketBufferManager {
      */
     void close();
 
-    ITuplePointerAccessor getTuplePointerAccessor(RecordDescriptor recordDescriptor);
-
-    IPartitionedMemoryConstrain getConstrain();
+    ITuplePointerAccessor createTuplePointerAccessor();
 }

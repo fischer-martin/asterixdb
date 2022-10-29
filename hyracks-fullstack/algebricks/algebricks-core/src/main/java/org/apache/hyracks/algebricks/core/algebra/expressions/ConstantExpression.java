@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.hyracks.algebricks.core.algebra.expressions;
 
 import java.util.Collection;
@@ -55,7 +56,7 @@ public final class ConstantExpression extends AbstractLogicalExpression {
 
         @Override
         public String toString() {
-            return "TRUE";
+            return "true";
         }
 
         @Override
@@ -92,7 +93,7 @@ public final class ConstantExpression extends AbstractLogicalExpression {
 
         @Override
         public String toString() {
-            return "FALSE";
+            return "false";
         }
 
         @Override
@@ -129,7 +130,7 @@ public final class ConstantExpression extends AbstractLogicalExpression {
 
         @Override
         public String toString() {
-            return "NULL";
+            return "null";
         }
 
         @Override
@@ -166,7 +167,7 @@ public final class ConstantExpression extends AbstractLogicalExpression {
 
         @Override
         public String toString() {
-            return "MISSING";
+            return "missing";
         }
 
         @Override

@@ -124,16 +124,37 @@ public class RunFileStream {
         totalTupleCount++;
     }
 
-    public void addToRunFile(IFrameTupleAccessor accessor, int tupleId, TuplePointer tuplePointer) throws HyracksDataException {
-        if (!runFileAppender.append(accessor, tupleId)) {
+    //Set the tuple pointer as it shows the location on disk
+    public void addToRunFile(IFrameTupleAccessor accessor, int tupleId, TuplePointer tuplePointer,
+            boolean forceNewFrame) throws HyracksDataException {
+        int offset = ((FrameTupleAppender) runFileAppender).getTupleDataEndOffset();
+        if ((forceNewFrame && totalTupleCount > 0) || !runFileAppender.append(accessor, tupleId)) {
             runFileAppender.write(runFileWriter, true);
+            offset = ((FrameTupleAppender) runFileAppender).getTupleDataEndOffset();
             writeCount++;
             runFileAppender.append(accessor, tupleId);
         }
         totalTupleCount++;
 
-        tuplePointer.reset((int) -writeCount, runFileAppender.getBuffer().arrayOffset());
+        tuplePointer.reset((int) -(writeCount + 1), offset);
 
+    }
+
+    public void startReadingRunFile() throws HyracksDataException {
+        if (runFileReader != null) {
+            runFileReader.close();
+        }
+        reading = true;
+        // Create reader
+        runFileReader = runFileWriter.createReader();
+        runFileReader.open();
+        previousReadPointer = 0;
+    }
+
+    public long getRunFileReaderSize() {
+        if (runFileReader == null)
+            return -1;
+        return runFileReader.getFileSize();
     }
 
     public void startReadingRunFile(FrameTupleCursor cursor) throws HyracksDataException {
@@ -152,6 +173,25 @@ public class RunFileStream {
         previousReadPointer = 0;
         // Load first frame
         loadNextBuffer(cursor);
+    }
+
+    public void seekToAPosition(long position) throws HyracksDataException {
+        if (runFileReader == null)
+            return;
+
+        //runFileReader.open();
+        runFileReader.seek(position);
+        previousReadPointer = runFileReader.position();
+    }
+
+    public boolean loadNextBuffer(IFrame frame) throws HyracksDataException {
+        final long tempFrame = runFileReader.position();
+        if (runFileReader.nextFrame(frame)) {
+            previousReadPointer = tempFrame;
+            readCount++;
+            return true;
+        }
+        return false;
     }
 
     public boolean loadNextBuffer(FrameTupleCursor cursor) throws HyracksDataException {

@@ -21,7 +21,21 @@ package org.apache.asterix.external.cartilage.util;
 import java.io.DataInputStream;
 import java.util.List;
 
-import org.apache.asterix.dataflow.data.nontagged.serde.*;
+import org.apache.asterix.dataflow.data.nontagged.serde.ABooleanSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ADateSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ADateTimeSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ADayTimeDurationSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ADurationSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AFloatSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AGeometrySerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AInt16SerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AInt64SerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AInt8SerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ARecordSerializerDeserializer;
 import org.apache.asterix.external.cartilage.base.types.Interval;
 import org.apache.asterix.external.cartilage.base.types.Rectangle;
 import org.apache.asterix.om.base.ABoolean;
@@ -101,6 +115,10 @@ public class ParameterTypeResolver {
 
     public static Object getKeyObject(DataInputStream dataInputStream, ATypeTag dataType) throws HyracksDataException {
         Object returnObject = null;
+        if (dataType == ATypeTag.INTERVAL) {
+            returnObject = new Interval(0, 0);
+        }
+
         switch (dataType) {
             case BOOLEAN:
                 returnObject = ABooleanSerializerDeserializer.INSTANCE.deserialize(dataInputStream).getBoolean();
@@ -141,10 +159,19 @@ public class ParameterTypeResolver {
                 break;
             case INTERVAL: {
                 //returnObject = AIntervalSerializerDeserializer.INSTANCE.deserialize(dataInputStream).toString();
-                AInterval interval = AIntervalSerializerDeserializer.INSTANCE.deserialize(dataInputStream);
-                long start0 = interval.getIntervalStart();
-                long end0 = interval.getIntervalEnd();
-                returnObject = new Interval(start0, end0);
+                try {
+                    byte tag = dataInputStream.readByte();
+                    if (tag == ATypeTag.DATETIME.serialize()) {
+                        ((Interval) returnObject).start = dataInputStream.readLong();
+                        ((Interval) returnObject).end = dataInputStream.readLong();
+                    } else {
+                        ((Interval) returnObject).start = dataInputStream.readInt();
+                        ((Interval) returnObject).end = dataInputStream.readInt();
+                    }
+                } catch (Exception e) {
+                    System.out.println(e.getMessage());
+                }
+
                 break;
             }
             case STRING:
@@ -159,6 +186,9 @@ public class ParameterTypeResolver {
                 returnObject = new Rectangle(minX1, maxX1, minY1, maxY1);
                 break;
             }
+            case OBJECT:
+                returnObject = ARecordSerializerDeserializer.SCHEMALESS_INSTANCE.deserialize(dataInputStream).toJSON();
+                break;
             case ANY:
                 returnObject = dataInputStream;
         }

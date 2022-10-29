@@ -22,7 +22,7 @@
   <parent>
     <artifactId>apache-asterixdb</artifactId>
     <groupId>org.apache.asterix</groupId>
-    <version>0.9.7-SNAPSHOT</version>
+    <version>0.9.8-SNAPSHOT</version>
   </parent>
   <artifactId>asterix-app</artifactId>
   <licenses>
@@ -267,6 +267,7 @@
               <excludes combine.children="append">
                 <exclude>src/test/resources/**/results_parser_sqlpp/**</exclude>
                 <exclude>src/test/resources/**/results/**</exclude>
+                <exclude>src/test/resources/**/results_cbo/**</exclude>
                 <exclude>src/test/resources/fuzzyjoin/pub/fuzzy-join-aql*.dot</exclude>
                 <exclude>src/test/resources/fuzzyjoin/pub/fuzzy-join-aql*.json</exclude>
                 <exclude>**/data/**</exclude>
@@ -388,7 +389,7 @@
     <profile>
       <id>asterix-gerrit-asterix-app</id>
       <properties>
-        <test.excludes>**/SqlppExecutionWithCancellationTest.java,**/DmlTest.java,**/RepeatedTest.java,**/SqlppExecutionTest.java,**/AqlExecutionTest.java,**/*Compression*Test.java,**/*Ssl*Test.java</test.excludes>
+        <test.excludes>**/SqlppExecutionWithCancellationTest.java,**/DmlTest.java,**/RepeatedTest.java,**/SqlppExecutionTest.java,**/AqlExecutionTest.java,**/*Compression*Test.java,**/*Ssl*Test.java,**/Podman*.java</test.excludes>
         <itest.excludes>**/*.java</itest.excludes>
       </properties>
       <build>

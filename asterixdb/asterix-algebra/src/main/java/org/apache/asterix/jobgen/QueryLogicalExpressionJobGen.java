@@ -153,7 +153,7 @@ public class QueryLogicalExpressionJobGen implements ILogicalExpressionJobGen {
             throws AlgebricksException {
         IScalarEvaluatorFactory[] args = codegenArguments(expr, env, inputSchemas, context);
         IFunctionDescriptor fd;
-        if (expr.getFunctionInfo() instanceof IExternalFunctionInfo) {
+        if (expr.getFunctionInfo().isExternal()) {
             // Expr is an external function
             fd = ExternalFunctionDescriptorProvider.resolveExternalFunction(expr, env, context);
         } else {

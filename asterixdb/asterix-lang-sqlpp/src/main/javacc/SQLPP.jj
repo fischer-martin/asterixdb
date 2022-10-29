@@ -66,6 +66,7 @@ import org.apache.asterix.common.annotations.SkipSecondaryIndexSearchExpressionA
 import org.apache.asterix.common.annotations.SpatialJoinAnnotation;
 import org.apache.asterix.common.annotations.TypeDataGen;
 import org.apache.asterix.common.annotations.UndeclaredFieldsDataGen;
+import org.apache.asterix.common.annotations.FlexibleJoinAnnotation;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.config.DatasetConfig.IndexType;
 import org.apache.asterix.common.exceptions.AsterixException;
@@ -76,6 +77,7 @@ import org.apache.asterix.common.functions.FunctionConstants;
 import org.apache.asterix.common.functions.FunctionSignature;
 import org.apache.asterix.common.metadata.DataverseName;
 import org.apache.asterix.common.metadata.DatasetFullyQualifiedName;
+import org.apache.asterix.external.dataset.adapter.AdapterIdentifier;
 import org.apache.asterix.lang.common.base.AbstractClause;
 import org.apache.asterix.lang.common.base.AbstractLangExpression;
 import org.apache.asterix.lang.common.base.AbstractStatement;
@@ -124,6 +126,8 @@ import org.apache.asterix.lang.common.literal.StringLiteral;
 import org.apache.asterix.lang.common.literal.TrueLiteral;
 import org.apache.asterix.lang.common.parser.ScopeChecker;
 import org.apache.asterix.lang.common.statement.AdapterDropStatement;
+import org.apache.asterix.lang.common.statement.AnalyzeStatement;
+import org.apache.asterix.lang.common.statement.AnalyzeDropStatement;
 import org.apache.asterix.lang.common.statement.CompactStatement;
 import org.apache.asterix.lang.common.statement.ConnectFeedStatement;
 import org.apache.asterix.lang.common.statement.StartFeedStatement;
@@ -207,7 +211,7 @@ import org.apache.asterix.lang.sqlpp.struct.SetOperationRight;
 import org.apache.asterix.lang.sqlpp.util.ExpressionToVariableUtil;
 import org.apache.asterix.lang.sqlpp.util.FunctionMapUtil;
 import org.apache.asterix.lang.sqlpp.util.SqlppVariableUtil;
-import org.apache.asterix.external.dataset.adapter.AdapterIdentifier;
+import org.apache.asterix.metadata.utils.MetadataConstants;
 import org.apache.asterix.om.exceptions.TypeMismatchException;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.types.BuiltinType;
@@ -217,7 +221,10 @@ import org.apache.hyracks.algebricks.common.utils.Pair;
 import org.apache.hyracks.algebricks.common.utils.Triple;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.core.algebra.expressions.BroadcastExpressionAnnotation;
+import org.apache.hyracks.algebricks.core.algebra.expressions.HashJoinExpressionAnnotation;
 import org.apache.hyracks.algebricks.core.algebra.expressions.IExpressionAnnotation;
+import org.apache.hyracks.algebricks.core.algebra.expressions.JoinProductivityAnnotation;
+import org.apache.hyracks.algebricks.core.algebra.expressions.PredicateCardinalityAnnotation;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.api.exceptions.IWarningCollector;
 import org.apache.hyracks.api.exceptions.SourceLocation;
@@ -225,6 +232,8 @@ import org.apache.hyracks.api.exceptions.Warning;
 import org.apache.hyracks.dataflow.common.data.partition.range.RangeMap;
 import org.apache.hyracks.util.LogRedactionUtil;
 import org.apache.hyracks.util.StringUtil;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 class SQLPPParser extends ScopeChecker implements IParser {
 
@@ -259,6 +268,7 @@ class SQLPPParser extends ScopeChecker implements IParser {
     private static final String REPLACE = "REPLACE";
     private static final String RETURNS = "RETURNS";
     private static final String CONFIG = "CONFIG";
+    private static final String STATISTICS = "STATISTICS";
 
 
     private static final String INT_TYPE_NAME = "int";
@@ -649,10 +659,50 @@ class SQLPPParser extends ScopeChecker implements IParser {
     private IExpressionAnnotation parseExpressionAnnotation(Token hintToken) {
       // placeholder for the annotation that should be returned if this hint's parameters cannot be parsed
       IExpressionAnnotation onParseErrorReturn = null;
+      double selectivity, cardinality, productivity;
+      Pattern number = Pattern.compile("\\d+\\.\\d+");
+      Pattern stringNumber = Pattern.compile("\\w+\\s+\\d+\\.\\d+");
+      Pattern lessThanOnePat = Pattern.compile("0\\.\\d+");
       try {
         switch (hintToken.hint) {
+          case SINGLE_DATASET_PREDICATE_SELECTIVITY_HINT:
+            selectivity = 1.0; // uninitialized
+            if (hintToken.hintParams != null) {
+            Matcher mat = lessThanOnePat.matcher(hintToken.hintParams);
+            if (mat.find()) {
+                selectivity = Double.parseDouble (mat.group());
+                }
+            }
+
+            return new PredicateCardinalityAnnotation(selectivity);
+          case JOIN_PREDICATE_PRODUCTIVITY_HINT:
+            productivity = 1.0; // uninitialized
+            String leftSideDataSet = null;
+            if (hintToken.hintParams != null) {
+                Matcher StringNum = stringNumber.matcher(hintToken.hintParams);
+
+                if (StringNum.find()) {
+                    String matchedGroup = StringNum.group();
+                    Pattern var = Pattern.compile("[a-zA-Z]\\w*"); // any word character [a-zA-Z_0-9]
+                    Matcher matVar = var.matcher(matchedGroup);
+                    if (matVar.find())
+                        leftSideDataSet = matVar.group();
+                    Matcher numMat = number.matcher(matchedGroup);
+                    if (numMat.find())
+                        productivity = Double.parseDouble (numMat.group());
+                }
+            }
+            // attach hint to global scope
+            return new JoinProductivityAnnotation (productivity, leftSideDataSet);
           case HASH_BROADCAST_JOIN_HINT:
             return new BroadcastExpressionAnnotation(BroadcastExpressionAnnotation.BroadcastSide.RIGHT);
+
+          case FJ_SHADOW_JOIN_HINT:
+            return new FlexibleJoinAnnotation();
+
+          case HASH_JOIN_HINT:
+            return new HashJoinExpressionAnnotation(HashJoinExpressionAnnotation.BuildSide.RIGHT);
+
           case INDEXED_NESTED_LOOP_JOIN_HINT:
             if (hintToken.hintParams == null) {
               return IndexedNLJoinExpressionAnnotation.INSTANCE_ANY_INDEX;
@@ -838,6 +888,7 @@ Statement SingleStatement() throws ParseException:
     | stmt = UpsertStatement()
     | stmt = ConnectionStatement()
     | stmt = CompactStatement()
+    | stmt = AnalyzeStatement()
     | stmt = Query()
     | stmt = RefreshExternalDatasetStatement()
   )
@@ -1381,7 +1432,7 @@ CreateIndexStatement PrimaryIndexSpecification(Token startStmtToken) throws Pars
   <ON> nameComponents = QualifiedName() (<TYPE> <BTREE>)?
   {
     if (indexName == null) {
-      indexName = "primary_idx_" + nameComponents.second;
+      indexName = MetadataConstants.PRIMARY_INDEX_PREFIX + nameComponents.second;
     }
     CreateIndexStatement stmt = new CreateIndexStatement(nameComponents.first, nameComponents.second,
       new Identifier(indexName), IndexType.BTREE, Collections.emptyList(), false, -1, null, ifNotExists, null, null,
@@ -2742,6 +2793,50 @@ String AdapterName() throws ParseException :
     }
 }
 
+Statement AnalyzeStatement() throws ParseException:
+{
+  Token startToken = null;
+  Statement stmt = null;
+  Pair<DataverseName,Identifier> nameComponents = null;
+}
+{
+  <ANALYZE> { startToken = token; } Dataset() nameComponents = QualifiedName()
+  (
+    stmt = AnalyzeDatasetDropStatement(startToken, nameComponents.first, nameComponents.second)
+    | stmt = AnalyzeDatasetStatement(startToken, nameComponents.first, nameComponents.second)
+  )
+  {
+    return stmt;
+  }
+}
+
+Statement AnalyzeDatasetStatement(Token startToken, DataverseName dvName, Identifier identifier) throws ParseException:
+{
+  RecordConstructor withRecord = null;
+}
+{
+  ( <WITH> withRecord = RecordConstructor() )?
+  {
+    try {
+    AnalyzeStatement stmt = new AnalyzeStatement(dvName, identifier.getValue(), withRecord);
+    return addSourceLocation(stmt, startToken);
+    } catch (CompilationException e) {
+       throw new SqlppParseException(getSourceLocation(startToken), e.getMessage());
+    }
+  }
+}
+
+Statement AnalyzeDatasetDropStatement(Token startToken, DataverseName dvName, Identifier identifier) throws ParseException:
+{
+}
+{
+  <DROP> <IDENTIFIER> { expectToken(STATISTICS); }
+  {
+    AnalyzeDropStatement stmt = new AnalyzeDropStatement(dvName, identifier.getValue());
+    return addSourceLocation(stmt, startToken);
+  }
+}
+
 Statement CompactStatement() throws ParseException:
 {
   Token startToken = null;
@@ -3108,8 +3203,10 @@ FunctionName FunctionName() throws ParseException:
   // Note: there's a copy of this production in PrimaryExpr() (LOOKAHEAD for FunctionCallExpr())
   //       that copy must be kept in sync with this code
   prefix = MultipartIdentifierWithHints(
-    SqlppHint.INDEXED_NESTED_LOOP_JOIN_HINT, SqlppHint.RANGE_HINT, SqlppHint.SKIP_SECONDARY_INDEX_SEARCH_HINT,
-    SqlppHint.SPATIAL_JOIN_HINT, SqlppHint.USE_SECONDARY_INDEX_SEARCH_HINT
+
+    SqlppHint.INDEXED_NESTED_LOOP_JOIN_HINT, SqlppHint.RANGE_HINT, SqlppHint.HASH_JOIN_HINT, SqlppHint.SKIP_SECONDARY_INDEX_SEARCH_HINT,
+    SqlppHint.SPATIAL_JOIN_HINT, SqlppHint.USE_SECONDARY_INDEX_SEARCH_HINT, SqlppHint.FJ_SHADOW_JOIN_HINT
+
   )
   (<SHARP> suffix = Identifier())?
   {
@@ -3595,6 +3692,7 @@ Expression RelExpr() throws ParseException:
   Token opToken = null;
   Expression operand = null;
   IExpressionAnnotation annotation = null;
+  List<IExpressionAnnotation> annotationList = new ArrayList<IExpressionAnnotation>();
 }
 {
     operand = BetweenExpr()
@@ -3608,10 +3706,13 @@ Expression RelExpr() throws ParseException:
           }
           Token hintToken = fetchHint(token,
             SqlppHint.HASH_BROADCAST_JOIN_HINT, SqlppHint.INDEXED_NESTED_LOOP_JOIN_HINT,
-            SqlppHint.SKIP_SECONDARY_INDEX_SEARCH_HINT, SqlppHint.USE_SECONDARY_INDEX_SEARCH_HINT
+            SqlppHint.HASH_JOIN_HINT, SqlppHint.SKIP_SECONDARY_INDEX_SEARCH_HINT, SqlppHint.USE_SECONDARY_INDEX_SEARCH_HINT,
+            SqlppHint.SINGLE_DATASET_PREDICATE_SELECTIVITY_HINT, SqlppHint.JOIN_PREDICATE_PRODUCTIVITY_HINT
           );
-          if (hintToken != null) {
+          while (hintToken != null) {
             annotation = parseExpressionAnnotation(hintToken);
+            annotationList.add(annotation);
+            hintToken = hintToken.specialToken;
           }
           String operator = opToken.image.toLowerCase();
           if (operator.equals("<>")){
@@ -3641,7 +3742,7 @@ Expression RelExpr() throws ParseException:
 
      {
        if (annotation != null) {
-         op.addHint(annotation);
+         op.addHints(annotationList);
        }
        return op==null? operand: op;
      }
@@ -3661,8 +3762,8 @@ Expression BetweenExpr() throws ParseException:
       (<NOT> { not = true; })? <BETWEEN>
         {
           Token hintToken = fetchHint(token,
-            SqlppHint.INDEXED_NESTED_LOOP_JOIN_HINT, SqlppHint.SKIP_SECONDARY_INDEX_SEARCH_HINT,
-            SqlppHint.USE_SECONDARY_INDEX_SEARCH_HINT
+            SqlppHint.INDEXED_NESTED_LOOP_JOIN_HINT, SqlppHint.SKIP_SECONDARY_INDEX_SEARCH_HINT, SqlppHint.HASH_JOIN_HINT,
+            SqlppHint.USE_SECONDARY_INDEX_SEARCH_HINT, SqlppHint.SINGLE_DATASET_PREDICATE_SELECTIVITY_HINT
           );
           if (hintToken != null) {
             annotation = parseExpressionAnnotation(hintToken);
@@ -3746,6 +3847,7 @@ Expression LikeExpr() throws ParseException:
   boolean not = false;
   OperatorExpr op = null;
   Expression operand = null;
+  IExpressionAnnotation annotation = null;
 }
 {
     operand = ConcatExpr()
@@ -3753,6 +3855,10 @@ Expression LikeExpr() throws ParseException:
         LOOKAHEAD(2)
         (<NOT> { not = true; })? <LIKE>
         {
+          Token hintToken = fetchHint(token, SqlppHint.SINGLE_DATASET_PREDICATE_SELECTIVITY_HINT);
+          if (hintToken != null) {
+               annotation = parseExpressionAnnotation(hintToken);
+          }
           op = new OperatorExpr();
           op.addOperand(operand);
           op.setCurrentop(true);
@@ -3766,6 +3872,9 @@ Expression LikeExpr() throws ParseException:
             op.addOperator(operator);
           } catch (CompilationException e){
             throw new SqlppParseException(getSourceLocation(token), e.getMessage());
+          }
+          if (annotation != null) {
+             op.addHint(annotation);
           }
         }
 
@@ -4789,12 +4898,33 @@ SelectClause SelectClause() throws ParseException:
   Token startToken = null;
   SelectRegular selectRegular = null;
   SelectElement selectElement = null;
+  List<List<String>> fieldExclusions = new ArrayList<List<String>>();
+  List<String> nestedField = new ArrayList<String>();
+  String identifier;
   boolean distinct = false;
 }
 {
   <SELECT> { startToken = token; } (<ALL>|<DISTINCT> { distinct = true; } )?
   (
-    selectRegular = SelectRegular()
+    (
+      selectRegular = SelectRegular()
+      ( LOOKAHEAD({laIdentifier(EXCLUDE)}) <IDENTIFIER>
+        identifier = Identifier() { nestedField.add(identifier); }
+        ( <DOT> identifier = Identifier() { nestedField.add(identifier); } )*
+        {
+          fieldExclusions.add(nestedField);
+          nestedField = new ArrayList<String>();
+        }
+        ( LOOKAHEAD(1) // Force <COMMA> to be recognized for a nested field in our EXCLUDE list.
+          <COMMA> identifier = Identifier() { nestedField.add(identifier); }
+          ( <DOT> identifier = Identifier() { nestedField.add(identifier); } )*
+          {
+            fieldExclusions.add(nestedField);
+            nestedField = new ArrayList<String>();
+          }
+        )*
+      )?
+    )
     |
     selectElement = SelectElement()
   )?
@@ -4808,7 +4938,7 @@ SelectClause SelectClause() throws ParseException:
         selectRegular = new SelectRegular(projections);
         selectRegular.setSourceLocation(sourceLoc);
     }
-    SelectClause selectClause = new SelectClause(selectElement, selectRegular, distinct);
+    SelectClause selectClause = new SelectClause(selectElement, selectRegular, fieldExclusions, distinct);
     selectClause.setSourceLocation(sourceLoc);
     return selectClause;
   }
@@ -4866,7 +4996,12 @@ Projection Projection() throws ParseException :
   (
     <MUL> { kind = Projection.Kind.STAR; startSrcLoc = getSourceLocation(token); }
     | LOOKAHEAD(3) expr = VariableRef() <DOT> <MUL> { kind = Projection.Kind.VAR_STAR; }
-    | expr = Expression() ((<AS>)? name = Identifier())?
+    | expr = Expression()
+      ( // EXCLUDE is a soft-keyword-- we want to avoid mistaking EXCLUDE as an identifier here.
+        LOOKAHEAD({ getToken(1).kind == AS || getToken(1).kind == QUOTED_STRING
+                    || (getToken(1).kind == IDENTIFIER && !laIdentifier(1, EXCLUDE)) })
+        (<AS>)? name = Identifier()
+      )?
       {
         kind = Projection.Kind.NAMED_EXPR;
         if (name == null) {
@@ -5418,11 +5553,12 @@ TOKEN_MGR_DECLS:
 
     void CommonTokenAction(Token token) {
       Token hintToken = token.specialToken;
-      if (hintToken != null) {
+      while (hintToken != null) { // make this a while loop
         hintToken.sourceLocation = new SourceLocation(hintToken.beginLine, hintToken.beginColumn);
         String text = hintToken.image.substring(1).trim();
         boolean hintFound = hintToken.parseHint(text);
         hintCollector.put(hintToken.sourceLocation, hintFound ? hintToken.hint.getIdentifier() : hintToken.hintParams);
+        hintToken = hintToken.specialToken;
       }
     }
 }
@@ -5432,6 +5568,7 @@ TOKEN [IGNORE_CASE]:
 {
   <ADAPTER: "adapter">
   | <ALL : "all">
+  | <ANALYZE: "analyze">
   | <AND : "and">
   | <ANY : "any">
   | <APPLY : "apply">

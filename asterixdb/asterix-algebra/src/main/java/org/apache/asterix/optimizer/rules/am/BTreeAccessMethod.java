@@ -39,17 +39,21 @@ import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.config.DatasetConfig.IndexType;
 import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.common.exceptions.ErrorCode;
+import org.apache.asterix.dataflow.data.common.ILogicalBinaryComparator;
+import org.apache.asterix.dataflow.data.nontagged.comparators.ComparatorUtil;
 import org.apache.asterix.lang.common.util.FunctionUtil;
 import org.apache.asterix.metadata.entities.Dataset;
 import org.apache.asterix.metadata.entities.Index;
 import org.apache.asterix.metadata.utils.IndexUtil;
 import org.apache.asterix.metadata.utils.TypeUtil;
+import org.apache.asterix.om.base.ADouble;
 import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.functions.BuiltinFunctions;
+import org.apache.asterix.om.typecomputer.impl.TypeComputeUtils;
 import org.apache.asterix.om.types.ARecordType;
-import org.apache.asterix.om.types.AUnionType;
+import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.IAType;
-import org.apache.asterix.om.utils.NonTaggedFormatUtil;
+import org.apache.asterix.om.types.hierachy.ATypeHierarchy;
 import org.apache.asterix.optimizer.rules.util.EquivalenceClassUtils;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
@@ -379,6 +383,7 @@ public class BTreeAccessMethod implements IAccessMethod {
         boolean couldntFigureOut = false;
         boolean doneWithExprs = false;
         boolean isEqCondition = false;
+        boolean anyRealTypeConvertedToIntegerType = false;
         BitSet setLowKeys = new BitSet(numSecondaryKeys);
         BitSet setHighKeys = new BitSet(numSecondaryKeys);
         // Go through the func exprs listed as optimizable by the chosen index,
@@ -406,10 +411,12 @@ public class BTreeAccessMethod implements IAccessMethod {
             // This is required because of type-casting. Refer to AccessMethodUtils.createSearchKeyExpr for details.
             IAType indexedFieldType = chosenIndexKeyFieldTypes.get(keyPos);
             Triple<ILogicalExpression, ILogicalExpression, Boolean> returnedSearchKeyExpr =
-                    AccessMethodUtils.createSearchKeyExpr(chosenIndex, optFuncExpr, indexedFieldType, probeSubTree);
+                    AccessMethodUtils.createSearchKeyExpr(chosenIndex, optFuncExpr, indexedFieldType, probeSubTree,
+                            SEARCH_KEY_ROUNDING_FUNCTION_COMPUTER);
             ILogicalExpression searchKeyExpr = returnedSearchKeyExpr.first;
             ILogicalExpression searchKeyEQExpr = null;
             boolean realTypeConvertedToIntegerType = returnedSearchKeyExpr.third;
+            anyRealTypeConvertedToIntegerType |= realTypeConvertedToIntegerType;
 
             LimitType limit = getLimitType(optFuncExpr, probeSubTree);
             if (limit == null) {
@@ -423,7 +430,7 @@ public class BTreeAccessMethod implements IAccessMethod {
             }
 
             // Deals with the non-enforced index case here.
-            if (relaxLimitTypeToInclusive(chosenIndex, keyPos, realTypeConvertedToIntegerType)) {
+            if (relaxLimitTypeToInclusive(chosenIndex, indexedFieldType, realTypeConvertedToIntegerType)) {
                 if (limit == LimitType.HIGH_EXCLUSIVE) {
                     limit = LimitType.HIGH_INCLUSIVE;
                 } else if (limit == LimitType.LOW_EXCLUSIVE) {
@@ -688,7 +695,8 @@ public class BTreeAccessMethod implements IAccessMethod {
             indexSearchOp = AccessMethodUtils.createRestOfIndexSearchPlan(afterTopOpRefs, topOpRef, conditionRef,
                     assignBeforeTheOpRefs, dataSourceOp, dataset, recordType, metaRecordType, secondaryIndexUnnestOp,
                     context, true, retainInput, retainMissing, false, chosenIndex, analysisCtx, indexSubTree,
-                    probeSubTree, newMissingNullPlaceHolderForLOJ, leftOuterMissingValue);
+                    probeSubTree, newMissingNullPlaceHolderForLOJ, leftOuterMissingValue,
+                    anyRealTypeConvertedToIntegerType);
 
             // Replaces the datasource scan with the new plan rooted at
             // Get dataSourceRef operator -
@@ -745,7 +753,7 @@ public class BTreeAccessMethod implements IAccessMethod {
             } else {
                 leftOuterUnnestMapRequired = false;
             }
-
+            AbstractUnnestMapOperator unnestMapOp;
             if (conditionRef.getValue() != null) {
                 // The job gen parameters are transferred to the actual job gen
                 // via the UnnestMapOperator's function arguments.
@@ -757,7 +765,6 @@ public class BTreeAccessMethod implements IAccessMethod {
                         new UnnestingFunctionCallExpression(primaryIndexSearch, primaryIndexFuncArgs);
                 primaryIndexSearchFunc.setSourceLocation(dataSourceOp.getSourceLocation());
                 primaryIndexSearchFunc.setReturnsUniqueValues(true);
-                AbstractUnnestMapOperator unnestMapOp;
                 if (!leftOuterUnnestMapRequired) {
                     unnestMapOp = new UnnestMapOperator(scanVariables,
                             new MutableObject<ILogicalExpression>(primaryIndexSearchFunc), primaryIndexOutputTypes,
@@ -767,10 +774,7 @@ public class BTreeAccessMethod implements IAccessMethod {
                             new MutableObject<ILogicalExpression>(primaryIndexSearchFunc), primaryIndexOutputTypes,
                             leftOuterMissingValue);
                 }
-                unnestMapOp.setSourceLocation(dataSourceOp.getSourceLocation());
-                indexSearchOp = unnestMapOp;
             } else {
-                AbstractUnnestMapOperator unnestMapOp;
                 if (!leftOuterUnnestMapRequired) {
                     unnestMapOp = new UnnestMapOperator(scanVariables,
                             ((UnnestMapOperator) secondaryIndexUnnestOp).getExpressionRef(), primaryIndexOutputTypes,
@@ -780,11 +784,11 @@ public class BTreeAccessMethod implements IAccessMethod {
                             ((LeftOuterUnnestMapOperator) secondaryIndexUnnestOp).getExpressionRef(),
                             primaryIndexOutputTypes, leftOuterMissingValue);
                 }
-                unnestMapOp.setSourceLocation(dataSourceOp.getSourceLocation());
-                indexSearchOp = unnestMapOp;
             }
-            // TODO: shouldn't indexSearchOp execution mode be set to that of the input? the default is UNPARTITIONED
-            indexSearchOp.getInputs().add(new MutableObject<>(inputOp));
+            unnestMapOp.setExecutionMode(ExecutionMode.PARTITIONED);
+            unnestMapOp.setSourceLocation(dataSourceOp.getSourceLocation());
+            unnestMapOp.getInputs().add(new MutableObject<>(inputOp));
+            indexSearchOp = unnestMapOp;
 
             // Adds equivalence classes --- one equivalent class between a primary key
             // variable and a record field-access expression.
@@ -914,8 +918,41 @@ public class BTreeAccessMethod implements IAccessMethod {
         return limit;
     }
 
-    private boolean relaxLimitTypeToInclusive(Index chosenIndex, int keyPos, boolean realTypeConvertedToIntegerType)
-            throws CompilationException {
+    private static final BTreeSearchKeyRoundingFunctionProvider SEARCH_KEY_ROUNDING_FUNCTION_COMPUTER =
+            new BTreeSearchKeyRoundingFunctionProvider();
+
+    private static class BTreeSearchKeyRoundingFunctionProvider
+            extends AccessMethodUtils.SearchKeyRoundingFunctionProvider {
+
+        private final ILogicalBinaryComparator DOUBLE_CMPR =
+                ComparatorUtil.createLogicalComparator(BuiltinType.ADOUBLE, BuiltinType.ADOUBLE, false);
+
+        private static final ADouble ZERO = new ADouble(0);
+
+        @Override
+        public ATypeHierarchy.TypeCastingMathFunctionType getRoundingFunction(ComparisonKind cKind, Index chosenIndex,
+                IAType indexedFieldType, IAObject constantValue, boolean realTypeConvertedToIntegerType)
+                throws CompilationException {
+            switch (cKind) {
+                case GE:
+                    return relaxLimitTypeToInclusive(chosenIndex, indexedFieldType, realTypeConvertedToIntegerType)
+                            && DOUBLE_CMPR.compare(ZERO, constantValue) == ILogicalBinaryComparator.Result.LT
+                                    ? ATypeHierarchy.TypeCastingMathFunctionType.FLOOR
+                                    : ATypeHierarchy.TypeCastingMathFunctionType.CEIL;
+                case LE:
+                    return relaxLimitTypeToInclusive(chosenIndex, indexedFieldType, realTypeConvertedToIntegerType)
+                            && DOUBLE_CMPR.compare(ZERO, constantValue) == ILogicalBinaryComparator.Result.GT
+                                    ? ATypeHierarchy.TypeCastingMathFunctionType.CEIL
+                                    : ATypeHierarchy.TypeCastingMathFunctionType.FLOOR;
+                default:
+                    return super.getRoundingFunction(cKind, chosenIndex, indexedFieldType, constantValue,
+                            realTypeConvertedToIntegerType);
+            }
+        }
+    }
+
+    private static boolean relaxLimitTypeToInclusive(Index chosenIndex, IAType indexedFieldType,
+            boolean realTypeConvertedToIntegerType) {
         // For a non-enforced index or an enforced index that stores a casted value on the given index,
         // we need to apply the following transformation.
         // For an index on a closed field, this transformation is not necessary since the value between
@@ -943,11 +980,7 @@ public class BTreeAccessMethod implements IAccessMethod {
         }
 
         if (chosenIndex.getIndexDetails().isOverridingKeyFieldTypes() && !chosenIndex.isEnforced()) {
-            IAType indexedKeyType = getIndexedKeyType(chosenIndex.getIndexDetails(), keyPos);
-            if (NonTaggedFormatUtil.isOptional(indexedKeyType)) {
-                indexedKeyType = ((AUnionType) indexedKeyType).getActualType();
-            }
-            switch (indexedKeyType.getTypeTag()) {
+            switch (TypeComputeUtils.getActualType(indexedFieldType).getTypeTag()) {
                 case TINYINT:
                 case SMALLINT:
                 case INTEGER:
@@ -961,10 +994,6 @@ public class BTreeAccessMethod implements IAccessMethod {
         }
 
         return false;
-    }
-
-    protected IAType getIndexedKeyType(Index.IIndexDetails chosenIndexDetails, int keyPos) throws CompilationException {
-        return ((Index.ValueIndexDetails) chosenIndexDetails).getKeyFieldTypes().get(keyPos);
     }
 
     private boolean probeIsOnLhs(IOptimizableFuncExpr optFuncExpr, OptimizableOperatorSubTree probeSubTree) {
@@ -991,7 +1020,8 @@ public class BTreeAccessMethod implements IAccessMethod {
     }
 
     @Override
-    public boolean exprIsOptimizable(Index index, IOptimizableFuncExpr optFuncExpr) throws AlgebricksException {
+    public boolean exprIsOptimizable(Index index, IOptimizableFuncExpr optFuncExpr, boolean checkApplicableOnly)
+            throws AlgebricksException {
         // If we are optimizing a join, check for the indexed nested-loop join hint.
         if (optFuncExpr.getNumLogicalVars() == 2) {
             if (optFuncExpr.getOperatorSubTree(0) == optFuncExpr.getOperatorSubTree(1)) {
@@ -1004,7 +1034,8 @@ public class BTreeAccessMethod implements IAccessMethod {
                     //And we were unable to determine its type
                     return false;
                 }
-            } else if (!optFuncExpr.getFuncExpr().hasAnnotation(IndexedNLJoinExpressionAnnotation.class)) {
+            } else if (!checkApplicableOnly
+                    && !optFuncExpr.getFuncExpr().hasAnnotation(IndexedNLJoinExpressionAnnotation.class)) {
                 return false;
             }
         }
