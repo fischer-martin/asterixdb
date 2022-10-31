@@ -323,8 +323,7 @@ public class ThetaFlexibleJoiner {
 
         IFrameTupleAccessor iFrameTupleAccessor = null;
         IFrameTupleAccessor dumpTupleAccessorForBucket1 =
-                new FrameTupleAccessor(new RecordDescriptor(Arrays.copyOfRange(buildRd.getFields(), 0, 2),
-                        Arrays.copyOfRange(buildRd.getTypeTraits(), 0, 1)));
+                new FrameTupleAccessor(buildRd);
         int accessorIndex = 0;
         int bucketCheck = 0;
         currentBucketId = -1;
@@ -349,9 +348,9 @@ public class ThetaFlexibleJoiner {
                 if (matched == 0) {
 
                     //Below we need to create appropriate accessor to use it in comparator
-                    byte[] dumpArray = new byte[21];
+                    byte[] dumpArray = new byte[buildRd.getFieldCount() * 4 + 5 + 5];
                     ByteBuffer buff = ByteBuffer.wrap(dumpArray);
-                    buff.position(13);
+                    buff.position(dumpArray.length - 5);
                     buff.put(ATypeTag.INTEGER.serialize());
                     buff.putInt(bucketInfo[0]);
                     //buff.position(0);

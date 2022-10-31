@@ -369,7 +369,7 @@ public class ApplyFlexibleJoinUtils {
         //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
         //        keysLeftBranch, keysRightBranch, ));
 
-        if (flexibleJoinAnn == null) {
+        if (flexibleJoinAnn == null && !eqMatch) {
             setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
         }
 
