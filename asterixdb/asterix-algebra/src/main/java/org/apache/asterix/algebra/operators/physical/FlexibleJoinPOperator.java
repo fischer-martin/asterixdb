@@ -140,13 +140,13 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         List<ILocalStructuralProperty> localProperties1 = new ArrayList<>();
         List<OrderColumn> orderColumns1 = new ArrayList<OrderColumn>();
         orderColumns1.add(new OrderColumn(keysLeftBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
-        orderColumns1.add(new OrderColumn(keysLeftBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
+        //orderColumns1.add(new OrderColumn(keysLeftBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
         localProperties1.add(new LocalOrderProperty(orderColumns1));
 
         List<ILocalStructuralProperty> localProperties2 = new ArrayList<>();
         List<OrderColumn> orderColumns2 = new ArrayList<OrderColumn>();
         orderColumns2.add(new OrderColumn(keysRightBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
-        orderColumns2.add(new OrderColumn(keysRightBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
+        //orderColumns2.add(new OrderColumn(keysRightBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
         localProperties2.add(new LocalOrderProperty(orderColumns2));
 
         StructuralPropertiesVector[] pv = new StructuralPropertiesVector[2];
@@ -186,22 +186,13 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
                 new TuplePairEvaluatorFactory(cond, true, context.getBinaryBooleanInspectorFactory());
 
         IVariableTypeEnvironment env = context.getTypeEnvironment(op);
-        IBinaryHashFunctionFamily[] leftHashFunFamilies =
-                JobGenHelper.variablesToBinaryHashFunctionFamilies(keysLeftBranch, env, context);
-        IBinaryHashFunctionFamily[] rightHashFunFamilies =
-                JobGenHelper.variablesToBinaryHashFunctionFamilies(keysRightBranch, env, context);
 
         IPredicateEvaluatorFactoryProvider predEvaluatorFactoryProvider =
                 context.getPredicateEvaluatorFactoryProvider();
 
-        //        IPredicateEvaluatorFactory predEvaluatorFactory = predEvaluatorFactoryProvider == null ? null
-        //                : predEvaluatorFactoryProvider.getPredicateEvaluatorFactory(keysBuild, keysProbe);
 
         IPredicateEvaluatorFactory predEvaluatorFactory = predEvaluatorFactoryProvider == null ? null
                 : predEvaluatorFactoryProvider.getPredicateEvaluatorFactory(keysBuild);
-        /*IOperatorDescriptor opDesc = new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe,
-                recordDescriptor, comparatorFactory, reverseComparatorFactory, leftHashFunFamilies, rightHashFunFamilies, predEvaluatorFactory, fudgeFactor);
-        contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);*/
 
         IOperatorDescriptor opDesc =
                 new ThetaFlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe, recordDescriptor,

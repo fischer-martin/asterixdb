@@ -105,13 +105,14 @@ public class ThetaFlexibleJoiner {
     //    //    private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
 
     protected int numberOfBuckets = 0;
-
     protected boolean spilled;
-
     protected long numRecordsFromBuild;
 
+    private int[] buildKeys;
+    private int[] probeKeys;
+
     public ThetaFlexibleJoiner(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd,
-            RecordDescriptor probeRd, String probeRelName, String buildRelName, IPredicateEvaluator predEval,
+            RecordDescriptor probeRd, String probeRelName, String buildRelName, int[] buildKeys, int[] probeKeys, IPredicateEvaluator predEval,
             int nBuckets) throws HyracksDataException {
 
         // Memory (probe buffer)
@@ -162,6 +163,10 @@ public class ThetaFlexibleJoiner {
         this.spilled = false;
         this.numRecordsFromBuild = 0;
 
+        this.buildKeys = buildKeys;
+        this.probeKeys = probeKeys;
+
+
     }
 
     public void build(ByteBuffer buffer) throws HyracksDataException {
@@ -173,7 +178,7 @@ public class ThetaFlexibleJoiner {
             boolean inMemory = false;
             boolean writeToDisk = false;
             newBucket = false;
-            int bucketId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
+            int bucketId = FlexibleJoinsUtil.getBucketId(accessorBuild, i, buildKeys[0]);
             TuplePointer tuplePointer = new TuplePointer();
             //if(bucketId != currentBucketId) {
             //currentBucketId = bucketId;
@@ -330,7 +335,7 @@ public class ThetaFlexibleJoiner {
         //For each s from S
         for (int i = 0; i < tupleCount; ++i) {
 
-            int probeBucketId = FlexibleJoinsUtil.getBucketId(accessorProbe, i, 1);
+            int probeBucketId = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
             if (probeBucketId != currentBucketId) {
                 bucketCheck = 0;
                 currentBucketId = probeBucketId;
@@ -350,7 +355,7 @@ public class ThetaFlexibleJoiner {
                     //Below we need to create appropriate accessor to use it in comparator
                     byte[] dumpArray = new byte[buildRd.getFieldCount() * 4 + 5 + 5];
                     ByteBuffer buff = ByteBuffer.wrap(dumpArray);
-                    buff.position(dumpArray.length - 5);
+                    buff.position(buildKeys[0] * 4 + 5 + 4);
                     buff.put(ATypeTag.INTEGER.serialize());
                     buff.putInt(bucketInfo[0]);
                     //buff.position(0);
@@ -376,7 +381,7 @@ public class ThetaFlexibleJoiner {
                             while (tupleCounter < memoryAccessor.getTupleCount()) {
                                 first = false;
                                 memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                                int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, 1);
+                                int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
                                 if (bucketReadFromMem != bucketInfo[0]) {
                                     finished = true;
                                     break;

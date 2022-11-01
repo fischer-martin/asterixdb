@@ -52,6 +52,7 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
+import org.apache.asterix.om.types.IAType;
 
 public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggregateFunction {
 

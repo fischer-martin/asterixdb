@@ -62,8 +62,20 @@ public class Weighted implements IHeuristicForThetaJoin {
     boolean roleReversal = false;
     boolean checkForRoleReversal = false;
 
+    private int[] buildKeys;
+    private int[] probeKeys;
+
+    private byte[] byteArrayForTempBucketTupleR;
+    private byte[] byteArrayForTempBucketTupleS;
+
+    private ByteBuffer buffForTempBucketTupleR;
+    private ByteBuffer buffForTempBucketTupleS;
+
+    private IFrameTupleAccessor iFrameTupleAccessorForTempBucketTupleR;
+    private IFrameTupleAccessor iFrameTupleAccessorForTempBucketTupleS;
+
     public Weighted(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd,
-            RecordDescriptor probeRd, boolean checkForRoleReversal) throws HyracksDataException {
+            RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, boolean checkForRoleReversal) throws HyracksDataException {
         this.memoryForJoinInBytes = memoryForJoin * frameSize;
         this.memoryForJoinInFrames = memoryForJoin;
         this.frameSize = frameSize;
@@ -73,6 +85,19 @@ public class Weighted implements IHeuristicForThetaJoin {
         this.buildRd = buildRd;
         this.probeRd = probeRd;
         this.checkForRoleReversal = checkForRoleReversal;
+
+        this.buildKeys = buildKeys;
+        this.probeKeys = probeKeys;
+
+        this.byteArrayForTempBucketTupleR = new byte[buildRd.getFieldCount() * 4 + 5 + 5];
+        this.byteArrayForTempBucketTupleS = new byte[probeRd.getFieldCount() * 4 + 5 + 5];
+
+        this.buffForTempBucketTupleR = ByteBuffer.wrap(this.byteArrayForTempBucketTupleR);
+        this.buffForTempBucketTupleS = ByteBuffer.wrap(this.byteArrayForTempBucketTupleS);
+
+        this.iFrameTupleAccessorForTempBucketTupleR = new FrameTupleAccessor(buildRd);
+        this.iFrameTupleAccessorForTempBucketTupleS = new FrameTupleAccessor(probeRd);
+
         //if(checkForRoleReversal && probeFileSize < buildFileSize) this.roleReversal = true;
     }
 
@@ -151,17 +176,6 @@ public class Weighted implements IHeuristicForThetaJoin {
 
     public ArrayList<IBucket> nextProbingBucketSequence() throws HyracksDataException {
         ArrayList<IBucket> returnBuckets = new ArrayList<>();
-        IFrameTupleAccessor iFrameTupleAccessorForR =
-                new FrameTupleAccessor(new RecordDescriptor(Arrays.copyOfRange(this.buildRd.getFields(), 0, 2),
-                        Arrays.copyOfRange(buildRd.getTypeTraits(), 0, 1)));
-        byte[] byteArrayForR = new byte[21];
-        ByteBuffer buffForR = ByteBuffer.wrap(byteArrayForR);
-
-        IFrameTupleAccessor iFrameTupleAccessorForS =
-                new FrameTupleAccessor(new RecordDescriptor(Arrays.copyOfRange(this.probeRd.getFields(), 0, 2),
-                        Arrays.copyOfRange(probeRd.getTypeTraits(), 0, 1)));
-        byte[] byteArrayForS = new byte[21];
-        ByteBuffer buffForS = ByteBuffer.wrap(byteArrayForS);
 
         for (int[] bucket : probingBucketSequence) {
 
@@ -172,37 +186,24 @@ public class Weighted implements IHeuristicForThetaJoin {
             int endOffset = bucket[5];
 
             if (!roleReversal) {
-                buffForS.position(13);
-                buffForS.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
-                buffForS.putInt(bucket[0]);
-                iFrameTupleAccessorForS.reset(buffForS);
+                setTupleAccessorForTempBucketTupleS(bucket[0]);
 
                 for (IBucket rBucket : returnedBuildingBucketSequence) {
 
-                    buffForR.position(13);
-                    buffForR.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
-                    buffForR.putInt(rBucket.getBucketId());
-                    iFrameTupleAccessorForR.reset(buffForR);
-
-                    if (comparator.compare(iFrameTupleAccessorForR, 0, iFrameTupleAccessorForS, 0) < 1) {
+                    setTupleAccessorForTempBucketTupleR(rBucket.getBucketId());
+                    if (comparator.compare(iFrameTupleAccessorForTempBucketTupleR, 0, iFrameTupleAccessorForTempBucketTupleS, 0) < 1) {
                         Bucket returnBucket = new Bucket(bucket[0], 1, starOffset, endOffset, startFrame, endFrame);
                         returnBuckets.add(returnBucket);
                     }
                 }
             } else {
-                buffForR.position(13);
-                buffForR.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
-                buffForR.putInt(bucket[0]);
-                iFrameTupleAccessorForS.reset(buffForR);
+                setTupleAccessorForTempBucketTupleR(bucket[0]);
 
                 for (IBucket sBucket : returnedBuildingBucketSequence) {
 
-                    buffForS.position(13);
-                    buffForS.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
-                    buffForS.putInt(sBucket.getBucketId());
-                    iFrameTupleAccessorForS.reset(buffForS);
+                    setTupleAccessorForTempBucketTupleS(sBucket.getBucketId());
 
-                    if (comparator.compare(iFrameTupleAccessorForR, 0, iFrameTupleAccessorForS, 0) < 1) {
+                    if (comparator.compare(iFrameTupleAccessorForTempBucketTupleR, 0, iFrameTupleAccessorForTempBucketTupleS, 0) < 1) {
                         Bucket returnBucket = new Bucket(bucket[0], 0, starOffset, endOffset, startFrame, endFrame);
                         returnBuckets.add(returnBucket);
                     }
@@ -214,42 +215,41 @@ public class Weighted implements IHeuristicForThetaJoin {
         return returnBuckets;
     }
 
+    private void setTupleAccessorForTempBucketTupleR(int bucketId) {
+        this.buffForTempBucketTupleR.position(this.buildKeys[0] * 4 + 5 + 4);
+        this.buffForTempBucketTupleR.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
+        this.buffForTempBucketTupleR.putInt(bucketId);
+        this.iFrameTupleAccessorForTempBucketTupleR.reset(this.buffForTempBucketTupleR);
+    }
+
+    private void setTupleAccessorForTempBucketTupleS(int bucketId) {
+        this.buffForTempBucketTupleS.position(this.probeKeys[0] * 4 + 5 + 4);
+        this.buffForTempBucketTupleS.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
+        this.buffForTempBucketTupleS.putInt(bucketId);
+        this.iFrameTupleAccessorForTempBucketTupleS.reset(this.buffForTempBucketTupleS);
+    }
+
     public void reComputeCosts() throws HyracksDataException {
 
-        IFrameTupleAccessor iFrameTupleAccessorForR =
-                new FrameTupleAccessor(new RecordDescriptor(Arrays.copyOfRange(this.buildRd.getFields(), 0, 2),
-                        Arrays.copyOfRange(buildRd.getTypeTraits(), 0, 1)));
-        byte[] byteArrayForR = new byte[21];
-        ByteBuffer buffForR = ByteBuffer.wrap(byteArrayForR);
-
-        IFrameTupleAccessor iFrameTupleAccessorForS =
-                new FrameTupleAccessor(new RecordDescriptor(Arrays.copyOfRange(this.probeRd.getFields(), 0, 2),
-                        Arrays.copyOfRange(probeRd.getTypeTraits(), 0, 1)));
-        byte[] byteArrayForS = new byte[21];
-        ByteBuffer buffForS = ByteBuffer.wrap(byteArrayForS);
         ArrayList<int[]> tempList = new ArrayList<>();
         for (int[] rBucket : bucketsFromR) {
             int costR = rBucket[1];
             int costS = 0;
             int prev = 0;
 
-            buffForR.position(13);
-            buffForR.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
-            buffForR.putInt(rBucket[0]);
-            iFrameTupleAccessorForR.reset(buffForR);
+            setTupleAccessorForTempBucketTupleR(rBucket[0]);
 
-            for (int[] sBucket : bucketsFromS) {
+            for (int sBucketIdx = 0; sBucketIdx < bucketsFromS.size(); sBucketIdx++) {
+                int[] sBucket = bucketsFromS.get(sBucketIdx);
+                
+                setTupleAccessorForTempBucketTupleS(sBucket[0]);
 
-                buffForS.position(13);
-                buffForS.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
-                buffForS.putInt(sBucket[0]);
-                iFrameTupleAccessorForS.reset(buffForS);
-
-                if (comparator.compare(iFrameTupleAccessorForR, 0, iFrameTupleAccessorForS, 0) < 1) {
+                if (comparator.compare(iFrameTupleAccessorForTempBucketTupleR, 0, iFrameTupleAccessorForTempBucketTupleS, 0) < 1) {
                     costS += sBucket[1];
-                    /*if(prev + 1 != j) {
+                    if(prev + 1 != sBucketIdx) {
                         costS += SEEK_PENALTY;
-                    }*/
+                    }
+                    prev = sBucketIdx;
                 }
             }
 
@@ -278,23 +278,19 @@ public class Weighted implements IHeuristicForThetaJoin {
             int costR = 0;
             int prev = 0;
 
-            buffForS.position(13);
-            buffForS.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
-            buffForS.putInt(sBucket[0]);
-            iFrameTupleAccessorForS.reset(buffForS);
+            setTupleAccessorForTempBucketTupleS(sBucket[0]);
 
-            for (int[] rBucket : bucketsFromR) {
+            for (int rBucketIdx = 0; rBucketIdx < bucketsFromR.size(); rBucketIdx++) {
+                int[] rBucket = bucketsFromR.get(rBucketIdx);
 
-                buffForR.position(13);
-                buffForR.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
-                buffForR.putInt(rBucket[0]);
-                iFrameTupleAccessorForR.reset(buffForR);
+                setTupleAccessorForTempBucketTupleR(rBucket[0]);
 
-                if (comparator.compare(iFrameTupleAccessorForR, 0, iFrameTupleAccessorForS, 0) < 1) {
+                if (comparator.compare(iFrameTupleAccessorForTempBucketTupleR, 0, iFrameTupleAccessorForTempBucketTupleS, 0) < 1) {
                     costR += rBucket[1];
-                    /*if(prev + 1 != j) {
+                    if(prev + 1 != rBucketIdx) {
                         costR += SEEK_PENALTY;
-                    }*/
+                    }
+                    prev = rBucketIdx;
                 }
             }
 
@@ -468,40 +464,24 @@ public class Weighted implements IHeuristicForThetaJoin {
             //            tempTwoS.add(newBucket);
         }
 
-        IFrameTupleAccessor iFrameTupleAccessorForR =
-                new FrameTupleAccessor(new RecordDescriptor(Arrays.copyOfRange(this.buildRd.getFields(), 0, 2),
-                        Arrays.copyOfRange(buildRd.getTypeTraits(), 0, 1)));
-        byte[] byteArrayForR = new byte[21];
-        ByteBuffer buffForR = ByteBuffer.wrap(byteArrayForR);
-
-        IFrameTupleAccessor iFrameTupleAccessorForS =
-                new FrameTupleAccessor(new RecordDescriptor(Arrays.copyOfRange(this.probeRd.getFields(), 0, 2),
-                        Arrays.copyOfRange(probeRd.getTypeTraits(), 0, 1)));
-        byte[] byteArrayForS = new byte[21];
-        ByteBuffer buffForS = ByteBuffer.wrap(byteArrayForS);
-
         for (int i = 0; i < tempTwoR.size(); i++) {
             int costR = tempTwoR.get(i)[1];
             int costS = 0;
             int prev = 0;
 
-            buffForR.position(13);
-            buffForR.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
-            buffForR.putInt(tempTwoR.get(i)[0]);
-            iFrameTupleAccessorForR.reset(buffForR);
+            setTupleAccessorForTempBucketTupleR(tempTwoR.get(i)[0]);
 
             for (int j = 0; j < tempTwoS.size(); j++) {
 
-                buffForS.position(13);
-                buffForS.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
-                buffForS.putInt(tempTwoS.get(j)[0]);
-                iFrameTupleAccessorForS.reset(buffForS);
 
-                if (comparator.compare(iFrameTupleAccessorForR, 0, iFrameTupleAccessorForS, 0) < 1) {
+                setTupleAccessorForTempBucketTupleS(tempTwoS.get(j)[0]);
+
+                if (comparator.compare(iFrameTupleAccessorForTempBucketTupleR, 0, iFrameTupleAccessorForTempBucketTupleS, 0) < 1) {
                     costS += tempTwoS.get(j)[1];
-                    /*if(prev + 1 != j) {
+                    if(prev + 1 != j) {
                         costS += SEEK_PENALTY;
-                    }*/
+                    }
+                    prev = j;
                 }
             }
 
@@ -526,23 +506,20 @@ public class Weighted implements IHeuristicForThetaJoin {
             int costR = 0;
             int prev = 0;
 
-            buffForS.position(13);
-            buffForS.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
-            buffForS.putInt(tempTwoS.get(i)[0]);
-            iFrameTupleAccessorForS.reset(buffForS);
+            setTupleAccessorForTempBucketTupleS(tempTwoS.get(i)[0]);
+
 
             for (int j = 0; j < tempTwoR.size(); j++) {
 
-                buffForR.position(13);
-                buffForR.put(ATypeTag.SERIALIZED_INT32_TYPE_TAG);
-                buffForR.putInt(tempTwoR.get(j)[0]);
-                iFrameTupleAccessorForR.reset(buffForR);
+                setTupleAccessorForTempBucketTupleR(tempTwoR.get(j)[0]);
 
-                if (comparator.compare(iFrameTupleAccessorForR, 0, iFrameTupleAccessorForS, 0) < 1) {
+
+                if (comparator.compare(iFrameTupleAccessorForTempBucketTupleR, 0, iFrameTupleAccessorForTempBucketTupleS, 0) < 1) {
                     costR += tempTwoR.get(j)[1];
-                    /*if(prev + 1 != j) {
+                    if(prev + 1 != j) {
                         costR += SEEK_PENALTY;
-                    }*/
+                    }
+                    prev = j;
                 }
             }
 

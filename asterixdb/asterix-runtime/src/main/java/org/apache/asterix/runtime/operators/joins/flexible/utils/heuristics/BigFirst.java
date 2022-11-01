@@ -42,12 +42,15 @@ public class BigFirst implements IHeuristicForThetaJoin {
     int buildingBucketPosition = 0;
 
     ArrayList<int[]> bucketsFromR;
+    ArrayList<int[]> bucketsFromS;
     ArrayList<int[]> tempBucketsFromR;
+    ArrayList<int[]> tempBucketsFromS;
 
     RecordDescriptor buildRd;
     RecordDescriptor probeRd;
 
     boolean roleReversal = false;
+    ArrayList<IBucket> returnBuckets = new ArrayList<>();
 
     public BigFirst(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd,
             RecordDescriptor probeRd, boolean checkForRoleReversal) throws HyracksDataException {
@@ -71,7 +74,7 @@ public class BigFirst implements IHeuristicForThetaJoin {
 
     @Override
     public ArrayList<IBucket> nextBuildingBucketSequence() throws HyracksDataException {
-        ArrayList<IBucket> returnBuckets = new ArrayList<>();
+        returnBuckets.clear();
         int totalFramesForBuckets = 0;
         long totalSizeForBuckets = 0;
         int currentFrame = 0;
@@ -149,7 +152,9 @@ public class BigFirst implements IHeuristicForThetaJoin {
         this.bucketTable = bucketTable;
         this.numberOfBuckets = bucketTable.getNumEntries();
         this.bucketsFromR = new ArrayList<>();
-        tempBucketsFromR = new ArrayList<>();
+        this.bucketsFromS = new ArrayList<>();
+        this.tempBucketsFromR = new ArrayList<>();
+        this.tempBucketsFromS = new ArrayList<>();
         for (int i = 0; i < this.numberOfBuckets; i++) {
             int[] bucket = bucketTable.getEntry(i);
             if (!roleReversal) {

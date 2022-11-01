@@ -91,15 +91,15 @@ public class ApplyFlexibleJoinUtils {
             return false;
         }
 
-        AbstractFunctionCallExpression funcExpr = (AbstractFunctionCallExpression) joinCondition;
+        AbstractFunctionCallExpression joinCondFuncExp = (AbstractFunctionCallExpression) joinCondition;
         AbstractFunctionCallExpression flexibleFuncExpr = null;
         List<Mutable<ILogicalExpression>> conditionExprs = new ArrayList<>();
 
         IExternalFunctionInfo functionInfo = null;
-        IExternalFunctionInfo functionInfoT = null;
+        IExternalFunctionInfo functionInfoTemp = null;
 
-        if (funcExpr.getFunctionIdentifier().equals(BuiltinFunctions.AND)) {
-            List<Mutable<ILogicalExpression>> inputExprs = funcExpr.getArguments();
+        if (joinCondFuncExp.getFunctionIdentifier().equals(BuiltinFunctions.AND)) {
+            List<Mutable<ILogicalExpression>> inputExprs = joinCondFuncExp.getArguments();
             if (inputExprs.size() == 0) {
                 return false;
             }
@@ -109,12 +109,12 @@ public class ApplyFlexibleJoinUtils {
             for (Mutable<ILogicalExpression> exp : inputExprs) {
                 AbstractFunctionCallExpression funcCallExp = (AbstractFunctionCallExpression) exp.getValue();
                 if (funcCallExp.getFunctionInfo() instanceof IExternalFunctionInfo)
-                    functionInfoT = (IExternalFunctionInfo) funcCallExp.getFunctionInfo();
+                    functionInfoTemp = (IExternalFunctionInfo) funcCallExp.getFunctionInfo();
 
-                if (functionInfoT != null
-                        && functionInfoT.getKind().equals(AbstractFunctionCallExpression.FunctionKind.FJ_CALLER)
+                if (functionInfoTemp != null
+                        && functionInfoTemp.getKind().equals(AbstractFunctionCallExpression.FunctionKind.FJ_CALLER)
                         && firstFlexible) {
-                    functionInfo = functionInfoT;
+                    functionInfo = functionInfoTemp;
                     flexibleFuncExpr = funcCallExp;
                     flexibleJoinExists = true;
                     firstFlexible = false;
@@ -125,10 +125,10 @@ public class ApplyFlexibleJoinUtils {
             if (!flexibleJoinExists) {
                 return false;
             }
-        } else if (funcExpr.getFunctionInfo() instanceof IExternalFunctionInfo) {
-            functionInfo = (IExternalFunctionInfo) funcExpr.getFunctionInfo();
+        } else if (joinCondFuncExp.getFunctionInfo() instanceof IExternalFunctionInfo) {
+            functionInfo = (IExternalFunctionInfo) joinCondFuncExp.getFunctionInfo();
             if (functionInfo.getKind().equals(AbstractFunctionCallExpression.FunctionKind.FJ_CALLER))
-                flexibleFuncExpr = funcExpr;
+                flexibleFuncExpr = joinCondFuncExp;
             else
                 return false;
         } else {
@@ -138,9 +138,7 @@ public class ApplyFlexibleJoinUtils {
         metadataProvider = (MetadataProvider) context.getMetadataProvider();
 
         List<Mutable<ILogicalExpression>> joinArgs = flexibleFuncExpr.getArguments();
-        /*if (joinArgs.size() != 2) {
-            return false;
-        }*/
+
 
         ILogicalExpression flexibleJoinLeftArg = joinArgs.get(left).getValue();
         ILogicalExpression flexibleJoinRightArg = joinArgs.get(right).getValue();
@@ -150,44 +148,45 @@ public class ApplyFlexibleJoinUtils {
             return false;
         }
 
-        FlexibleJoinAnnotation flexibleJoinAnn = funcExpr.getAnnotation(FlexibleJoinAnnotation.class);
+        FlexibleJoinAnnotation flexibleJoinAnn = joinCondFuncExp.getAnnotation(FlexibleJoinAnnotation.class);
 
         Mutable<ILogicalOperator> leftInputOp = joinOp.getInputs().get(left);
         Mutable<ILogicalOperator> rightInputOp = joinOp.getInputs().get(right);
 
         // Extract left and right variable of the predicate
-        LogicalVariable spatialJoinVar0 = ((VariableReferenceExpression) flexibleJoinLeftArg).getVariableReference();
-        LogicalVariable spatialJoinVar1 = ((VariableReferenceExpression) flexibleJoinRightArg).getVariableReference();
+        LogicalVariable joinVar0 = ((VariableReferenceExpression) flexibleJoinLeftArg).getVariableReference();
+        LogicalVariable joinVar1 = ((VariableReferenceExpression) flexibleJoinRightArg).getVariableReference();
 
-        LogicalVariable leftInputVar;
-        LogicalVariable rightInputVar;
+        //
+        LogicalVariable leftKeyVar;
+        LogicalVariable rightKeyVar;
+
         Collection<LogicalVariable> liveVars = new HashSet<>();
         VariableUtilities.getLiveVariables(leftInputOp.getValue(), liveVars);
-        if (liveVars.contains(spatialJoinVar0)) {
-            leftInputVar = spatialJoinVar0;
-            rightInputVar = spatialJoinVar1;
+        if (liveVars.contains(joinVar0)) {
+            leftKeyVar = joinVar0;
+            rightKeyVar = joinVar1;
         } else {
-            leftInputVar = spatialJoinVar1;
-            rightInputVar = spatialJoinVar0;
+            leftKeyVar = joinVar1;
+            rightKeyVar = joinVar0;
         }
 
-        List<Mutable<ILogicalExpression>> parametersT = null;
+        List<Mutable<ILogicalExpression>> parametersTemp = null;
         List<IAObject> parameters = new ArrayList<>();
-        //List<IAType> parameterTypes = functionInfo.getParameterTypes().subList(2, joinArgs.size());
+
         if (joinArgs.size() > 2) {
-            parametersT = joinArgs.subList(2, joinArgs.size());
-            for (Mutable<ILogicalExpression> p : parametersT) {
+            parametersTemp = joinArgs.subList(2, joinArgs.size());
+            for (Mutable<ILogicalExpression> p : parametersTemp) {
                 parameters.add(ConstantExpressionUtil.getConstantIaObject(p.getValue(), null));
             }
         }
 
-        String libraryName = functionInfo.getLibraryName();
         DataverseName dataverseName = functionInfo.getLibraryDataverseName();
         String functionName = functionInfo.getFunctionIdentifier().getName();
 
         //Add a dynamic workflow for the summary one
         Triple<MutableObject<ILogicalOperator>, List<LogicalVariable>, MutableObject<ILogicalOperator>> leftSummarizer =
-                createSummary(joinOp, context, leftInputOp, leftInputVar, 0, dataverseName, functionName, parameters);
+                createSummary(joinOp, context, leftInputOp, leftKeyVar, 0, dataverseName, functionName, parameters);
         MutableObject<ILogicalOperator> leftGlobalAgg = leftSummarizer.first;
         List<LogicalVariable> leftGlobalAggResultVars = leftSummarizer.second;
         MutableObject<ILogicalOperator> leftExchToJoinOpRef = leftSummarizer.third;
@@ -195,7 +194,7 @@ public class ApplyFlexibleJoinUtils {
 
         //Add a dynamic workflow for the summary two
         Triple<MutableObject<ILogicalOperator>, List<LogicalVariable>, MutableObject<ILogicalOperator>> rightSummarizer =
-                createSummary(joinOp, context, rightInputOp, rightInputVar, 1, dataverseName, functionName, parameters);
+                createSummary(joinOp, context, rightInputOp, rightKeyVar, 1, dataverseName, functionName, parameters);
         MutableObject<ILogicalOperator> rightGlobalAgg = rightSummarizer.first;
         List<LogicalVariable> rightGlobalAggResultVars = rightSummarizer.second;
         MutableObject<ILogicalOperator> rightExchToJoinOpRef = rightSummarizer.third;
@@ -310,26 +309,26 @@ public class ApplyFlexibleJoinUtils {
 
         // Inject unnest operator to add bucket IDs to the left and right branch of the join operator
         Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> leftBucketIdVarPair =
-                ApplyFlexibleJoinUtils.injectAssignOneUnnestOperator(context, leftInputOp, leftInputVar,
+                ApplyFlexibleJoinUtils.injectAssignOneUnnestOperator(context, leftInputOp, leftKeyVar,
                         leftConfigurationExpr, dataverseName, functionName, parameters);
         Triple<LogicalVariable, UnnestOperator, UnnestingFunctionCallExpression> rightBucketIdVarPair =
-                ApplyFlexibleJoinUtils.injectAssignTwoUnnestOperator(context, rightInputOp, rightInputVar,
+                ApplyFlexibleJoinUtils.injectAssignTwoUnnestOperator(context, rightInputOp, rightKeyVar,
                         rightConfigurationExpr, dataverseName, functionName, parameters);
 
         LogicalVariable leftBucketIdVar = leftBucketIdVarPair.first;
         LogicalVariable rightBucketIdVar = rightBucketIdVarPair.first;
 
         ScalarFunctionCallExpression verifyJoinCondition =
-                createVerifyCondition(joinOp, verifyConfigurationExpr, leftBucketIdVar, rightBucketIdVar, leftInputVar,
-                        rightInputVar, dataverseName, functionName, parameters);
+                createVerifyCondition(joinOp, verifyConfigurationExpr, leftBucketIdVar, rightBucketIdVar, leftKeyVar,
+                        rightKeyVar, dataverseName, functionName, parameters);
 
         List<LogicalVariable> keysLeftBranch = new ArrayList<>();
         keysLeftBranch.add(leftBucketIdVar);
-        keysLeftBranch.add(leftInputVar);
+        //keysLeftBranch.add(leftKeyVar);
 
         List<LogicalVariable> keysRightBranch = new ArrayList<>();
         keysRightBranch.add(rightBucketIdVar);
-        keysRightBranch.add(rightInputVar);
+        //keysRightBranch.add(rightKeyVar);
 
         String matchFunctionName = functionName + "_fj_match";
         FunctionSignature matchFunctionSignature = new FunctionSignature(dataverseName, matchFunctionName, 2);
@@ -351,7 +350,7 @@ public class ApplyFlexibleJoinUtils {
                 new MutableObject<>(new VariableReferenceExpression(leftBucketIdVar)),
                 new MutableObject<>(new VariableReferenceExpression(rightBucketIdVar)));
 
-        conditionExprs.add(new MutableObject<>(match));
+        conditionExprs.add(new MutableObject<>(verifyJoinCondition));
 
         ScalarFunctionCallExpression updatedJoinCondition;
         if (conditionExprs.size() > 1) {
@@ -359,12 +358,12 @@ public class ApplyFlexibleJoinUtils {
                     BuiltinFunctions.getBuiltinFunctionInfo(BuiltinFunctions.AND), conditionExprs);
             updatedJoinCondition.setSourceLocation(joinOp.getSourceLocation());
         } else {
-            updatedJoinCondition = match;
+            updatedJoinCondition = verifyJoinCondition;
         }
         //Mutable<ILogicalExpression> joinConditionRef = joinOp.getCondition();
         //joinConditionRef.setValue(updatedJoinCondition);
 
-        InnerJoinOperator matchJoinOp = new InnerJoinOperator(new MutableObject<>(updatedJoinCondition),
+        InnerJoinOperator matchJoinOp = new InnerJoinOperator(new MutableObject<>(match),
                 new MutableObject<>(leftBucketIdVarPair.second), new MutableObject<>(rightBucketIdVarPair.second));
         //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
         //        keysLeftBranch, keysRightBranch, ));
@@ -381,7 +380,7 @@ public class ApplyFlexibleJoinUtils {
         Mutable<ILogicalOperator> opRef = new MutableObject<>(joinOp);
         Mutable<ILogicalOperator> flexibleJoinOpRef = new MutableObject<>(matchJoinOp);
 
-        InnerJoinOperator verifyJoinOp = new InnerJoinOperator(new MutableObject<>(verifyJoinCondition),
+        InnerJoinOperator verifyJoinOp = new InnerJoinOperator(new MutableObject<>(updatedJoinCondition),
                 flexibleJoinOpRef, exchConfigToVerifyJoinOpRef);
         MutableObject<ILogicalOperator> verifyJoinOpRef = new MutableObject<>(verifyJoinOp);
         verifyJoinOp.setSourceLocation(joinOp.getSourceLocation());
