@@ -343,14 +343,14 @@ public class ThetaFlexibleJoiner {
             boolean writtenToDisk = false;
             //For each bucket from bucket table
             for (int bucketIndex = 0; bucketIndex < numberOfBuckets; bucketIndex++) {
-                int matched = ((bucketCheck >> bucketIndex) & 1);
+                //int matched = ((bucketCheck >> bucketIndex) & 1);
 
                 int[] bucketInfo = table.getEntry(bucketIndex);
                 //if the building tuple pointer has a negative tuple index that means we added this bucket only from S side
                 if (bucketInfo[2] == -1)
                     continue;
 
-                if (matched == 0) {
+                //if (matched == 0) {
 
                     //Below we need to create appropriate accessor to use it in comparator
                     byte[] dumpArray = new byte[buildRd.getFieldCount() * 4 + 5 + 5];
@@ -361,12 +361,12 @@ public class ThetaFlexibleJoiner {
                     //buff.position(0);
                     dumpTupleAccessorForBucket1.reset(buff);
                     iFrameTupleAccessor = dumpTupleAccessorForBucket1;
-                }
+                //}
                 //int bucki = FlexibleJoinsUtil.getBucketId(iFrameTupleAccessor, 0, 1);
                 //If buckets are matching
-                if (matched == 1 || this.tpComparator.compare(iFrameTupleAccessor, 0, accessorProbe, i) < 1) {
+                if (this.tpComparator.compare(iFrameTupleAccessor, 0, accessorProbe, i) < 1) {
 
-                    bucketCheck = bucketCheck | (1 << bucketIndex);
+                    //bucketCheck = bucketCheck | (1 << bucketIndex);
                     //If the building bucket is in memory we join the records
                     if (bucketInfo[1] > -1) {
                         int tupleCounter = bucketInfo[2];
