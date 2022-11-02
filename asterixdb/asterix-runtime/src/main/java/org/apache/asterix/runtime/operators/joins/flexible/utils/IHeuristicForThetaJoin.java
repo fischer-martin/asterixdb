@@ -26,10 +26,8 @@ import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
 
 public interface IHeuristicForThetaJoin {
     boolean hasNextBuildingBucketSequence();
-
     ArrayList<IBucket> nextBuildingBucketSequence() throws HyracksDataException;
-
+    ArrayList<IBucket> nextProbingBucketSequence() throws HyracksDataException;
     void setBucketTable(SerializableBucketIdList bucketTable) throws HyracksDataException;
-
     void setComparator(ITuplePairComparator comparator);
 }

@@ -54,6 +54,7 @@ import org.apache.asterix.om.base.AInterval;
 import org.apache.asterix.om.base.ARectangle;
 import org.apache.asterix.om.base.AString;
 import org.apache.asterix.om.base.IAObject;
+import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
@@ -162,11 +163,13 @@ public class ParameterTypeResolver {
                 try {
                     byte tag = dataInputStream.readByte();
                     if (tag == ATypeTag.DATETIME.serialize()) {
-                        ((Interval) returnObject).start = dataInputStream.readLong();
-                        ((Interval) returnObject).end = dataInputStream.readLong();
+                        //((Interval) returnObject).start = dataInputStream.readLong();
+                        //((Interval) returnObject).end = dataInputStream.readLong();
+                        returnObject = new long[]{dataInputStream.readLong(), dataInputStream.readLong()};
                     } else {
-                        ((Interval) returnObject).start = dataInputStream.readInt();
-                        ((Interval) returnObject).end = dataInputStream.readInt();
+                        //((Interval) returnObject).start = dataInputStream.readInt();
+                        //((Interval) returnObject).end = dataInputStream.readInt();
+                        returnObject = new long[]{dataInputStream.readInt(), dataInputStream.readInt()};
                     }
                 } catch (Exception e) {
                     System.out.println(e.getMessage());
@@ -183,12 +186,9 @@ public class ParameterTypeResolver {
                 double minY1 = rectangle.getP1().getY();
                 double maxX1 = rectangle.getP2().getX();
                 double maxY1 = rectangle.getP2().getY();
-                returnObject = new Rectangle(minX1, maxX1, minY1, maxY1);
+                returnObject = new double[]{minX1, maxX1, minY1, maxY1};
                 break;
             }
-            case OBJECT:
-                returnObject = ARecordSerializerDeserializer.SCHEMALESS_INSTANCE.deserialize(dataInputStream).toJSON();
-                break;
             case ANY:
                 returnObject = dataInputStream;
         }

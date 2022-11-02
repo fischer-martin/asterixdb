@@ -74,12 +74,14 @@ public class InMemoryThetaFlexibleJoiner {
     protected boolean spilled;
 
     protected long numRecordsFromBuild;
+    private int[] buildKeys;
+    private int[] probeKeys;
     //    private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
     //        private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
     //        private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
 
     public InMemoryThetaFlexibleJoiner(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd,
-            RecordDescriptor probeRd, int nBuckets) throws HyracksDataException {
+            RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, int nBuckets) throws HyracksDataException {
 
         // Memory (probe buffer)
         if (memorySize < 5) {
@@ -109,6 +111,9 @@ public class InMemoryThetaFlexibleJoiner {
 
         this.spilled = false;
         this.numRecordsFromBuild = 0;
+
+        this.buildKeys = buildKeys;
+        this.probeKeys = probeKeys;
 
     }
 
@@ -197,7 +202,7 @@ public class InMemoryThetaFlexibleJoiner {
                         while (tupleCounter < memoryAccessor.getTupleCount()) {
                             first = false;
                             memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                            int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, 1);
+                            int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
                             if (bucketReadFromMem != bucketInfo[0]) {
                                 finished = true;
                                 break;

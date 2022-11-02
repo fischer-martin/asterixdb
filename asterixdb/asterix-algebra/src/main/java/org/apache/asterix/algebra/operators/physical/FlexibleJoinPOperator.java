@@ -186,22 +186,13 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
                 new TuplePairEvaluatorFactory(cond, true, context.getBinaryBooleanInspectorFactory());
 
         IVariableTypeEnvironment env = context.getTypeEnvironment(op);
-        IBinaryHashFunctionFamily[] leftHashFunFamilies =
-                JobGenHelper.variablesToBinaryHashFunctionFamilies(keysLeftBranch, env, context);
-        IBinaryHashFunctionFamily[] rightHashFunFamilies =
-                JobGenHelper.variablesToBinaryHashFunctionFamilies(keysRightBranch, env, context);
 
         IPredicateEvaluatorFactoryProvider predEvaluatorFactoryProvider =
                 context.getPredicateEvaluatorFactoryProvider();
 
-        //        IPredicateEvaluatorFactory predEvaluatorFactory = predEvaluatorFactoryProvider == null ? null
-        //                : predEvaluatorFactoryProvider.getPredicateEvaluatorFactory(keysBuild, keysProbe);
 
         IPredicateEvaluatorFactory predEvaluatorFactory = predEvaluatorFactoryProvider == null ? null
                 : predEvaluatorFactoryProvider.getPredicateEvaluatorFactory(keysBuild);
-        /*IOperatorDescriptor opDesc = new FlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe,
-                recordDescriptor, comparatorFactory, reverseComparatorFactory, leftHashFunFamilies, rightHashFunFamilies, predEvaluatorFactory, fudgeFactor);
-        contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);*/
 
         IOperatorDescriptor opDesc =
                 new ThetaFlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe, recordDescriptor,
