@@ -142,6 +142,8 @@ public class FJAssignOneDescriptor extends AbstractUnnestingFunctionDynamicDescr
                             IVisitablePointable obj = pointableAllocator.allocateFieldValue(keyType);
                             eval0.evaluate(tuple, obj);
                             buckets = flexibleJoin.assign1(obj, configuration);
+
+                            pointableAllocator.reset();
                         } else {
                             buckets = flexibleJoin.assign1(getKeyObject(dataIn, tag0), configuration);
                         }

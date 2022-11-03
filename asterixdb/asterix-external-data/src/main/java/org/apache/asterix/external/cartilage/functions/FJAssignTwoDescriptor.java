@@ -140,12 +140,10 @@ public class FJAssignTwoDescriptor extends AbstractUnnestingFunctionDynamicDescr
                         if (tag0 == ATypeTag.OBJECT) {
                             IVisitablePointable obj = pointableAllocator.allocateFieldValue(keyType);
                             eval0.evaluate(tuple, obj);
-                            // I suppose that this is a typo and we should actually call assign2() instead of assign1()
-                            //buckets = flexibleJoin.assign1(obj, configuration);
                             buckets = flexibleJoin.assign2(obj, configuration);
+
+                            pointableAllocator.reset();
                         } else {
-                            // I suppose that this is a typo and we should actually call assign2() instead of assign1()
-                            //buckets = flexibleJoin.assign1(getKeyObject(dataIn, tag0), configuration);
                             buckets = flexibleJoin.assign2(getKeyObject(dataIn, tag0), configuration);
                         }
 

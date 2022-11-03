@@ -185,6 +185,10 @@ public class FJVerifyDescriptor extends AbstractScalarFunctionDynamicDescriptor 
                             res = flexibleJoin.verify(bucketID0, key1Obj, bucketID1, key2Obj, configuration)
                                     ? ABoolean.TRUE : ABoolean.FALSE;
 
+                            if (tag1 == ATypeTag.OBJECT || tag3 == ATypeTag.OBJECT) {
+                                pointableAllocator.reset();
+                            }
+
                         } catch (Exception e) {
                             e.printStackTrace();
                         }

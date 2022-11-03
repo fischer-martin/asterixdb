@@ -120,6 +120,10 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
             IVisitablePointable obj = pointableAllocator.allocateFieldValue(aggFieldType);
             eval.evaluate(tuple, obj);
             summary.add(obj);
+
+            // I hope that this does not cause any problems if the summary still holds references to e.g. the
+            // IVisitablePointable's byte array lol
+            pointableAllocator.reset();
         } else {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len - 1);
             DataInputStream dataIn = new DataInputStream(inStream);
