@@ -48,10 +48,11 @@ public class SmallFirst implements IHeuristicForThetaJoin {
     RecordDescriptor probeRd;
 
     boolean roleReversal = false;
+    boolean continueToCheckBuckets = false;
 
     public SmallFirst(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize,
-            RecordDescriptor buildRd, RecordDescriptor probeRd, boolean checkForRoleReversal)
-            throws HyracksDataException {
+            RecordDescriptor buildRd, RecordDescriptor probeRd, boolean checkForRoleReversal,
+            boolean continueToCheckBuckets) throws HyracksDataException {
         this.memoryForJoinInBytes = memoryForJoin * frameSize;
         this.memoryForJoinInFrames = memoryForJoin;
         this.frameSize = frameSize;
@@ -63,6 +64,7 @@ public class SmallFirst implements IHeuristicForThetaJoin {
         //this.roleReversal = true;
         if (checkForRoleReversal && probeFileSize < buildFileSize)
             this.roleReversal = true;
+        this.continueToCheckBuckets = continueToCheckBuckets;
     }
 
     @Override
@@ -83,25 +85,29 @@ public class SmallFirst implements IHeuristicForThetaJoin {
 
             int endFrame = bucket[4];
             int endOffset = bucket[5];
-            //            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
-            //                totalSizeForBuckets += bucketSize;
-            //                removeList.add(bucket);
-            //                Bucket returnBucket;
-            //                returnBucket = new Bucket(bucket[0], roleReversal?1:0, bucket[3], endOffset,
-            //                        bucket[2], endFrame);
-            //                returnBuckets.add(returnBucket);
-            //            }
 
-            if (Math.ceil(
-                    ((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
-                totalSizeForBuckets += bucketSize;
+            if (this.continueToCheckBuckets) {
+                if (Math.ceil(
+                        ((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
+                    totalSizeForBuckets += bucketSize;
+                    removeList.add(bucket);
+                    Bucket returnBucket;
+                    returnBucket =
+                            new Bucket(bucket[0], roleReversal ? 1 : 0, bucket[3], endOffset, bucket[2], endFrame);
+                    returnBuckets.add(returnBucket);
+                }
+            } else {
+                if (Math.ceil(
+                        ((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
+                    totalSizeForBuckets += bucketSize;
 
-            } else
-                break;
-            removeList.add(bucket);
-            Bucket returnBucket;
-            returnBucket = new Bucket(bucket[0], roleReversal ? 1 : 0, bucket[3], endOffset, bucket[2], endFrame);
-            returnBuckets.add(returnBucket);
+                } else
+                    break;
+                removeList.add(bucket);
+                Bucket returnBucket;
+                returnBucket = new Bucket(bucket[0], roleReversal ? 1 : 0, bucket[3], endOffset, bucket[2], endFrame);
+                returnBuckets.add(returnBucket);
+            }
         }
         bucketsFromR.removeAll(removeList);
         return returnBuckets;

@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.lang.reflect.InvocationTargetException;
 
+import org.apache.asterix.dataflow.data.nontagged.serde.ARecordSerializerDeserializer;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
 import org.apache.asterix.external.cartilage.base.Summary;
 import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
@@ -35,9 +36,11 @@ import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ANull;
 import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
+import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.EnumDeserializer;
+import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.runtime.aggregates.std.AbstractAggregateFunction;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
 import org.apache.commons.lang3.SerializationUtils;
@@ -52,7 +55,6 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
-import org.apache.asterix.om.types.IAType;
 
 public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggregateFunction {
 
@@ -65,17 +67,20 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
     private final IExternalFunctionInfo finfo;
     private final ClassLoader classLoader;
 
+    private IAType aggFieldType;
+
     @SuppressWarnings("unchecked")
     private ISerializerDeserializer<ANull> nullSerde =
             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ANULL);
 
     public AbstractSummaryTwoAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context,
-            SourceLocation sourceLoc, IExternalFunctionInfo finfo) throws HyracksDataException {
+            SourceLocation sourceLoc, IExternalFunctionInfo finfo, IAType aggFieldType) throws HyracksDataException {
         super(sourceLoc);
         this.eval = args[0].createScalarEvaluator(context);
         this.context = context;
         this.finfo = finfo;
         classLoader = getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, context);
+        this.aggFieldType = aggFieldType;
         try {
             FlexibleJoin<?, ?> flexibleJoin = getFlexibleJoin((ExternalFJFunctionInfo) finfo, classLoader);
             this.summary = flexibleJoin.createSummarizer2();
@@ -116,7 +121,13 @@ public abstract class AbstractSummaryTwoAggregateFunction extends AbstractAggreg
         } else {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len - 1);
             DataInputStream dataIn = new DataInputStream(inStream);
-            summary.add(getKeyObject(dataIn, typeTag));
+            if (typeTag == ATypeTag.OBJECT) {
+                ARecordSerializerDeserializer aRecordSerializerDeserializer =
+                        new ARecordSerializerDeserializer((ARecordType) aggFieldType);
+                summary.add(aRecordSerializerDeserializer.deserialize(dataIn).toJSON());
+            } else {
+                summary.add(getKeyObject(dataIn, typeTag));
+            }
         }
     }
 

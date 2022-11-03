@@ -54,7 +54,6 @@ import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenHelper;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.algebricks.runtime.evaluators.TuplePairEvaluatorFactory;
 import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
-import org.apache.hyracks.api.dataflow.value.IBinaryHashFunctionFamily;
 import org.apache.hyracks.api.dataflow.value.IPredicateEvaluatorFactory;
 import org.apache.hyracks.api.dataflow.value.IPredicateEvaluatorFactoryProvider;
 import org.apache.hyracks.api.dataflow.value.ITuplePairComparatorFactory;
@@ -71,15 +70,17 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
 
     private final int memSizeInFrames;
     private final double fudgeFactor;
+    private final String heuristic;
 
     public FlexibleJoinPOperator(JoinKind kind, JoinPartitioningType partitioningType,
             List<LogicalVariable> keysLeftBranch, List<LogicalVariable> keysRightBranch, int memSizeInFrames,
-            double fudgeFactor) {
+            double fudgeFactor, String heuristic) {
         super(kind, partitioningType);
         this.keysLeftBranch = keysLeftBranch;
         this.keysRightBranch = keysRightBranch;
         this.memSizeInFrames = memSizeInFrames;
         this.fudgeFactor = fudgeFactor;
+        this.heuristic = heuristic;
     }
 
     public List<LogicalVariable> getKeysLeftBranch() {
@@ -190,13 +191,12 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
         IPredicateEvaluatorFactoryProvider predEvaluatorFactoryProvider =
                 context.getPredicateEvaluatorFactoryProvider();
 
-
         IPredicateEvaluatorFactory predEvaluatorFactory = predEvaluatorFactoryProvider == null ? null
                 : predEvaluatorFactoryProvider.getPredicateEvaluatorFactory(keysBuild);
 
         IOperatorDescriptor opDesc =
                 new ThetaFlexibleJoinOperatorDescriptor(spec, memSizeInFrames, keysBuild, keysProbe, recordDescriptor,
-                        comparatorFactory, reverseComparatorFactory, predEvaluatorFactory, fudgeFactor);
+                        comparatorFactory, reverseComparatorFactory, predEvaluatorFactory, fudgeFactor, this.heuristic);
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
         ILogicalOperator src1 = op.getInputs().get(0).getValue();
         builder.contributeGraphEdge(src1, 0, op, 0);

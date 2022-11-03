@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.lang.reflect.InvocationTargetException;
 
+import org.apache.asterix.dataflow.data.nontagged.serde.ARecordSerializerDeserializer;
 import org.apache.asterix.external.cartilage.base.FlexibleJoin;
 import org.apache.asterix.external.cartilage.base.Summary;
 import org.apache.asterix.external.cartilage.util.ClassLoaderAwareObjectInputStream;
@@ -35,7 +36,11 @@ import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ANull;
 import org.apache.asterix.om.functions.ExternalFJFunctionInfo;
 import org.apache.asterix.om.functions.IExternalFunctionInfo;
-import org.apache.asterix.om.types.*;
+import org.apache.asterix.om.types.ARecordType;
+import org.apache.asterix.om.types.ATypeTag;
+import org.apache.asterix.om.types.BuiltinType;
+import org.apache.asterix.om.types.EnumDeserializer;
+import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.runtime.aggregates.std.AbstractAggregateFunction;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
 import org.apache.commons.lang3.SerializationUtils;
@@ -50,7 +55,6 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARecordSerializerDeserializer;
 
 public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggregateFunction {
 
@@ -77,7 +81,7 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         this.eval = args[0].createScalarEvaluator(context);
         this.context = context;
         this.finfo = finfo;
-        this. aggFieldType = aggFieldType;
+        this.aggFieldType = aggFieldType;
         classLoader = getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, context);
         try {
             FlexibleJoin<?, ?> flexibleJoin = getFlexibleJoin((ExternalFJFunctionInfo) finfo, classLoader);
@@ -114,8 +118,9 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         } else {
             ByteArrayInputStream inStream = new ByteArrayInputStream(data, offset + 1, len - 1);
             DataInputStream dataIn = new DataInputStream(inStream);
-            if(typeTag == ATypeTag.OBJECT) {
-                ARecordSerializerDeserializer aRecordSerializerDeserializer = new ARecordSerializerDeserializer((ARecordType) aggFieldType);
+            if (typeTag == ATypeTag.OBJECT) {
+                ARecordSerializerDeserializer aRecordSerializerDeserializer =
+                        new ARecordSerializerDeserializer((ARecordType) aggFieldType);
                 summary.add(aRecordSerializerDeserializer.deserialize(dataIn).toJSON());
             } else {
                 summary.add(getKeyObject(dataIn, typeTag));

@@ -135,10 +135,11 @@ public class ApplyFlexibleJoinUtils {
             return false;
         }
 
+        FlexibleJoinAnnotation flexibleJoinAnn = flexibleFuncExpr.getAnnotation(FlexibleJoinAnnotation.class);
+
         metadataProvider = (MetadataProvider) context.getMetadataProvider();
 
         List<Mutable<ILogicalExpression>> joinArgs = flexibleFuncExpr.getArguments();
-
 
         ILogicalExpression flexibleJoinLeftArg = joinArgs.get(left).getValue();
         ILogicalExpression flexibleJoinRightArg = joinArgs.get(right).getValue();
@@ -148,7 +149,7 @@ public class ApplyFlexibleJoinUtils {
             return false;
         }
 
-        FlexibleJoinAnnotation flexibleJoinAnn = joinCondFuncExp.getAnnotation(FlexibleJoinAnnotation.class);
+
 
         Mutable<ILogicalOperator> leftInputOp = joinOp.getInputs().get(left);
         Mutable<ILogicalOperator> rightInputOp = joinOp.getInputs().get(right);
@@ -318,9 +319,8 @@ public class ApplyFlexibleJoinUtils {
         LogicalVariable leftBucketIdVar = leftBucketIdVarPair.first;
         LogicalVariable rightBucketIdVar = rightBucketIdVarPair.first;
 
-        ScalarFunctionCallExpression verifyJoinCondition =
-                createVerifyCondition(joinOp, verifyConfigurationExpr, leftBucketIdVar, rightBucketIdVar, leftKeyVar,
-                        rightKeyVar, dataverseName, functionName, parameters);
+        ScalarFunctionCallExpression verifyJoinCondition = createVerifyCondition(joinOp, verifyConfigurationExpr,
+                leftBucketIdVar, rightBucketIdVar, leftKeyVar, rightKeyVar, dataverseName, functionName, parameters);
 
         List<LogicalVariable> keysLeftBranch = new ArrayList<>();
         keysLeftBranch.add(leftBucketIdVar);
@@ -368,8 +368,8 @@ public class ApplyFlexibleJoinUtils {
         //matchJoinOp.setPhysicalOperator(new HybridHashJoinPOperator(AbstractBinaryJoinOperator.JoinKind.INNER, AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
         //        keysLeftBranch, keysRightBranch, ));
 
-        if (flexibleJoinAnn == null && !eqMatch) {
-            setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context);
+        if ((flexibleJoinAnn != null && !flexibleJoinAnn.getHeuristic().equals("nlj")) && !eqMatch) {
+            setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context, flexibleJoinAnn.getHeuristic());
         }
 
         matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
@@ -711,11 +711,12 @@ public class ApplyFlexibleJoinUtils {
     }
 
     private static void setFlexibleJoinOp(AbstractBinaryJoinOperator op, List<LogicalVariable> keysLeftBranch,
-            List<LogicalVariable> keysRightBranch, IOptimizationContext context) throws AlgebricksException {
+            List<LogicalVariable> keysRightBranch, IOptimizationContext context, String heuristic)
+            throws AlgebricksException {
         op.setPhysicalOperator(
                 new FlexibleJoinPOperator(op.getJoinKind(), AbstractJoinPOperator.JoinPartitioningType.PAIRWISE,
                         keysLeftBranch, keysRightBranch, context.getPhysicalOptimizationConfig().getMaxFramesForJoin(),
-                        context.getPhysicalOptimizationConfig().getFudgeFactor()));
+                        context.getPhysicalOptimizationConfig().getFudgeFactor(), heuristic));
         op.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(op);
     }

@@ -698,7 +698,8 @@ class SQLPPParser extends ScopeChecker implements IParser {
             return new BroadcastExpressionAnnotation(BroadcastExpressionAnnotation.BroadcastSide.RIGHT);
 
           case FJ_SHADOW_JOIN_HINT:
-            return new FlexibleJoinAnnotation();
+              FlexibleJoinAnnotation fjAnnotation = new FlexibleJoinAnnotation(hintToken.hintParams);
+              return fjAnnotation;
 
           case HASH_JOIN_HINT:
             return new HashJoinExpressionAnnotation(HashJoinExpressionAnnotation.BuildSide.RIGHT);

@@ -22,13 +22,19 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.IExpressionAnnotat
 
 public final class FlexibleJoinAnnotation implements IExpressionAnnotation {
 
-    public static final String HINT_STRING = "shadow-join";
+    public static final String HINT_STRING = "heuristic";
+    private String heuristic;
 
-    public FlexibleJoinAnnotation() {
+    public FlexibleJoinAnnotation(String heuristic) {
+        this.heuristic = heuristic;
     }
 
     @Override
     public String toString() {
-        return String.format("%s", HINT_STRING);
+        return String.format("%s:%s", HINT_STRING, getHeuristic());
+    }
+
+    public String getHeuristic() {
+        return this.heuristic;
     }
 }

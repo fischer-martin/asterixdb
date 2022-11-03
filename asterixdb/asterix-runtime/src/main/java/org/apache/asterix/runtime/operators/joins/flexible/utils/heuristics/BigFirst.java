@@ -50,10 +50,12 @@ public class BigFirst implements IHeuristicForThetaJoin {
     RecordDescriptor probeRd;
 
     boolean roleReversal = false;
+    boolean continueToCheckBuckets = false;
     ArrayList<IBucket> returnBuckets = new ArrayList<>();
 
     public BigFirst(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd,
-            RecordDescriptor probeRd, boolean checkForRoleReversal) throws HyracksDataException {
+            RecordDescriptor probeRd, boolean checkForRoleReversal, boolean continueToCheckBuckets)
+            throws HyracksDataException {
         this.memoryForJoinInBytes = memoryForJoin * frameSize;
         this.memoryForJoinInFrames = memoryForJoin;
         this.frameSize = frameSize;
@@ -65,6 +67,7 @@ public class BigFirst implements IHeuristicForThetaJoin {
         //this.roleReversal = true;
         if (checkForRoleReversal && probeFileSize < buildFileSize)
             this.roleReversal = true;
+        this.continueToCheckBuckets = continueToCheckBuckets;
     }
 
     @Override
@@ -85,24 +88,29 @@ public class BigFirst implements IHeuristicForThetaJoin {
 
             int endFrame = bucket[4];
             int endOffset = bucket[5];
-            if (Math.ceil(
-                    ((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
-                totalSizeForBuckets += bucketSize;
+            if (this.continueToCheckBuckets) {
+                if (Math.ceil(
+                        ((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
+                    totalSizeForBuckets += bucketSize;
+                    removeList.add(bucket);
+                    Bucket returnBucket;
+                    returnBucket =
+                            new Bucket(bucket[0], roleReversal ? 1 : 0, bucket[3], endOffset, bucket[2], endFrame);
+                    returnBuckets.add(returnBucket);
+                }
+            } else {
+                if (Math.ceil(
+                        ((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
+                    totalSizeForBuckets += bucketSize;
+
+                } else
+                    break;
                 removeList.add(bucket);
                 Bucket returnBucket;
                 returnBucket = new Bucket(bucket[0], roleReversal ? 1 : 0, bucket[3], endOffset, bucket[2], endFrame);
                 returnBuckets.add(returnBucket);
             }
 
-            //            if (Math.ceil(((double) totalSizeForBuckets + bucketSize) * CONSTANT / frameSize) <= memoryForJoinInFrames) {
-            //                totalSizeForBuckets += bucketSize;
-            //
-            //            } else break;
-            //            removeList.add(bucket);
-            //            Bucket returnBucket;
-            //            returnBucket = new Bucket(bucket[0], roleReversal?1:0, bucket[3], endOffset,
-            //                    bucket[2], endFrame);
-            //            returnBuckets.add(returnBucket);
         }
         bucketsFromR.removeAll(removeList);
         return returnBuckets;
@@ -110,37 +118,32 @@ public class BigFirst implements IHeuristicForThetaJoin {
 
     public ArrayList<IBucket> nextProbingBucketSequence() {
         ArrayList<IBucket> returnBuckets = new ArrayList<>();
-        int totalSizeOfBuckets = 0;
 
-        for (int i = 0; i < this.numberOfBuckets; i++) {
-            int[] bucket = bucketTable.getEntry(i);
-
-            if (bucket[0] == -1 || bucket[4] == -1) {
-                continue;
-            }
-            if (bucket[3] >= 0)
-                continue;
-            long bucketSize;
-            long startOffsetInFile = -((long) (bucket[3] + 1) * this.frameSize) + bucket[4];
+        for (int i = 0; i < this.tempBucketsFromS.size(); i++) {
+            int[] bucket = tempBucketsFromS.get(i);
+            Bucket returnBucket;
             int endFrame;
             int endOffset;
-            if (i + 1 < this.numberOfBuckets) {
-                bucketSize = -((long) (bucketTable.getEntry(i + 1)[3] + 1) * this.frameSize)
-                        + bucketTable.getEntry(i + 1)[4] - startOffsetInFile;
-                endOffset = bucketTable.getEntry(i + 1)[4];
-                endFrame = -(bucketTable.getEntry(i + 1)[3] + 1);
-            } else {
-                bucketSize = probeFileSize - startOffsetInFile;
-                endOffset = -1;
-                endFrame = -1;
-            }
+            if (!roleReversal) {
 
-            //totalSizeOfBuckets += bucketSize;
-            //if(totalSizeOfBuckets > memoryForJoinInBytes) {
-            //    break;
-            //}
-            //bucketTable.updateBuildBucket(bucket[0], new TuplePointer(0,0));
-            Bucket returnBucket = new Bucket(bucket[0], 1, bucket[4], endOffset, -(bucket[3] + 1), endFrame);
+                if (i + 1 < this.tempBucketsFromS.size()) {
+                    endOffset = tempBucketsFromS.get(i + 1)[4];
+                    endFrame = -(tempBucketsFromS.get(i + 1)[3] + 1);
+                } else {
+                    endOffset = -1;
+                    endFrame = -1;
+                }
+                returnBucket = new Bucket(bucket[0], 1, bucket[4], endOffset, -(bucket[3] + 1), endFrame);
+            } else {
+                if (i + 1 < this.tempBucketsFromS.size()) {
+                    endOffset = tempBucketsFromS.get(i + 1)[2];
+                    endFrame = -(tempBucketsFromS.get(i + 1)[1] + 1);
+                } else {
+                    endOffset = -1;
+                    endFrame = -1;
+                }
+                returnBucket = new Bucket(bucket[0], 0, bucket[2], endOffset, -(bucket[1] + 1), endFrame);
+            }
             returnBuckets.add(returnBucket);
         }
 
@@ -169,6 +172,21 @@ public class BigFirst implements IHeuristicForThetaJoin {
             tempBucketsFromR.add(bucket);
         }
         tempBucketsFromR.sort(Comparator.comparingDouble(o -> -o[roleReversal ? 3 : 1]));
+
+        for (int i = 0; i < this.numberOfBuckets; i++) {
+            int[] bucket = bucketTable.getEntry(i);
+            if (!roleReversal) {
+                if (bucket[0] == -1 || bucket[3] > -1 || bucket[4] == -1) {
+                    continue;
+                }
+            } else {
+                if (bucket[0] == -1 || bucket[1] > -1 || bucket[2] == -1) {
+                    continue;
+                }
+            }
+            tempBucketsFromS.add(bucket);
+        }
+        tempBucketsFromS.sort(Comparator.comparingDouble(o -> -o[roleReversal ? 1 : 3]));
 
         for (int i = 0; i < tempBucketsFromR.size(); i++) {
             int[] bucket = tempBucketsFromR.get(i);

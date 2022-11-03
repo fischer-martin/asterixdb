@@ -44,12 +44,7 @@ import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 
 public class InMemoryThetaFlexibleJoiner {
 
-    protected static final int JOIN_PARTITIONS = 2;
-    protected static final int BUILD_PARTITION = 0;
-    protected static final int PROBE_PARTITION = 1;
-
     protected final FrameTupleAppender resultAppender;
-    protected final FrameTupleCursor[] inputCursor;
 
     private final IHyracksTaskContext ctx;
 
@@ -76,12 +71,14 @@ public class InMemoryThetaFlexibleJoiner {
     protected long numRecordsFromBuild;
     private int[] buildKeys;
     private int[] probeKeys;
+
+    private boolean reversed;
     //    private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
     //        private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
     //        private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
 
     public InMemoryThetaFlexibleJoiner(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd,
-            RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, int nBuckets) throws HyracksDataException {
+            RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, int nBuckets, boolean reversed) throws HyracksDataException {
 
         // Memory (probe buffer)
         if (memorySize < 5) {
@@ -91,8 +88,6 @@ public class InMemoryThetaFlexibleJoiner {
         this.ctx = ctx;
         this.nBuckets = nBuckets;
 
-        inputCursor = new FrameTupleCursor[JOIN_PARTITIONS];
-        inputCursor[BUILD_PARTITION] = new FrameTupleCursor(buildRd);
         // Result
         this.resultAppender = new FrameTupleAppender(new VSizeFrame(ctx));
 
@@ -114,6 +109,8 @@ public class InMemoryThetaFlexibleJoiner {
 
         this.buildKeys = buildKeys;
         this.probeKeys = probeKeys;
+
+        this.reversed = reversed;
 
     }
 
@@ -160,10 +157,6 @@ public class InMemoryThetaFlexibleJoiner {
         this.tpComparator = comparator;
     }
 
-    private byte[] intToByteArray(int value) {
-        return new byte[] { (byte) (value >>> 24), (byte) (value >>> 16), (byte) (value >>> 8), (byte) value };
-    }
-
     public void probeOneBucket(ByteBuffer buffer, IFrameWriter writer, int startOffset, int endOffset)
             throws HyracksDataException {
         accessorProbe.reset(buffer);
@@ -186,7 +179,6 @@ public class InMemoryThetaFlexibleJoiner {
                 memoryAccessor.reset(new TuplePointer(bucketInfo[1], bucketInfo[2]));
                 accessorIndex = bucketInfo[2];
                 // if buckets are matching
-                //TODO Here we are not able to reach the data from memory if the bucket is already spilled
                 if (this.tpComparator.compare(memoryAccessor, accessorIndex, accessorProbe, i) < 1) {
                     matched = true;
                     // if the bucket is in memory join the records
@@ -202,7 +194,8 @@ public class InMemoryThetaFlexibleJoiner {
                         while (tupleCounter < memoryAccessor.getTupleCount()) {
                             first = false;
                             memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                            int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
+                            int bucketReadFromMem =
+                                    FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
                             if (bucketReadFromMem != bucketInfo[0]) {
                                 finished = true;
                                 break;
@@ -231,6 +224,7 @@ public class InMemoryThetaFlexibleJoiner {
         //                    a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
         //                }
         //                System.out.println(a);
+
         resultAppender.write(writer, true);
     }
 
@@ -244,9 +238,13 @@ public class InMemoryThetaFlexibleJoiner {
 
     private void addToResult(IFrameTupleAccessor buildAccessor, int buildTupleId, IFrameTupleAccessor probeAccessor,
             int probeTupleId, IFrameWriter writer) throws HyracksDataException {
-
-        FrameUtils.appendConcatToWriter(writer, resultAppender, buildAccessor, buildTupleId, probeAccessor,
-                probeTupleId);
+        if(reversed) {
+            FrameUtils.appendConcatToWriter(writer, resultAppender, probeAccessor, probeTupleId, buildAccessor,
+                    buildTupleId);
+        } else {
+            FrameUtils.appendConcatToWriter(writer, resultAppender, buildAccessor, buildTupleId, probeAccessor,
+                    probeTupleId);
+        }
 
     }
 
