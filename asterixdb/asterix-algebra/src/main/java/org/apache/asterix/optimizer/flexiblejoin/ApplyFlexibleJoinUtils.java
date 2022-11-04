@@ -149,8 +149,6 @@ public class ApplyFlexibleJoinUtils {
             return false;
         }
 
-
-
         Mutable<ILogicalOperator> leftInputOp = joinOp.getInputs().get(left);
         Mutable<ILogicalOperator> rightInputOp = joinOp.getInputs().get(right);
 

@@ -20,6 +20,7 @@ package org.apache.asterix.runtime.operators.joins.flexible;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IBucket;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IHeuristicForThetaJoin;
@@ -27,6 +28,7 @@ import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.BigF
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.FirstFit;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.SmallFirst;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.Weighted;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
 import org.apache.hyracks.api.comm.IFrame;
@@ -46,6 +48,7 @@ import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.IOperatorDescriptorRegistry;
 import org.apache.hyracks.api.job.JobId;
+import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import org.apache.hyracks.dataflow.std.base.AbstractActivityNode;
 import org.apache.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
 import org.apache.hyracks.dataflow.std.base.AbstractStateObject;
@@ -78,9 +81,9 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
     private final String heuristic;
 
     public ThetaFlexibleJoinOperatorDescriptor(IOperatorDescriptorRegistry spec, int memoryForJoin, int[] buildKeys,
-                                               int[] probeKeys, RecordDescriptor recordDescriptor, ITuplePairComparatorFactory tupPaircomparatorFactory01,
-                                               ITuplePairComparatorFactory tupPaircomparatorFactory10, IPredicateEvaluatorFactory predEvaluatorFactory,
-                                               double fudgeFactor, String heuristic) {
+            int[] probeKeys, RecordDescriptor recordDescriptor, ITuplePairComparatorFactory tupPaircomparatorFactory01,
+            ITuplePairComparatorFactory tupPaircomparatorFactory10, IPredicateEvaluatorFactory predEvaluatorFactory,
+            double fudgeFactor, String heuristic) {
         super(spec, 2, 1);
 
         this.predEvaluatorFactory = predEvaluatorFactory;
@@ -136,7 +139,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                                                       IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
             final RecordDescriptor probeRd = recordDescProvider.getInputRecordDescriptor(nljAid, 0);
             final RecordDescriptor buildRd = recordDescProvider.getInputRecordDescriptor(getActivityId(), 0);
 
@@ -210,7 +213,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
         @Override
         public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
-                                                       IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions)
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions)
                 throws HyracksDataException {
             return new AbstractUnaryInputUnaryOutputOperatorNodePushable() {
                 private JoinCacheTaskState state;
@@ -297,7 +300,59 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                         runFileStreams[0].startReadingRunFile();
                         runFileStreams[1].startReadingRunFile();
+                        int frameSizes = ctx.getInitialFrameSize();
+                        IFrame framew = new VSizeFrame(ctx, frameSizes);
+                        FrameTupleAccessor accessorBuild = new FrameTupleAccessor(buildRd);
+                        int frameId = 0;
+                        LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
+                        while(runFileStreams[0].loadNextBuffer(framew)) {
+                            accessorBuild.reset(framew.getBuffer());
+                            int tupleCount = accessorBuild.getTupleCount();
+                            System.out.println(frameId + ":" + tupleCount);
+                            for (int i = 0; i < tupleCount; i++) {
 
+                                //                        if(accessorBuild.getTupleStartOffset(i) < startOffset) continue;
+                                //                        if(endOffset != -1) {
+                                //                            if(accessorBuild.getTupleStartOffset(i) >= endOffset) break;
+                                //                        }
+                                // b = FlexibleJoinsUtil.getBucketId(accessorBuild,i,1);
+                                int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorBuild, i, buildKeys[0]);
+                                bucketMap.merge(bucketIdT, 1, Integer::sum);
+                            }
+                            frameId++;
+                        }
+                        StringBuilder a = new StringBuilder();
+                        a.append("*****Bucket Counter From Build Side\n");
+                        for(Integer bucketId: bucketMap.keySet()) {
+                            a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
+                        }
+                        System.out.println(a);
+                        bucketMap.clear();
+                        a = new StringBuilder();
+                        FrameTupleAccessor accessorProbe = new FrameTupleAccessor(probeRd);
+                        frameId = 0;
+                        while(runFileStreams[1].loadNextBuffer(framew)) {
+                            accessorProbe.reset(framew.getBuffer());
+                            int tupleCount = accessorProbe.getTupleCount();
+                            System.out.println(frameId + ":" + tupleCount);
+                            for (int i = 0; i < tupleCount; i++) {
+
+                                //                        if(accessorBuild.getTupleStartOffset(i) < startOffset) continue;
+                                //                        if(endOffset != -1) {
+                                //                            if(accessorBuild.getTupleStartOffset(i) >= endOffset) break;
+                                //                        }
+                                // b = FlexibleJoinsUtil.getBucketId(accessorBuild,i,1);
+                                int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
+                                //System.out.println(bucketIdT);
+                                bucketMap.merge(bucketIdT, 1, Integer::sum);
+                            }
+                            frameId++;
+                        }
+                        a.append("*****Bucket Counter From Probe Side\n");
+                        for(Integer bucketId: bucketMap.keySet()) {
+                            a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
+                        }
+                        System.out.println(a);
                         LOGGER.info("Starting to process disk based buckets. \nBuild & Probe File Sizes: "
                                 + runFileStreams[0].getRunFileReaderSize() / 1024 + "KB\t"
                                 + runFileStreams[1].getRunFileReaderSize() / 1024 + "KB");
@@ -439,13 +494,13 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                     //TODO: build function should also get the record descriptor since it will not be always R
                                     if (inMemoryThetaFlexibleJoiner == null) {
                                         if (buildingBucket.getSide() == 0) {
-                                            inMemoryThetaFlexibleJoiner =
-                                                    new InMemoryThetaFlexibleJoiner(ctx, memoryForJoin, buildRd,
-                                                            probeRd, buildKeys, probeKeys, buildingBuckets.size(), false);
+                                            inMemoryThetaFlexibleJoiner = new InMemoryThetaFlexibleJoiner(ctx,
+                                                    memoryForJoin, buildRd, probeRd, buildKeys, probeKeys,
+                                                    buildingBuckets.size(), false);
                                         } else {
-                                            inMemoryThetaFlexibleJoiner =
-                                                    new InMemoryThetaFlexibleJoiner(ctx, memoryForJoin, probeRd,
-                                                            buildRd, probeKeys, buildKeys, buildingBuckets.size(), true);
+                                            inMemoryThetaFlexibleJoiner = new InMemoryThetaFlexibleJoiner(ctx,
+                                                    memoryForJoin, probeRd, buildRd, probeKeys, buildKeys,
+                                                    buildingBuckets.size(), true);
                                         }
                                     }
 
@@ -454,65 +509,65 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                     currentFrame++;
                                 }
                             }
-                                                        //int probingSide = 1 - buildingBuckets.get(0).getSide();
+                            //int probingSide = 1 - buildingBuckets.get(0).getSide();
 
-                            inMemoryThetaFlexibleJoiner.initProbe(buildComp);
-                            //TODO: we need to read only the matching buckets from probe side
-                            FrameTupleCursor frameTupleCursor = new FrameTupleCursor(probeRd);
-                            int probingSide = 1 - buildingBuckets.get(0).getSide();
-                            if (probingSide == 1)
-                                inMemoryThetaFlexibleJoiner.initProbe(probComp);
-                            else
-                                inMemoryThetaFlexibleJoiner.initProbe(buildComp);
-                            runFileStreams[probingSide].startReadingRunFile(frameTupleCursor);
-                            inMemoryThetaFlexibleJoiner.probeOneBucket(frameTupleCursor.getAccessor().getBuffer(),
-                                    writer, 5, -1);
-                            while (runFileStreams[probingSide].loadNextBuffer(frameTupleCursor)) {
-                                inMemoryThetaFlexibleJoiner.probeOneBucket(frameTupleCursor.getAccessor().getBuffer(),
-                                        writer, 5, -1);
-                            }
-
-                            //get the probing sequence
-//                            ArrayList<IBucket> probingBuckets = heuristicForThetaJoin.nextProbingBucketSequence();
-//
+//                            inMemoryThetaFlexibleJoiner.initProbe(buildComp);
+//                            //TODO: we need to read only the matching buckets from probe side
+//                            FrameTupleCursor frameTupleCursor = new FrameTupleCursor(probeRd);
 //                            int probingSide = 1 - buildingBuckets.get(0).getSide();
 //                            if (probingSide == 1)
 //                                inMemoryThetaFlexibleJoiner.initProbe(probComp);
 //                            else
 //                                inMemoryThetaFlexibleJoiner.initProbe(buildComp);
-//
-//                            //for each bucket p in probing sequence
-//                             for (IBucket probingBucket : probingBuckets) {
-//                                int frameSize = ctx.getInitialFrameSize();
-//                                IFrame frame = new VSizeFrame(ctx, frameSize);
-//                                int startFrame = probingBucket.getStartFrame();
-//                                long endFrame = probingBucket.getEndFrame() == -1
-//                                        ? runFileStreams[probingBucket.getSide()].getWriteCount()
-//                                        : probingBucket.getEndFrame();
-//
-//                                runFileStreams[probingBucket.getSide()].seekToAPosition((long) startFrame * frameSize);
-//                                int currentFrame = startFrame;
-//                                int startOffset;
-//                                int endOffset;
-//                                while (currentFrame <= endFrame) {
-//                                    if (!runFileStreams[probingBucket.getSide()].loadNextBuffer(frame))
-//                                        break;
-//                                    if (currentFrame == startFrame)
-//                                        startOffset = probingBucket.getStartOffset();
-//                                    else
-//                                        startOffset = 5;
-//                                    if (currentFrame == endFrame)
-//                                        endOffset = probingBucket.getEndOffset();
-//                                    else
-//                                        endOffset = -1;
-//
-//                                    inMemoryThetaFlexibleJoiner.probeOneBucket(frame.getBuffer(), writer, startOffset,
-//                                            endOffset);
-//                                    currentFrame++;
-//                                }
+//                            runFileStreams[probingSide].startReadingRunFile(frameTupleCursor);
+//                            inMemoryThetaFlexibleJoiner.probeOneBucket(frameTupleCursor.getAccessor().getBuffer(),
+//                                    writer, 5, -1);
+//                            while (runFileStreams[probingSide].loadNextBuffer(frameTupleCursor)) {
+//                                inMemoryThetaFlexibleJoiner.probeOneBucket(frameTupleCursor.getAccessor().getBuffer(),
+//                                        writer, 5, -1);
 //                            }
 
-                            //state.joiner.getBucketTable().printInfo();
+                            //get the probing sequence
+                                                        ArrayList<IBucket> probingBuckets = heuristicForThetaJoin.nextProbingBucketSequence();
+
+                                                        int probingSide = 1 - buildingBuckets.get(0).getSide();
+                                                        if (probingSide == 1)
+                                                            inMemoryThetaFlexibleJoiner.initProbe(probComp);
+                                                        else
+                                                            inMemoryThetaFlexibleJoiner.initProbe(buildComp);
+
+                                                        //for each bucket p in probing sequence
+                                                         for (IBucket probingBucket : probingBuckets) {
+                                                            int frameSize = ctx.getInitialFrameSize();
+                                                            IFrame frame = new VSizeFrame(ctx, frameSize);
+                                                            int startFrame = probingBucket.getStartFrame();
+                                                            long endFrame = probingBucket.getEndFrame() == -1
+                                                                    ? runFileStreams[probingBucket.getSide()].getWriteCount()
+                                                                    : probingBucket.getEndFrame();
+
+                                                            runFileStreams[probingBucket.getSide()].seekToAPosition((long) startFrame * frameSize);
+                                                            int currentFrame = startFrame;
+                                                            int startOffset;
+                                                            int endOffset;
+                                                            while (currentFrame < endFrame) {
+                                                                if (!runFileStreams[probingBucket.getSide()].loadNextBuffer(frame))
+                                                                    break;
+                                                                if (currentFrame == startFrame)
+                                                                    startOffset = probingBucket.getStartOffset();
+                                                                else
+                                                                    startOffset = 5;
+                                                                if (currentFrame == endFrame)
+                                                                    endOffset = probingBucket.getEndOffset();
+                                                                else
+                                                                    endOffset = -1;
+
+                                                                inMemoryThetaFlexibleJoiner.probeOneBucket(frame.getBuffer(), writer, startOffset,
+                                                                        endOffset);
+                                                                currentFrame++;
+                                                            }
+                                                        }
+
+                            state.joiner.getBucketTable().printInfo();
 
                             inMemoryThetaFlexibleJoiner.completeProbe(writer);
                             inMemoryThetaFlexibleJoiner.releaseResource();
