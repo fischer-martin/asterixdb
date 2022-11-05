@@ -166,13 +166,15 @@ public class InMemoryThetaFlexibleJoiner {
         int numberOfBuckets = table.getNumEntries();
         int accessorIndex = 0;
         // for each record from S
+        int bucketIdT = 0;
+        int countAdded = 0;
         for (int i = 0; i < tupleCount; ++i) {
             boolean matched = false;
             //                        if(accessorProbe.getTupleStartOffset(i) < startOffset) continue;
             //                        if(endOffset != -1) {
             //                            if(accessorProbe.getTupleStartOffset(i) >= endOffset) break;
             //                        }
-            int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
+            bucketIdT = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
             bucketMatchCount.merge(bucketIdT, 1, Integer::sum);
 
             // Iterate over the buckets from bucket table
@@ -204,6 +206,7 @@ public class InMemoryThetaFlexibleJoiner {
 //                            }
                             addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
                             tupleCounter++;
+                            countAdded++;
 
                         }
 //                        if (finished)
@@ -216,6 +219,8 @@ public class InMemoryThetaFlexibleJoiner {
             if (!matched)
                 break;
         }
+
+        System.out.println("Number of records added to result from bucket " + bucketIdT + " : " + countAdded);
 
     }
 

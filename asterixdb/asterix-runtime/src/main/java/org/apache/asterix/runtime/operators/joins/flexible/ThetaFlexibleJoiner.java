@@ -312,6 +312,7 @@ public class ThetaFlexibleJoiner {
     }
 
     public void initProbe(ITuplePairComparator comparator) {
+        //table.printInfo();
         this.tpComparator = comparator;
     }
 
