@@ -418,22 +418,26 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                             case "first-fit":
                                 heuristicForThetaJoin = new FirstFit(memoryForJoin - 1, ctx.getInitialFrameSize(),
                                         runFileStreams[0].getRunFileReaderSize(),
-                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, false, true);
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, true);
                                 break;
                             case "first-fit-r":
                                 heuristicForThetaJoin = new FirstFit(memoryForJoin - 1, ctx.getInitialFrameSize(),
                                         runFileStreams[0].getRunFileReaderSize(),
-                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, true, true);
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, true);
                                 break;
                             case "first-fit-s":
                                 heuristicForThetaJoin = new FirstFit(memoryForJoin - 1, ctx.getInitialFrameSize(),
                                         runFileStreams[0].getRunFileReaderSize(),
-                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, false, false);
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, false);
                                 break;
                             case "first-fit-r-s":
                                 heuristicForThetaJoin = new FirstFit(memoryForJoin - 1, ctx.getInitialFrameSize(),
                                         runFileStreams[0].getRunFileReaderSize(),
-                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, true, false);
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, false);
                                 break;
                             case "weighted":
                                 heuristicForThetaJoin = new Weighted(memoryForJoin - 1, ctx.getInitialFrameSize(),

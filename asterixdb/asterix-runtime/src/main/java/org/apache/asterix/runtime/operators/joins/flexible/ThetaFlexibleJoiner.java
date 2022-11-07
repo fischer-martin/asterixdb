@@ -217,11 +217,14 @@ public class ThetaFlexibleJoiner {
                 if (!table.insert(bucketId, tuplePointer, new TuplePointer())) {
 
                     bufferManager.cancelLastInsert();
+                    int numberOfFramesBeforeSpilling = bufferManager.getNumberOfFrames();
+                    while (bufferManager.getNumberOfFrames() >= numberOfFramesBeforeSpilling) {
+                        int lastBucket = table.lastBucket();
+                        TuplePointer tuplePointerToSpill = table.getBuildTuplePointer(lastBucket);
+                        TuplePointer newTuplePointerForSpilled = spillStartingFrom(tuplePointerToSpill);
+                        table.updateBuildBucket(lastBucket, newTuplePointerForSpilled);
+                    }
 
-                    int lastBucket = table.lastBucket();
-                    TuplePointer tuplePointerToSpill = table.getBuildTuplePointer(lastBucket);
-                    TuplePointer newTuplePointerForSpilled = spillStartingFrom(tuplePointerToSpill);
-                    table.updateBuildBucket(lastBucket, newTuplePointerForSpilled);
                     bufferManager.insertTuple(accessorBuild, i, tuplePointer);
                     table.insert(bucketId, tuplePointer, new TuplePointer());
 
