@@ -30,20 +30,19 @@ public class SerializableBucketIdList extends SimpleSerializableBucketIdList {
     protected int wastedIntSpaceCount = 0;
     protected ISimpleFrameBufferManager bufferManager;
 
-    public SerializableBucketIdList(int tableSize, final IHyracksFrameMgrContext ctx,
+    public SerializableBucketIdList(final IHyracksFrameMgrContext ctx,
             ISimpleFrameBufferManager bufferManager) throws HyracksDataException {
-        super(tableSize, ctx, false);
+        super(ctx, false);
         this.bufferManager = bufferManager;
-        if (tableSize > 0) {
-            ByteBuffer newFrame = getFrame(frameSize);
-            if (newFrame == null) {
-                throw new HyracksDataException("Can't allocate a frame for Hash Table. Please allocate more budget.");
-            }
-            IntSerDeBuffer frame = new IntSerDeBuffer(newFrame);
-            frameCapacity = frame.capacity();
-            contents.add(frame);
-            numberOfBucketsInEachFrame.add(0);
+        ByteBuffer newFrame = getFrame(frameSize);
+        if (newFrame == null) {
+            throw new HyracksDataException("Can't allocate a frame for Hash Table. Please allocate more budget.");
         }
+        IntSerDeBuffer frame = new IntSerDeBuffer(newFrame);
+        frameCapacity = frame.capacity();
+        contents.add(frame);
+        numberOfBucketsInEachFrame.add(0);
+
     }
 
     @Override

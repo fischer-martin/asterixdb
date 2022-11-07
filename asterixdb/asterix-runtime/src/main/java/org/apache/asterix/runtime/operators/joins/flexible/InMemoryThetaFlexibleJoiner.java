@@ -101,7 +101,7 @@ public class InMemoryThetaFlexibleJoiner {
                 new DeallocatableFramePool(ctx, memSizeInFrames * ctx.getInitialFrameSize());
         bufferManagerForHashTable = new FramePoolBackedFrameBufferManager(framePool);
 
-        table = new SerializableBucketIdList(nBuckets, ctx, bufferManagerForHashTable);
+        table = new SerializableBucketIdList(ctx, bufferManagerForHashTable);
 
         this.bufferManager = new BucketBufferManager(framePool, buildRd);
         this.memoryAccessor = bufferManager.createTuplePointerAccessor();
@@ -188,7 +188,7 @@ public class InMemoryThetaFlexibleJoiner {
                     // if the bucket is in memory join the records
                     int tupleCounter = bucketInfo[2];
                     int frameCounter = bucketInfo[1];
-                    //boolean finished = false;
+                    boolean finished = false;
                     boolean first = true;
 
                     while (frameCounter < bufferManager.getNumberOfFrames()) {
@@ -198,29 +198,30 @@ public class InMemoryThetaFlexibleJoiner {
                         while (tupleCounter < memoryAccessor.getTupleCount()) {
                             first = false;
                             memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-//                            int bucketReadFromMem =
-//                                    FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
-//                            if (bucketReadFromMem != bucketInfo[0]) {
-//                                finished = true;
-//                                break;
-//                            }
+                            int bucketReadFromMem =
+                                    FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
+                            if (bucketReadFromMem != bucketInfo[0]) {
+                                finished = true;
+                                break;
+                            }
                             addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
                             tupleCounter++;
                             countAdded++;
 
                         }
-//                        if (finished)
-//                            break;
+                        if (finished)
+                            break;
                         frameCounter++;
                     }
-
+                    //System.out.println("Number of records added to result from bucket " + bucketInfo[0] + " x " + bucketIdT +  " : " + countAdded);
+                    countAdded = 0;
                 }
             }
             if (!matched)
                 break;
         }
 
-        System.out.println("Number of records added to result from bucket " + bucketIdT + " : " + countAdded);
+
 
     }
 

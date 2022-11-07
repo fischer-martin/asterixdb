@@ -1,6 +1,7 @@
 package org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics;
 
 import org.apache.asterix.om.types.ATypeTag;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.Bucket;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IBucket;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IHeuristicForThetaJoin;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
@@ -26,7 +27,6 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
     int frameSize;
     boolean hasNextBuildingBucketSequence;
     int numberOfBuckets;
-    int buildingBucketPosition = 0;
 
     ArrayList<int[]> bucketsFromR;
     ArrayList<int[]> bucketsFromS;
@@ -84,6 +84,75 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
     @Override
     public boolean hasNextBuildingBucketSequence() {
         return !bucketsFromR.isEmpty();
+    }
+
+    @Override
+    public ArrayList<IBucket> nextBuildingBucketSequence() throws HyracksDataException {
+        this.returnBuckets.clear();
+        long totalSizeForBuckets = 0;
+        ArrayList<int[]> removeList = new ArrayList<>();
+        for (int[] bucket : bucketsFromR) {
+            int bucketSize = bucket[1];
+
+            int endFrame = bucket[4];
+            int endOffset = bucket[5];
+            if (this.continueToCheckBuckets) {
+                if (Math.ceil(
+                        ((double) totalSizeForBuckets + bucketSize) / frameSize) <= memoryForJoinInFrames) {
+                    totalSizeForBuckets += bucketSize;
+                    removeList.add(bucket);
+                    Bucket returnBucket;
+                    returnBucket =
+                            new Bucket(bucket[0], roleReversal ? 1 : 0, bucket[3], endOffset, bucket[2], endFrame);
+                    this.returnBuckets.add(returnBucket);
+                }
+            } else {
+                if (Math.ceil(
+                        ((double) totalSizeForBuckets + bucketSize) / frameSize) <= memoryForJoinInFrames) {
+                    totalSizeForBuckets += bucketSize;
+
+                } else
+                    break;
+                removeList.add(bucket);
+                Bucket returnBucket;
+                returnBucket = new Bucket(bucket[0], roleReversal ? 1 : 0, bucket[3], endOffset, bucket[2], endFrame);
+                this.returnBuckets.add(returnBucket);
+            }
+
+        }
+        bucketsFromR.removeAll(removeList);
+        return this.returnBuckets;
+    }
+    public ArrayList<IBucket> nextProbingBucketSequence() throws HyracksDataException {
+        ArrayList<IBucket> returnProbingBuckets = new ArrayList<>();
+
+        for (int[] bucket : bucketsFromS) {
+            boolean matched = false;
+            if(roleReversal)
+                setTupleAccessorForTempBucketTupleR(bucket[0]);
+            else
+                setTupleAccessorForTempBucketTupleS(bucket[0]);
+            for(int j = 0; j < this.returnBuckets.size(); j++) {
+                if(roleReversal)
+                    setTupleAccessorForTempBucketTupleS(this.returnBuckets.get(j).getBucketId());
+                else
+                    setTupleAccessorForTempBucketTupleR(this.returnBuckets.get(j).getBucketId());
+
+                if(compare()) {
+                    matched = true;
+                    break;
+                }
+            }
+
+            if(!matched) continue;
+
+            int endFrame = bucket[4];
+            int endOffset = bucket[5];
+
+            returnProbingBuckets.add(new Bucket(bucket[0], roleReversal ? 0 : 1, bucket[3], endOffset, bucket[2], endFrame));
+        }
+
+        return returnProbingBuckets;
     }
 
     protected void setTupleAccessorForTempBucketTupleR(int bucketId) {
@@ -192,7 +261,6 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
                 setTupleAccessorForTempBucketTupleS(tempBucketsFromS.get(j)[0]);
                 if(this.comparator.compare(iFrameTupleAccessorForTempBucketTupleR, 0, iFrameTupleAccessorForTempBucketTupleS, 0) < 1) {
                     matched = true;
-                    break;
                 }
             }
 

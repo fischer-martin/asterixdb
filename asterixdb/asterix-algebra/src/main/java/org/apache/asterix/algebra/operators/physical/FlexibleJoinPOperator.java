@@ -129,34 +129,49 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
     public PhysicalRequirements getRequiredPropertiesForChildren(ILogicalOperator op,
             IPhysicalPropertiesVector reqdByParent, IOptimizationContext context) {
 
-        List<LogicalVariable> keysLeftBranchTileId = new ArrayList<>();
-        keysLeftBranchTileId.add(keysLeftBranch.get(0));
-        List<LogicalVariable> keysRightBranchTileId = new ArrayList<>();
-        keysRightBranchTileId.add(keysRightBranch.get(0));
-        IPartitioningProperty pp1 = new UnorderedPartitionedProperty(new ListSet<>(keysLeftBranchTileId),
-                context.getComputationNodeDomain());
-        IPartitioningProperty pp2 = new UnorderedPartitionedProperty(new ListSet<>(keysRightBranchTileId),
-                context.getComputationNodeDomain());
-
-        List<ILocalStructuralProperty> localProperties1 = new ArrayList<>();
-        List<OrderColumn> orderColumns1 = new ArrayList<OrderColumn>();
-        orderColumns1.add(new OrderColumn(keysLeftBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
-        //orderColumns1.add(new OrderColumn(keysLeftBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
-        localProperties1.add(new LocalOrderProperty(orderColumns1));
-
-        List<ILocalStructuralProperty> localProperties2 = new ArrayList<>();
-        List<OrderColumn> orderColumns2 = new ArrayList<OrderColumn>();
-        orderColumns2.add(new OrderColumn(keysRightBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
-        //orderColumns2.add(new OrderColumn(keysRightBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
-        localProperties2.add(new LocalOrderProperty(orderColumns2));
+        List<LogicalVariable> keysLeftBranchBucketId = new ArrayList<>();
+        keysLeftBranchBucketId.add(keysLeftBranch.get(0));
+        List<LogicalVariable> keysRightBranchBucketId = new ArrayList<>();
+        keysRightBranchBucketId.add(keysRightBranch.get(0));
+        IPartitioningProperty pp1;
+        IPartitioningProperty pp2;
 
         StructuralPropertiesVector[] pv = new StructuralPropertiesVector[2];
+        List<ILocalStructuralProperty> localProperties1 = new ArrayList<>();
+        List<ILocalStructuralProperty> localProperties2 = new ArrayList<>();
+        switch (partitioningType) {
+            case PAIRWISE:
+                pp1 = new UnorderedPartitionedProperty(new ListSet<>(keysLeftBranchBucketId),
+                        context.getComputationNodeDomain());
+                pp2 = new UnorderedPartitionedProperty(new ListSet<>(keysRightBranchBucketId),
+                        context.getComputationNodeDomain());
+                break;
+            case BROADCAST:
+
+                List<OrderColumn> orderColumns1 = new ArrayList<OrderColumn>();
+                orderColumns1.add(new OrderColumn(keysLeftBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
+                //orderColumns1.add(new OrderColumn(keysLeftBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
+                localProperties1.add(new LocalOrderProperty(orderColumns1));
+
+
+                List<OrderColumn> orderColumns2 = new ArrayList<OrderColumn>();
+                orderColumns2.add(new OrderColumn(keysRightBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
+                //orderColumns2.add(new OrderColumn(keysRightBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
+                localProperties2.add(new LocalOrderProperty(orderColumns2));
+
+                //pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
+                pp1 = new RandomPartitioningProperty(context.getComputationNodeDomain());
+                //pv[1] = new StructuralPropertiesVector(pp2, localProperties2);
+                pp2 = new BroadcastPartitioningProperty(context.getComputationNodeDomain());
+                break;
+            default:
+                throw new IllegalStateException();
+        }
+
         //pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
-        pv[0] = new StructuralPropertiesVector(new RandomPartitioningProperty(context.getComputationNodeDomain()),
-                localProperties1);
+        pv[0] = new StructuralPropertiesVector(pp1, localProperties1);
         //pv[1] = new StructuralPropertiesVector(pp2, localProperties2);
-        pv[1] = new StructuralPropertiesVector(new BroadcastPartitioningProperty(context.getComputationNodeDomain()),
-                localProperties2);
+        pv[1] = new StructuralPropertiesVector(pp2, localProperties2);
 
         return new PhysicalRequirements(pv, IPartitioningRequirementsCoordinator.NO_COORDINATION);
     }

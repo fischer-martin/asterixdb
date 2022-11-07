@@ -165,7 +165,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                     state.memForJoin = memoryForJoin - 2;
 
                     state.joiner = new ThetaFlexibleJoiner(ctx, memoryForJoin, buildRd, probeRd, PROBE_REL, BUILD_REL,
-                            buildKeys, probeKeys, predEvaluator, 1000);
+                            buildKeys, probeKeys, predEvaluator);
 
                 }
 
@@ -308,7 +308,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         while(runFileStreams[0].loadNextBuffer(framew)) {
                             accessorBuild.reset(framew.getBuffer());
                             int tupleCount = accessorBuild.getTupleCount();
-                            System.out.println(frameId + ":" + tupleCount);
+                            //System.out.println(frameId + ":" + tupleCount);
                             int bizzo = -1;
                             for (int i = 0; i < tupleCount; i++) {
 
@@ -340,7 +340,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         while(runFileStreams[1].loadNextBuffer(framew)) {
                             accessorProbe.reset(framew.getBuffer());
                             int tupleCount = accessorProbe.getTupleCount();
-                            System.out.println(frameId + ":" + tupleCount);
+                            //System.out.println(frameId + ":" + tupleCount);
                             for (int i = 0; i < tupleCount; i++) {
 
                                 //                        if(accessorBuild.getTupleStartOffset(i) < startOffset) continue;
