@@ -34,4 +34,7 @@ public interface IHeuristicForThetaJoin {
     void setBucketTable(SerializableBucketIdList bucketTable) throws HyracksDataException;
 
     void setComparator(ITuplePairComparator comparator);
+
+    void setIOSeq(double ioSeq);
+    void setIORnd(double ioRnd);
 }

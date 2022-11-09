@@ -39,7 +39,7 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
     boolean roleReversal = false;
     boolean continueToCheckBuckets = false;
     boolean checkForRoleReversal = false;
-    ArrayList<IBucket> returnBuckets = new ArrayList<>();
+    ArrayList<IBucket> buildingBucketSequence = new ArrayList<>();
 
     protected int[] buildKeys;
     protected int[] probeKeys;
@@ -52,6 +52,9 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
 
     protected IFrameTupleAccessor iFrameTupleAccessorForTempBucketTupleR;
     protected IFrameTupleAccessor iFrameTupleAccessorForTempBucketTupleS;
+
+    double IOSeq = 5000;
+    double IORnd = 10000;
 
     public AbstractHeuristic(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd,
                     RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, boolean checkForRoleReversal, boolean continueToCheckBuckets)
@@ -88,7 +91,7 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
 
     @Override
     public ArrayList<IBucket> nextBuildingBucketSequence() throws HyracksDataException {
-        this.returnBuckets.clear();
+        this.buildingBucketSequence.clear();
         long totalSizeForBuckets = 0;
         ArrayList<int[]> removeList = new ArrayList<>();
         for (int[] bucket : bucketsFromR) {
@@ -104,7 +107,7 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
                     Bucket returnBucket;
                     returnBucket =
                             new Bucket(bucket[0], roleReversal ? 1 : 0, bucket[3], endOffset, bucket[2], endFrame);
-                    this.returnBuckets.add(returnBucket);
+                    this.buildingBucketSequence.add(returnBucket);
                 }
             } else {
                 if (Math.ceil(
@@ -116,12 +119,13 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
                 removeList.add(bucket);
                 Bucket returnBucket;
                 returnBucket = new Bucket(bucket[0], roleReversal ? 1 : 0, bucket[3], endOffset, bucket[2], endFrame);
-                this.returnBuckets.add(returnBucket);
+                this.buildingBucketSequence.add(returnBucket);
             }
 
         }
         bucketsFromR.removeAll(removeList);
-        return this.returnBuckets;
+        buildingBucketSequence.sort(Comparator.comparingDouble(IBucket::getStartFrame));
+        return this.buildingBucketSequence;
     }
     public ArrayList<IBucket> nextProbingBucketSequence() throws HyracksDataException {
         ArrayList<IBucket> returnProbingBuckets = new ArrayList<>();
@@ -132,11 +136,11 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
                 setTupleAccessorForTempBucketTupleR(bucket[0]);
             else
                 setTupleAccessorForTempBucketTupleS(bucket[0]);
-            for(int j = 0; j < this.returnBuckets.size(); j++) {
+            for(int j = 0; j < this.buildingBucketSequence.size(); j++) {
                 if(roleReversal)
-                    setTupleAccessorForTempBucketTupleS(this.returnBuckets.get(j).getBucketId());
+                    setTupleAccessorForTempBucketTupleS(this.buildingBucketSequence.get(j).getBucketId());
                 else
-                    setTupleAccessorForTempBucketTupleR(this.returnBuckets.get(j).getBucketId());
+                    setTupleAccessorForTempBucketTupleR(this.buildingBucketSequence.get(j).getBucketId());
 
                 if(compare()) {
                     matched = true;
@@ -151,7 +155,7 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
 
             returnProbingBuckets.add(new Bucket(bucket[0], roleReversal ? 0 : 1, bucket[3], endOffset, bucket[2], endFrame));
         }
-
+        returnProbingBuckets.sort(Comparator.comparingDouble(IBucket::getStartFrame));
         return returnProbingBuckets;
     }
 
@@ -329,5 +333,31 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
 
     protected boolean compare() throws HyracksDataException {
         return (this.comparator.compare(iFrameTupleAccessorForTempBucketTupleR, 0, iFrameTupleAccessorForTempBucketTupleS, 0) < 1);
+    }
+
+    @Override
+    public void setIOSeq(double IOSeq) {
+        this.IOSeq = IOSeq;
+    }
+
+    @Override
+    public void setIORnd(double IORnd) {
+        this.IORnd = IORnd;
+    }
+
+    public void printRBucketsInfo() {
+        StringBuilder tableString = new StringBuilder();
+        tableString.append("bucket id\tsize");
+        for (int i = 0; i < this.numberOfBuckets; i++) {
+            int[] bucket = bucketTable.getEntry(i);
+            //skip the missing buckets
+            if (bucket[0] == -1) {
+                continue;
+            }
+            tableString.append("\n").append(bucket[0]);
+
+
+
+        }
     }
 }
