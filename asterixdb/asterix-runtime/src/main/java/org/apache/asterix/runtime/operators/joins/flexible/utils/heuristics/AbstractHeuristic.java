@@ -56,6 +56,13 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
     double IOSeq = 5000;
     double IORnd = 10000;
 
+    boolean simCalled = false;
+    ArrayList<ArrayList<IBucket>> buildingBucketSequenceAfterSim = new ArrayList<>();
+    ArrayList<ArrayList<IBucket>> probingBucketSequenceAfterSim = new ArrayList<>();
+
+    double totalCost = 0;
+
+
     public AbstractHeuristic(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd,
                     RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, boolean checkForRoleReversal, boolean continueToCheckBuckets)
             throws HyracksDataException {
@@ -86,12 +93,19 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
 
     @Override
     public boolean hasNextBuildingBucketSequence() {
-        return !bucketsFromR.isEmpty();
+        if(simCalled) return !buildingBucketSequenceAfterSim.isEmpty();
+        else return !bucketsFromR.isEmpty();
     }
 
     @Override
     public ArrayList<IBucket> nextBuildingBucketSequence() throws HyracksDataException {
         this.buildingBucketSequence.clear();
+        if(simCalled) {
+            buildingBucketSequence = buildingBucketSequenceAfterSim.get(0);
+            buildingBucketSequenceAfterSim.remove(buildingBucketSequence);
+            return buildingBucketSequence;
+        }
+
         long totalSizeForBuckets = 0;
         ArrayList<int[]> removeList = new ArrayList<>();
         for (int[] bucket : bucketsFromR) {
@@ -129,7 +143,11 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
     }
     public ArrayList<IBucket> nextProbingBucketSequence() throws HyracksDataException {
         ArrayList<IBucket> returnProbingBuckets = new ArrayList<>();
-
+        if(simCalled) {
+            returnProbingBuckets = probingBucketSequenceAfterSim.get(0);
+            probingBucketSequenceAfterSim.remove(returnProbingBuckets);
+            return returnProbingBuckets;
+        }
         for (int[] bucket : bucketsFromS) {
             boolean matched = false;
             if(roleReversal)
@@ -355,9 +373,54 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
                 continue;
             }
             tableString.append("\n").append(bucket[0]);
+        }
+    }
+    @Override
+    public String simulate(boolean printBuckets) throws HyracksDataException {
+        StringBuilder stringBuilder = new StringBuilder();
 
-
+        double cost = 0;
+        while(hasNextBuildingBucketSequence()) {
+            ArrayList<IBucket> nextBuildingBucketSequence = new ArrayList<>(nextBuildingBucketSequence());
+            cost += cost(nextBuildingBucketSequence);
+            this.buildingBucketSequenceAfterSim.add(nextBuildingBucketSequence);
+            ArrayList<IBucket> nextProbingBucketSequence = new ArrayList<>(nextProbingBucketSequence());
+            this.probingBucketSequenceAfterSim.add(nextProbingBucketSequence);
+            cost += cost(nextProbingBucketSequence);
+            if(printBuckets)
+            {
+                stringBuilder.append("\nBuilding Buckets:");
+                for (IBucket r: nextBuildingBucketSequence
+                ) {
+                    stringBuilder.append(r.getBucketId()).append("\t");
+                }
+                stringBuilder.append("\nProbing Buckets:");
+                for (IBucket s: nextProbingBucketSequence
+                ) {
+                    stringBuilder.append(s.getBucketId()).append("\t");
+                }
+            }
 
         }
+        stringBuilder.append("\n").append("Total Cost:").append(cost);
+        totalCost = cost;
+        simCalled = true;
+        return stringBuilder.toString();
+    }
+
+    public double cost(ArrayList<IBucket> bucketSequence) {
+        double cost = 0;
+        for(int i = 0; i < bucketSequence.size(); i++) {
+            IBucket bucket = bucketSequence.get(i);
+            int bucketSizeInFrames = (int) ((bucket.getEndFrame() == -1?(bucket.getSide()==0?(buildFileSize/frameSize):(probeFileSize/frameSize)):bucket.getEndFrame()) - (bucket.getStartFrame()));
+            if(i > 1 && bucket.getStartFrame() == bucketSequence.get(i-1).getEndFrame())
+                cost += bucketSizeInFrames * IOSeq;
+            else cost += bucketSizeInFrames * IORnd;
+        }
+        return cost;
+    }
+    @Override
+    public double getTotalCost() {
+        return totalCost;
     }
 }

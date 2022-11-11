@@ -128,7 +128,7 @@ public class Weighted extends AbstractHeuristic {
             bucketsFromS.removeAll(removeListS);
             buildingBucketSequence = returnBucketsS;
             probingBucketSequence = bucketsFromR;
-            System.out.println("Cost of the building Buckets " + costS);
+            //System.out.println("Cost of the building Buckets " + costS);
             totalCost += costS;
         } else {
             roleReversal = false;
@@ -365,7 +365,7 @@ public class Weighted extends AbstractHeuristic {
             tempTwoS.add(newBucket);
 
         }
-        //tempTwoS.sort(Comparator.comparingDouble(o -> o[6]));
+        tempTwoS.sort(Comparator.comparingDouble(o -> o[6]));
 
         bucketsFromR = tempTwoR;
         bucketsFromS = tempTwoS;

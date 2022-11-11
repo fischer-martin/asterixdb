@@ -37,4 +37,7 @@ public interface IHeuristicForThetaJoin {
 
     void setIOSeq(double ioSeq);
     void setIORnd(double ioRnd);
+
+    String simulate(boolean printBuckets) throws HyracksDataException;
+    double getTotalCost();
 }
