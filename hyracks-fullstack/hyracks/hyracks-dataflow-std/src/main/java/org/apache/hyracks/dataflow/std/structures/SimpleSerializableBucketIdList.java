@@ -148,7 +148,7 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
 
             while (offsetInContentFrame < this.frameCapacity) {
                 int currFrameIdx = frame.getInt(offsetInContentFrame+1);
-                if (currFrameIdx > 0) {
+                if (currFrameIdx >= 0) {
                     return new TuplePointer(currFrameIdx, frame.getInt(offsetInContentFrame+2));
                 }
                 offsetInContentFrame += 5;
@@ -308,6 +308,44 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
         }
         dS.append("\nNumber of Spilled Buckets + ").append(numberOfSpilled);
         System.out.println(dS);
+    }
+
+    public int getNumberOfBuildBuckets() {
+        int contentFrameIndex = 0;
+        int numberOfBuckets = 0;
+        while (contentFrameIndex <= currentLargestFrameNumber && bucketCount > 0) {
+            int offsetInContentFrame = 0;
+            IntSerDeBuffer frame = contents.get(contentFrameIndex);
+
+            while (offsetInContentFrame + 5 < this.frameCapacity) {
+                int bucketId = frame.getInt(offsetInContentFrame);
+                int offset = frame.getInt(offsetInContentFrame+2);
+                if(bucketId != -1 && offset != -1)
+                    numberOfBuckets++;
+                offsetInContentFrame += 5;
+            }
+            contentFrameIndex++;
+        }
+        return numberOfBuckets;
+    }
+
+    public int getNumberOfProbeBuckets() {
+        int contentFrameIndex = 0;
+        int numberOfBuckets = 0;
+        while (contentFrameIndex <= currentLargestFrameNumber && bucketCount > 0) {
+            int offsetInContentFrame = 0;
+            IntSerDeBuffer frame = contents.get(contentFrameIndex);
+
+            while (offsetInContentFrame + 5 < this.frameCapacity) {
+                int bucketId = frame.getInt(offsetInContentFrame);
+                int offset = frame.getInt(offsetInContentFrame+4);
+                if(bucketId != -1 && offset != -1)
+                    numberOfBuckets++;
+                offsetInContentFrame += 5;
+            }
+            contentFrameIndex++;
+        }
+        return numberOfBuckets;
     }
 
     public int lastBucket() {

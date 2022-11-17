@@ -27,9 +27,9 @@ import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
 public interface IHeuristicForThetaJoin {
     boolean hasNextBuildingBucketSequence();
 
-    ArrayList<IBucket> nextBuildingBucketSequence() throws HyracksDataException;
+    ArrayList<Bucket> nextBuildingBucketSequence() throws HyracksDataException;
 
-    ArrayList<IBucket> nextProbingBucketSequence() throws HyracksDataException;
+    ArrayList<Bucket> nextProbingBucketSequence() throws HyracksDataException;
 
     void setBucketTable(SerializableBucketIdList bucketTable) throws HyracksDataException;
 
@@ -37,7 +37,7 @@ public interface IHeuristicForThetaJoin {
 
     void setIOSeq(double ioSeq);
     void setIORnd(double ioRnd);
-
+    void setIOSeek(double ioRnd);
     String simulate(boolean printBuckets) throws HyracksDataException;
     double getTotalCost();
 }

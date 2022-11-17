@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 
 import org.apache.asterix.runtime.operators.joins.flexible.utils.Bucket;
-import org.apache.asterix.runtime.operators.joins.flexible.utils.IBucket;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;

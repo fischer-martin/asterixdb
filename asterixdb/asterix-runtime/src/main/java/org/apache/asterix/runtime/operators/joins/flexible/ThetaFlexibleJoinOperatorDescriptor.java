@@ -22,12 +22,14 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 
-import org.apache.asterix.runtime.operators.joins.flexible.utils.IBucket;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.Bucket;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IHeuristicForThetaJoin;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.BigFirst;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.FirstFit;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.SmallFirst;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.Weighted;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.WeightedMax;
+import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.Degree;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
@@ -478,17 +480,41 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                         runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
                                         probeKeys, true, true);
                                 break;
-                            case "weighted-s":
-                                heuristicForThetaJoin = new Weighted(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                            case "weighted-max":
+                                heuristicForThetaJoin = new WeightedMax(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, true);
+                                break;
+                            case "weighted-max-r":
+                                heuristicForThetaJoin = new WeightedMax(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, true);
+                                break;
+                            case "degree":
+                                heuristicForThetaJoin = new Degree(memoryForJoin - 1, ctx.getInitialFrameSize(),
                                         runFileStreams[0].getRunFileReaderSize(),
                                         runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
                                         probeKeys, false, false);
                                 break;
-                            case "weighted-r-s":
-                                heuristicForThetaJoin = new Weighted(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                            case "degree-r":
+                                heuristicForThetaJoin = new Degree(memoryForJoin - 1, ctx.getInitialFrameSize(),
                                         runFileStreams[0].getRunFileReaderSize(),
                                         runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
                                         probeKeys, true, false);
+                                break;
+                            case "degree-s":
+                                heuristicForThetaJoin = new Degree(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, true);
+                                break;
+                            case "degree-r-s":
+                                heuristicForThetaJoin = new Degree(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, true);
                                 break;
                             default:
                                 heuristicForThetaJoin = new BigFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
@@ -500,9 +526,13 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                         heuristicForThetaJoin.setComparator(probComp);
                         heuristicForThetaJoin.setBucketTable(state.joiner.getBucketTable());
-                        heuristicForThetaJoin.setIORnd(IORand/1000000);
+
+
                         heuristicForThetaJoin.setIOSeq(IOSeq/1000000);
-                        LOGGER.info(heuristicForThetaJoin.simulate(false));
+                        heuristicForThetaJoin.setIORnd(IORand/1000000);
+                        heuristicForThetaJoin.setIOSeek((IORand - IOSeq)/1000000);
+                        //((Weighted) heuristicForThetaJoin).knapsack();
+                        heuristicForThetaJoin.simulate(false);
                         long hFinished = (System.nanoTime() - heuristicStarts)/1000000;
                         //LOGGER.info("Heuristic Sim Finished In:" + (System.nanoTime() - heuristicStarts)/1000000);
                         long startJoining = System.nanoTime();
@@ -510,20 +540,18 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         while (heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
                             //state.joiner.getBucketTable().printInfo();
                             //get the building sequence buildSeq
-                            ArrayList<IBucket> buildingBuckets = heuristicForThetaJoin.nextBuildingBucketSequence();
+                            ArrayList<Bucket> buildingBuckets = heuristicForThetaJoin.nextBuildingBucketSequence();
                             //LOGGER.info("Iteration " + iteration + ": Number of buckets " + buildingBuckets.size()
                             //+ " from side " + buildingBuckets.get(0).getSide());
 
                             //for each bucket from this sequence
                             InMemoryThetaFlexibleJoiner inMemoryThetaFlexibleJoiner = null;
                             for (int i = 0, buildingBucketsSize = buildingBuckets.size(); i < buildingBucketsSize; i++) {
-                                IBucket buildingBucket = buildingBuckets.get(i);
+                                Bucket buildingBucket = buildingBuckets.get(i);
                                 int frameSize = ctx.getInitialFrameSize();
                                 IFrame frame = new VSizeFrame(ctx, frameSize);
                                 int startFrame = buildingBucket.getStartFrame();
-                                long endFrame = buildingBucket.getEndFrame() == -1
-                                        ? runFileStreams[buildingBucket.getSide()].getWriteCount()
-                                        : buildingBucket.getEndFrame();
+                                long endFrame = buildingBucket.getEndFrame();
 
                                 runFileStreams[buildingBucket.getSide()].seekToAPosition((long) startFrame * frameSize);
                                 int currentFrame = startFrame;
@@ -582,7 +610,7 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 //                            }
 
                             //get the probing sequence
-                            ArrayList<IBucket> probingBuckets = heuristicForThetaJoin.nextProbingBucketSequence();
+                            ArrayList<Bucket> probingBuckets = heuristicForThetaJoin.nextProbingBucketSequence();
 
                             int probingSide = 1 - buildingBuckets.get(0).getSide();
                             if (probingSide == 1)
@@ -591,13 +619,11 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                 inMemoryThetaFlexibleJoiner.initProbe(buildComp);
 
                             //for each bucket p in probing sequence
-                            for (IBucket probingBucket : probingBuckets) {
+                            for (Bucket probingBucket : probingBuckets) {
                                 int frameSize = ctx.getInitialFrameSize();
                                 IFrame frame = new VSizeFrame(ctx, frameSize);
                                 int startFrame = probingBucket.getStartFrame();
-                                long endFrame = probingBucket.getEndFrame() == -1
-                                        ? runFileStreams[probingBucket.getSide()].getWriteCount()
-                                        : probingBucket.getEndFrame();
+                                long endFrame = probingBucket.getEndFrame();
 
                                 runFileStreams[probingBucket.getSide()].seekToAPosition((long) startFrame * frameSize);
                                 int currentFrame = startFrame;
@@ -775,6 +801,12 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         //System.out.println("Total calculated cost:" + ((Weighted) heuristicForThetaJoin).getTotalCost());*/
                     }
                     writer.close();
+
+                    LOGGER.info(partition + "\t" +
+                            state.joiner.getBucketTable().getNumEntries() + "\t" +
+                            state.joiner.getBucketTable().getNumberOfBuildBuckets() + "\t" +
+                            state.joiner.getBucketTable().getNumberOfProbeBuckets() + "\t" +
+                            state.joiner.getNumberOfMatchCalls());
 
                 }
 

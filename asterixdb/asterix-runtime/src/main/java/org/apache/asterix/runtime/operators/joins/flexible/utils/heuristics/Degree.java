@@ -18,21 +18,21 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-
 import org.apache.asterix.runtime.operators.joins.flexible.utils.Bucket;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
 
-public class Weighted extends AbstractHeuristic {
+import java.util.ArrayList;
+import java.util.Comparator;
+
+public class Degree extends AbstractHeuristic {
 
     ArrayList<int[]> probingBucketSequence;
 
-    public Weighted(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd,
-            RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, boolean checkForRoleReversal,
-            boolean continueToCheckBuckets) throws HyracksDataException {
+    public Degree(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd,
+                  RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, boolean checkForRoleReversal,
+                  boolean continueToCheckBuckets) throws HyracksDataException {
         super(memoryForJoin, frameSize, buildFileSize, probeFileSize, buildRd, probeRd, buildKeys, probeKeys, checkForRoleReversal, continueToCheckBuckets);
     }
 
@@ -41,7 +41,7 @@ public class Weighted extends AbstractHeuristic {
         if(simCalled) return !buildingBucketSequenceAfterSim.isEmpty() && !probingBucketSequenceAfterSim.isEmpty();
         else return !bucketsFromR.isEmpty() && !bucketsFromS.isEmpty();
     }
-    /*@Override
+    @Override
     public ArrayList<Bucket> nextBuildingBucketSequence() throws HyracksDataException {
         this.buildingBucketSequence.clear();
 
@@ -134,19 +134,19 @@ public class Weighted extends AbstractHeuristic {
             buildingBucketSequence = returnBucketsS;
             probingBucketSequence = bucketsFromR;
             //System.out.println("Cost of the building Buckets " + costS);
-            totalCost += costS;
+            //totalCost += costS;
         } else {
             roleReversal = false;
             bucketsFromR.removeAll(removeListR);
             buildingBucketSequence = returnBucketsR;
             probingBucketSequence = bucketsFromS;
-            totalCost += costR;
+            //totalCost += costR;
             //System.out.println("Cost of the building Buckets " + costR);
 
         }
         buildingBucketSequence.sort(Comparator.comparingDouble(Bucket::getStartFrame));
         return buildingBucketSequence;
-    }*/
+    }
     /*@Override
     public ArrayList<IBucket> nextBuildingBucketSequence() throws HyracksDataException {
         ArrayList<IBucket> returnBucketsR = new ArrayList<>();
@@ -295,20 +295,18 @@ public class Weighted extends AbstractHeuristic {
 
         }
         returnProbingBuckets.sort(Comparator.comparingDouble(Bucket::getStartFrame));
-        //computeCosts();
+        computeDegrees();
         //System.out.println("Processed Buckets From " + (roleReversal?"R":"S") + ": " + rb);
         return returnProbingBuckets;
     }
 
-    public void computeCosts() throws HyracksDataException {
+    public void computeDegrees() throws HyracksDataException {
 
         ArrayList<int[]> tempTwoR = new ArrayList<>();
         ArrayList<int[]> tempTwoS = new ArrayList<>();
 
         for (int i = 0; i < bucketsFromR.size(); i++) {
-            double costR = (bucketsFromR.get(i)[1]/frameSize) * IORnd;
-            double costS = 0;
-            int prev = 0;
+            int degree = 0;
 
             setTupleAccessorForTempBucketTupleR(bucketsFromR.get(i)[0]);
 
@@ -317,14 +315,11 @@ public class Weighted extends AbstractHeuristic {
                 setTupleAccessorForTempBucketTupleS(bucketsFromS.get(j)[0]);
 
                 if (compare()) {
-                    if (prev + 1 != j) {
-                        costS += (bucketsFromS.get(j)[1] / frameSize) * IORnd;;
-                    } else costS += (bucketsFromS.get(j)[1] / frameSize) * IOSeq;
-                    prev = j;
+                    degree++;
                 }
             }
 
-            if (costS == 0)
+            if (degree == 0)
                 continue;
 
             int[] newBucket = new int[7];
@@ -334,16 +329,14 @@ public class Weighted extends AbstractHeuristic {
             newBucket[3] = bucketsFromR.get(i)[3];
             newBucket[4] = bucketsFromR.get(i)[4];
             newBucket[5] = bucketsFromR.get(i)[5];
-            newBucket[6] = (int) (costS + costR);
+            newBucket[6] = degree;
             tempTwoR.add(newBucket);
 
         }
-        tempTwoR.sort(Comparator.comparingDouble(o -> o[6]));
+        tempTwoR.sort(Comparator.comparingDouble(o -> -o[6]));
 
         for (int i = 0; i < bucketsFromS.size(); i++) {
-            double costS =  ((bucketsFromS.get(i)[1]/frameSize) * IORnd);
-            double costR = 0;
-            int prev = 0;
+            int degree = 0;
 
             setTupleAccessorForTempBucketTupleS(bucketsFromS.get(i)[0]);
 
@@ -353,14 +346,11 @@ public class Weighted extends AbstractHeuristic {
 
                 if (compare()) {
 
-                    if (prev + 1 != j) {
-                        costR += (bucketsFromR.get(j)[1] / frameSize) * IOSeq;
-                    } else costR += (bucketsFromR.get(j)[1] / frameSize) * IORnd;
-                    prev = j;
+                    degree++;
                 }
             }
 
-            if (costR == 0)
+            if (degree == 0)
                 continue;
 
             int[] newBucket = new int[7];
@@ -370,18 +360,18 @@ public class Weighted extends AbstractHeuristic {
             newBucket[3] = bucketsFromS.get(i)[3];
             newBucket[4] = bucketsFromS.get(i)[4];
             newBucket[5] = bucketsFromS.get(i)[5];
-            newBucket[6] = (int) (costR + costS);
+            newBucket[6] = degree;
             tempTwoS.add(newBucket);
 
         }
-        tempTwoS.sort(Comparator.comparingDouble(o -> o[6]));
+        tempTwoS.sort(Comparator.comparingDouble(o -> -o[6]));
 
         bucketsFromR = tempTwoR;
         bucketsFromS = tempTwoS;
     }
     public void setBucketTable(SerializableBucketIdList bucketTable) throws HyracksDataException {
         retrieveBuckets(bucketTable);
-        //computeCosts();
+        computeDegrees();
     }
     /*public void setBucketTable(SerializableBucketIdList bucketTable) throws HyracksDataException {
         this.bucketTable = bucketTable;
@@ -610,36 +600,37 @@ public class Weighted extends AbstractHeuristic {
     }*/
 
     public ArrayList<Bucket> knapsack() throws HyracksDataException {
+
         double costR = 0;
         double costS = 0;
 
-        int theRestR = buildSizeInFrames - memoryForJoinInFrames;
-        int theRestS = probeSizeInFrames - memoryForJoinInFrames;
+
 
         ArrayList<ArrayList<ArrayList<int[]>>> K_S = new ArrayList<>();
         ArrayList<ArrayList<ArrayList<int[]>>> K_R = new ArrayList<>();
 
-        double[][] K_R_Values = new double[bucketsFromR.size() + 1][theRestR +1];
-        double[][] K_S_Values = new double[bucketsFromS.size() + 1][theRestS + 1];
+        double[][] K_R_Values = new double[bucketsFromR.size()+1][memoryForJoinInFrames+1];
+        double[][] K_S_Values = new double[bucketsFromS.size() + 1][memoryForJoinInFrames + 1];
 
         for(int i = 0; i <= bucketsFromR.size(); i++) {
             K_R.add(new ArrayList<>());
-            for(int m = 0; m <= theRestR; m++) {
+            for(int m = 0; m <= memoryForJoinInFrames; m++) {
                 K_R.get(i).add(new ArrayList<>());
             }
         }
 
+
         for(int i = 0; i <= bucketsFromR.size(); i++) {
             int sizeInFrames = 0;
             if(i > 0) sizeInFrames = bucketsFromR.get(i - 1)[4] - bucketsFromR.get(i - 1)[2];
-            for(int m = 0; m <= theRestR; m++) {
+            for(int m = 0; m <= memoryForJoinInFrames; m++) {
                 if(i == 0 || m == 0) {
                     K_R_Values[i][m] = 0;
                 }
                 else if(sizeInFrames <= m) {
-                    ArrayList<int[]> tempList = new ArrayList<>(K_R.get(i - 1).get(m-sizeInFrames));
+                    ArrayList<int[]> tempList = new ArrayList<>(K_R.get(i - 1).get(sizeInFrames));
                     tempList.add(bucketsFromR.get(i-1));
-                    double costM = costArray(tempList, 0) + cost(getProbingBucketSequence(tempList, 1, bucketsFromS));
+                    double costM = getProbingBucketSequence(tempList, 1, bucketsFromS).size();
                     if(costM > K_R_Values[i - 1][m]) {
                         K_R_Values[i][m] = costM;
                         K_R.get(i).get(m).clear();
@@ -651,19 +642,17 @@ public class Weighted extends AbstractHeuristic {
                     }
                 } else {
                     K_R_Values[i][m] = K_R_Values[i-1][m];
-                    K_R.get(i).get(m).clear();
-                    K_R.get(i).get(m).addAll(K_R.get(i-1).get(m));
                 }
             }
         }
 
-        costR = K_R_Values[bucketsFromR.size()][theRestR];
+        costR = K_R_Values[bucketsFromR.size()][memoryForJoinInFrames];
 
         if(checkForRoleReversal) {
 
             for (int i = 0; i <= bucketsFromS.size(); i++) {
                 K_S.add(new ArrayList<>());
-                for (int m = 0; m <= theRestS; m++) {
+                for (int m = 0; m <= memoryForJoinInFrames; m++) {
                     K_S.get(i).add(new ArrayList<>());
                 }
             }
@@ -671,13 +660,13 @@ public class Weighted extends AbstractHeuristic {
             for (int i = 0; i <= bucketsFromS.size(); i++) {
                 int sizeInFrames = 0;
                 if(i > 0) sizeInFrames = bucketsFromS.get(i - 1)[4] - bucketsFromS.get(i - 1)[2];
-                for (int m = 0; m <= theRestS; m++) {
+                for (int m = 0; m <= memoryForJoinInFrames; m++) {
                     if (i == 0 || m == 0) {
                         K_S_Values[i][m] = 0;
                     } else if (sizeInFrames <= m) {
-                        ArrayList<int[]> tempList = new ArrayList<>(K_S.get(i - 1).get(m - sizeInFrames));
+                        ArrayList<int[]> tempList = new ArrayList<>(K_S.get(i - 1).get((int) (m - ((bucketsFromS.get(i - 1)[4] == -1 ? (probeFileSize / frameSize) : bucketsFromS.get(i - 1)[4]) - bucketsFromS.get(i - 1)[2]))));
                         tempList.add(bucketsFromS.get(i - 1));
-                        double costM = costArray(tempList, 1) + cost(getProbingBucketSequence(tempList, 0, bucketsFromR));
+                        double costM = getProbingBucketSequence(tempList, 0, bucketsFromR).size();
                         if (costM > K_S_Values[i - 1][m]) {
                             K_S_Values[i][m] = costM;
                             K_S.get(i).get(m).clear();
@@ -689,34 +678,28 @@ public class Weighted extends AbstractHeuristic {
                         }
                     } else {
                         K_S_Values[i][m] = K_S_Values[i - 1][m];
-                        K_S.get(i).get(m).clear();
-                        K_S.get(i).get(m).addAll(K_S.get(i - 1).get(m));
                     }
                 }
             }
-            costS = K_S_Values[bucketsFromS.size()][theRestS];
+            costS = K_S_Values[bucketsFromS.size()][memoryForJoinInFrames];
         }
 
         ArrayList<Bucket> returnBuckets = new ArrayList<>();
         ArrayList<int[]> removeList = new ArrayList<>();
 
         if(costR > costS) {
-            for(int[] b:bucketsFromR) {
-                if(!K_R.get(bucketsFromR.size()).get(theRestR).contains(b)){
-                    removeList.add(b);
-                    returnBuckets.add(arrayToBucket(b, 0));
-                }
+            for(int[] b:K_R.get(bucketsFromR.size()).get(memoryForJoinInFrames)) {
+                removeList.add(b);
+                returnBuckets.add(arrayToBucket(b, 0));
             }
             bucketsFromR.removeAll(removeList);
             probingBucketSequence = bucketsFromS;
             roleReversal = false;
             totalCost += costR;
         } else {
-            for(int[] b:bucketsFromS) {
-                if(!K_S.get(bucketsFromS.size()).get(theRestS).contains(b)) {
-                    removeList.add(b);
-                    returnBuckets.add(arrayToBucket(b, 1));
-                }
+            for(int[] b:K_S.get(bucketsFromS.size()).get(memoryForJoinInFrames)) {
+                removeList.add(b);
+                returnBuckets.add(arrayToBucket(b, 1));
             }
             bucketsFromS.removeAll(removeList);
             probingBucketSequence = bucketsFromR;
@@ -729,12 +712,12 @@ public class Weighted extends AbstractHeuristic {
         return returnBuckets;
     }
 
-    @Override
+    /*@Override
     public String simulate(boolean printBuckets) throws HyracksDataException {
         StringBuilder stringBuilder = new StringBuilder();
-        totalCost = 0;
+
         while(hasNextBuildingBucketSequence()) {
-            ArrayList<Bucket> nextBuildingBucketSequence = new ArrayList<>(knapsack());
+            ArrayList<Bucket> nextBuildingBucketSequence = new ArrayList<>(nex);
             ArrayList<Bucket> nextProbingBucketSequence = new ArrayList<>(nextProbingBucketSequence());
             if(nextProbingBucketSequence.size() == 0) continue;
             this.buildingBucketSequenceAfterSim.add(nextBuildingBucketSequence);
@@ -757,5 +740,5 @@ public class Weighted extends AbstractHeuristic {
         }
         simCalled = true;
         return stringBuilder.toString();
-    }
+    }*/
 }
