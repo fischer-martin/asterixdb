@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.asterix.om.pointables.base.IVisitablePointable;
+import org.apache.asterix.runtime.evaluators.visitors.JSONTreeJOFilterVisitor;
 import org.apache.asterix.runtime.evaluators.visitors.JSONTreeLabelTypeIntersectionVisitor;
 import org.apache.asterix.runtime.evaluators.visitors.JSONTreeSizeVisitor;
 import org.apache.asterix.runtime.evaluators.visitors.JSONTreeVisitor;
@@ -45,6 +46,7 @@ public class JSONTreeTransformator {
     private final JSONTreeSizeVisitor jTreeSizeVisitor = new JSONTreeSizeVisitor();
     private final JSONTreeLabelTypeIntersectionVisitor jIntersectionVisitor =
             new JSONTreeLabelTypeIntersectionVisitor();
+    private final JSONTreeJOFilterVisitor jTreeJOFilterVisitor = new JSONTreeJOFilterVisitor();
 
     public JSONTreeTransformator() {
     }
@@ -53,6 +55,13 @@ public class JSONTreeTransformator {
             throws HyracksDataException {
         // Traverse the record and create an according JSON tree.
         pointable.accept(jTreeVisitor, arg);
+
+        return arg.getLeft();
+    }
+
+    public List<JOFilterNode> toJOFilterTree(IVisitablePointable pointable, MutablePair<List<JOFilterNode>, int[]> arg)
+        throws HyracksDataException {
+        pointable.accept(jTreeJOFilterVisitor, arg);
 
         return arg.getLeft();
     }
