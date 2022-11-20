@@ -178,6 +178,18 @@ public final class FunctionTypeInferers {
         }
     }
 
+    public static final class JOFilterTypeInferer implements IFunctionTypeInferer {
+        @Override
+        public void infer(ILogicalExpression expr, IFunctionDescriptor fd, IVariableTypeEnvironment context,
+                CompilerProperties compilerProps) throws AlgebricksException {
+            AbstractFunctionCallExpression f = (AbstractFunctionCallExpression) expr;
+            IAType type0 = (IAType) context.getType(f.getArguments().get(0).getValue());
+            IAType type1 = (IAType) context.getType(f.getArguments().get(1).getValue());
+            IAType type2 = (IAType) context.getType(f.getArguments().get(2).getValue());
+            fd.setImmutableStates(type0, type1, type2);
+        }
+    }
+
     public static final class FieldAccessByIndexTypeInferer implements IFunctionTypeInferer {
         @Override
         public void infer(ILogicalExpression expr, IFunctionDescriptor fd, IVariableTypeEnvironment context,

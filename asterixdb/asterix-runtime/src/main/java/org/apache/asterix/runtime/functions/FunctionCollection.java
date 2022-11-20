@@ -525,31 +525,7 @@ import org.apache.asterix.runtime.evaluators.functions.bitwise.BitTestWithoutAll
 import org.apache.asterix.runtime.evaluators.functions.bitwise.BitXorDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.bitwise.IsBitSetWithAllFlagDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.bitwise.IsBitSetWithoutAllFlagDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.FieldAccessByIndexDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.FieldAccessByNameDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.FieldAccessNestedDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.GetRecordFieldValueDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.GetRecordFieldsDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.IntersectionLowerBoundDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.JEDIDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.PairsDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordAddDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordAddFieldsDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordConcatDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordConcatStrictDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordLengthDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordMergeDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordMergeIgnoreDuplicatesDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordNamesDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordPairsDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordPutDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordRemoveDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordRemoveFieldsDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordRenameDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordReplaceDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordUnwrapDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.RecordValuesDescriptor;
-import org.apache.asterix.runtime.evaluators.functions.records.SizeDifferenceDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.records.*;
 import org.apache.asterix.runtime.evaluators.functions.temporal.AdjustDateTimeForTimeZoneDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.temporal.AdjustTimeForTimeZoneDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.temporal.CalendarDurationFromDateDescriptor;
@@ -1159,6 +1135,7 @@ public final class FunctionCollection implements IFunctionCollection {
         fc.add(JEDIDescriptor.FACTORY);
         fc.add(SizeDifferenceDescriptor.FACTORY);
         fc.add(IntersectionLowerBoundDescriptor.FACTORY);
+        fc.add(JOFilterDescriptor.FACTORY);
 
         // Spatial
         fc.add(CreatePointDescriptor.FACTORY);

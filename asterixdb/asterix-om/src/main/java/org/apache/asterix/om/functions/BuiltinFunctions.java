@@ -1098,6 +1098,8 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "size-difference", 2);
     public static final FunctionIdentifier INTERSECTION_LOWER_BOUND =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "intersection-lower-bound", 2);
+    public static final FunctionIdentifier JOFILTER =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "jofilter", 3);
 
     // full-text
     public static final FunctionIdentifier FULLTEXT_CONTAINS =
@@ -2280,6 +2282,8 @@ public class BuiltinFunctions {
         addFunction(JEDI, ADoubleTypeComputer.INSTANCE, true);
         addFunction(SIZE_DIFFERENCE, ADoubleTypeComputer.INSTANCE, true);
         addFunction(INTERSECTION_LOWER_BOUND, ADoubleTypeComputer.INSTANCE, true);
+        // TODO: the JOFilter is actually a ABooleanTypeComputer.INSTANCE but we will first test everything properly
+        addFunction(JOFILTER, ADoubleTypeComputer.INSTANCE, true);
 
         // Full-text function
         addFunction(FULLTEXT_CONTAINS, FullTextContainsResultTypeComputer.INSTANCE, true);
