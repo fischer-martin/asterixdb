@@ -107,19 +107,6 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         this.sourceLoc = sourceLoc;
     }
 
-    private List<JOFilterNode> convertToJOFilterTree(IVisitablePointable pointable) throws HyracksDataException {
-        List<JOFilterNode> postToNode = listAllocator.allocate(null);
-        postToNode.clear();
-        transArg.setLeft(postToNode);
-        transCnt[0] = 0;
-        transCnt[1] = 0;
-        transCnt[2] = 0;
-        transArg.setRight(transCnt);
-        postToNode = treeTransformator.toJOFilterTree(pointableLeft, transArg);
-
-        return postToNode;
-    }
-
     @Override
     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
         resultStorage.reset();
@@ -136,8 +123,8 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         // atm we ignore the IAType type3 that we get in the constructor
 
         // Convert the given data items into JSON trees.
-        List<JOFilterNode> postToNode1 = convertToJOFilterTree(pointableLeft);
-        List<JOFilterNode> postToNode2 = convertToJOFilterTree(pointableRight);
+        JOFilterTree postToNode1 = convertToJOFilterTree(pointableLeft);
+        JOFilterTree postToNode2 = convertToJOFilterTree(pointableRight);
 
         // TODO: actually return joFilter instead of joFilterCalculation after I did some correctness tests
         writeResult(joFilterCalculation(postToNode1, postToNode2, threshold));
@@ -147,6 +134,19 @@ public class JOFilterEvaluator implements IScalarEvaluator {
     protected void writeResult(double distance) throws HyracksDataException {
         aDouble.setValue(distance);
         doubleSerde.serialize(aDouble, out);
+    }
+
+    private JOFilterTree convertToJOFilterTree(IVisitablePointable pointable) throws HyracksDataException {
+        List<JOFilterNode> postToNode = listAllocator.allocate(null);
+        postToNode.clear();
+        transArg.setLeft(postToNode);
+        transCnt[0] = 0;
+        transCnt[1] = 0;
+        transCnt[2] = 0;
+        transArg.setRight(transCnt);
+
+        // TODO: reuse JOFilterTree objects (especially the int[] in them) instead of allocating new ones in the tree transformator
+        return treeTransformator.toJOFilterTree(pointableLeft, transArg);
     }
 
     private void resizeDataStructures(int sizeT1, int heightT1, int sizeT2) {
@@ -225,19 +225,21 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         eInit[sizeT2] = sizeT2;
     }
 
-    private double joFilterCalculation(List<JOFilterNode> t1, List<JOFilterNode> t2, double threshold) {
-        int sizeT1 = t1.size();
-        int sizeT2 = t2.size();
+    private double joFilterCalculation(JOFilterTree t1, JOFilterTree t2, double threshold) {
+        List<JOFilterNode> t1List = t1.getPostorderedTree();
+        List<JOFilterNode> t2List = t2.getPostorderedTree();
+        int sizeT1 = t1List.size();
+        int sizeT2 = t2List.size();
         // Stop if one of the trees is empty.
         if (sizeT1 < 1) {
             return sizeT2;
         } else if (sizeT2 < 1) {
             return sizeT1;
         }
-        int heightT1 = t1.get(sizeT1 - 1).getHeight();
+        int heightT1 = t1List.get(sizeT1 - 1).getHeight();
 
         resizeDataStructures(sizeT1, heightT1, sizeT2);
-        initializeDataStructures(t1, t2);
+        initializeDataStructures(t1List, t2List);
 
         // Store minimum costs for each operation.
         double minForestIns = Double.POSITIVE_INFINITY;
@@ -257,8 +259,9 @@ public class JOFilterEvaluator implements IScalarEvaluator {
             // I think that the vector's name should actually be favorder_to_postl_ since we iterate over the nodes in
             // favorder but we need the postorder ID in order to have the correct index i for all the other vectors
             // (since they are indexed by the postorder ID).
-            i = t1.postl_to_favorder_[x-1] + 1;
-            parentI = t1.get(t1.get(i - 1).getParent()).getHeight();
+            //i = t1List.postl_to_favorder_[x-1] + 1;
+            i = t1.favChildOrderToPostorder(x - 1) + 1;
+            parentI = t1List.get(t1List.get(i - 1).getParent()).getHeight();
 
             // Iterate for all j in the threshold range of i.
             nodeJThresholdRangeStart = Math.max(i - (int) threshold, 1); // TODO: double to int cast is not so cool
@@ -268,93 +271,93 @@ public class JOFilterEvaluator implements IScalarEvaluator {
                 // Must be set to infinity, since we allow infinity costs for different node types.
                 minForestDel = Double.POSITIVE_INFINITY;
                 minTreeDel = Double.POSITIVE_INFINITY;
-                if (t1.get(i - 1).getChildren().size() != 0) {
-                    // t1[i] is not a leaf node. Therefore, read the previously computed value.
-                    minForestDel = forestDeletionMatrix[t1.get(i - 1).getHeight()][j - 1];
-                    minTreeDel = forestDeletionMatrix[t1.get(i - 1).getHeight()][j - 1];
+                if (t1List.get(i - 1).getChildren().size() != 0) {
+                    // t1List[i] is not a leaf node. Therefore, read the previously computed value.
+                    minForestDel = forestDeletionMatrix[t1List.get(i - 1).getHeight()][j - 1];
+                    minTreeDel = forestDeletionMatrix[t1List.get(i - 1).getHeight()][j - 1];
                 }
 
                 // Cost for insertion.
                 minForestIns = Double.POSITIVE_INFINITY;
                 minTreeIns = Double.POSITIVE_INFINITY;
-                for (int t = 0; t < t2.get(j - 1).getChildren().size(); ++t) {
-                    if (Math.abs(i - (t2.get(j - 1).getChildren().getInt(t) + 1))> threshold) {
+                for (int t = 0; t < t2List.get(j - 1).getChildren().size(); ++t) {
+                    if (Math.abs(i - (t2List.get(j - 1).getChildren().getInt(t) + 1))> threshold) {
                         continue;
                     }
                     minForestIns = Math.min(minForestIns,
-                            (forestDistanceMatrix[t1.get(i - 1).getHeight()][t2.get(j - 1).getChildren().getInt(t) + 1]
-                                    - insF2Subtree[t2.get(j - 1).getChildren().getInt(t) + 1]));
+                            (forestDistanceMatrix[t1List.get(i - 1).getHeight()][t2List.get(j - 1).getChildren().getInt(t) + 1]
+                                    - insF2Subtree[t2List.get(j - 1).getChildren().getInt(t) + 1]));
                     minTreeIns = Math.min(minTreeIns,
-                            (treeDistanceMatrix[t1.get(i - 1).getHeight()][t2.get(j - 1).getChildren().getInt(t) + 1]
-                                    - insT2Subtree[t2.get(j - 1).getChildren().getInt(t) + 1]));
+                            (treeDistanceMatrix[t1List.get(i - 1).getHeight()][t2List.get(j - 1).getChildren().getInt(t) + 1]
+                                    - insT2Subtree[t2List.get(j - 1).getChildren().getInt(t) + 1]));
                 }
                 minForestIns += insF2Subtree[j];
                 minTreeIns += insT2Subtree[j];
 
                 // Cost for rename.
-                if (t1.get(i - 1).getChildren().size() == 0) {
-                    // t1[i] is a leaf node. Therefore, all nodes of F2 have to be inserted.
+                if (t1List.get(i - 1).getChildren().size() == 0) {
+                    // t1List[i] is a leaf node. Therefore, all nodes of F2 have to be inserted.
                     minForestRen = insF2Subtree[j];
-                } else if (t2.get(j - 1).getChildren().size() == 0) {
-                    // t2[j] is a leaf node. Therefore, all nodes of F1 have to be deleted.
+                } else if (t2List.get(j - 1).getChildren().size() == 0) {
+                    // t2List[j] is a leaf node. Therefore, all nodes of F1 have to be deleted.
                     minForestRen = delF1Subtree[i];
                 } else {
-                    minForestRen = editDistanceMatrix0[t1.get(i - 1).getHeight()]
-                            [t2.get(j - 1).getChildren().getInt(t2.get(j - 1).getChildren().size() - 1) + 1];
+                    minForestRen = editDistanceMatrix0[t1List.get(i - 1).getHeight()]
+                            [t2List.get(j - 1).getChildren().getInt(t2List.get(j - 1).getChildren().size() - 1) + 1];
                 }
 
                 // Fill forest distance matrix.
-                forestDistanceMatrix[t1.get(i - 1).getHeight()][j] = Math.min(Math.min(minForestDel, minForestIns), minForestRen);
+                forestDistanceMatrix[t1List.get(i - 1).getHeight()][j] = Math.min(Math.min(minForestDel, minForestIns), minForestRen);
                 // Compute tree rename based on forest cost matrix.
-                minTreeRen = forestDistanceMatrix[t1.get(i - 1).getHeight()][j] + cm.ren(t1.get(i - 1), t2.get(j - 1));
+                minTreeRen = forestDistanceMatrix[t1List.get(i - 1).getHeight()][j] + cm.ren(t1List.get(i - 1), t2List.get(j - 1));
 
                 // Fill tree distance matrix.
-                treeDistanceMatrix[t1.get(i - 1).getHeight()][j] = Math.min(Math.min(minTreeDel, minTreeIns), minTreeRen);
+                treeDistanceMatrix[t1List.get(i - 1).getHeight()][j] = Math.min(Math.min(minTreeDel, minTreeIns), minTreeRen);
 
                 // Do not compute for the parent of the root node in T1.
                 if (i != sizeT1) {
                     // Case 1: i is favorable child of parent.
-                    if (t1.get(t1.get(i - 1).getParent()).getFavChild() == i - 1) {
+                    if (t1List.get(t1List.get(i - 1).getParent()).getFavChild() == i - 1) {
                         // Store distances for favorable child used to fill the edit distance matrix later on.
-                        favorableChildTreeDistanceMatrix[parentI][j] = treeDistanceMatrix[t1.get(i - 1).getHeight()][j];
+                        favorableChildTreeDistanceMatrix[parentI][j] = treeDistanceMatrix[t1List.get(i - 1).getHeight()][j];
                         // Keep track of the deletion costs for parent.
-                        forestDeletionMatrix[parentI][j - 1] = delF1Subtree[t1.get(i - 1).getParent() + 1] + forestDistanceMatrix[t1.get(i - 1).getHeight()][j] - delF1Subtree[i];
-                        treeDeletionMatrix[parentI][j - 1] = delT1Subtree[t1.get(i - 1).getParent() + 1] + treeDistanceMatrix[t1.get(i - 1).getHeight()][j] - delT1Subtree[i];
+                        forestDeletionMatrix[parentI][j - 1] = delF1Subtree[t1List.get(i - 1).getParent() + 1] + forestDistanceMatrix[t1List.get(i - 1).getHeight()][j] - delF1Subtree[i];
+                        treeDeletionMatrix[parentI][j - 1] = delT1Subtree[t1List.get(i - 1).getParent() + 1] + treeDistanceMatrix[t1List.get(i - 1).getHeight()][j] - delT1Subtree[i];
                     } else {
                         // Keep track of the deletion costs for parent.
-                        forestDeletionMatrix[parentI][j - 1] = Math.min(forestDeletionMatrix[parentI][j - 1], delF1Subtree[t1.get(i - 1).getParent() + 1] + forestDistanceMatrix[t1.get(i - 1).getHeight()][j] - delF1Subtree[i]);
-                        treeDeletionMatrix[parentI][j - 1] = Math.min(treeDeletionMatrix[parentI][j - 1], delT1Subtree[t1.get(i - 1).getParent() + 1] + treeDistanceMatrix[t1.get(i - 1).getHeight()][j] - delT1Subtree[i]);
+                        forestDeletionMatrix[parentI][j - 1] = Math.min(forestDeletionMatrix[parentI][j - 1], delF1Subtree[t1List.get(i - 1).getParent() + 1] + forestDistanceMatrix[t1List.get(i - 1).getHeight()][j] - delF1Subtree[i]);
+                        treeDeletionMatrix[parentI][j - 1] = Math.min(treeDeletionMatrix[parentI][j - 1], delT1Subtree[t1List.get(i - 1).getParent() + 1] + treeDistanceMatrix[t1List.get(i - 1).getHeight()][j] - delT1Subtree[i]);
                     }
 
                     // Do not store the edit matrix for the parent of the root node.
                     if (j != sizeT2) {
                         // Case 2.1: i is the leftmost child, hence take init line.
-                        if (t1.get(t1.get(i - 1).getParent()).getChildren().size() > 0
-                                && t1.get(t1.get(i - 1).getParent()).getChildren().getInt(0) == i - 1) {
+                        if (t1List.get(t1List.get(i - 1).getParent()).getChildren().size() > 0
+                                && t1List.get(t1List.get(i - 1).getParent()).getChildren().getInt(0) == i - 1) {
                             // Fill next line.
                             editDistanceMatrix[parentI][0] = eInit[0] + delT1Subtree[i];
-                            // If the current node j in tree t2 is (the root node or) the first child start from empty column (0).
+                            // If the current node j in tree t2List is (the root node or) the first child start from empty column (0).
                             editDistanceMatrix[parentI][j] = Math.min(
-                                    editDistanceMatrix[parentI][t2.get(j - 1).getLeftSibling() + 1] + insT2Subtree[j],
+                                    editDistanceMatrix[parentI][t2List.get(j - 1).getLeftSibling() + 1] + insT2Subtree[j],
                                     Math.min(eInit[j] + delT1Subtree[i],
-                                            eInit[t2.get(j - 1).getLeftSibling() + 1] + treeDistanceMatrix[t1.get(i - 1).getHeight()][j]));
+                                            eInit[t2List.get(j - 1).getLeftSibling() + 1] + treeDistanceMatrix[t1List.get(i - 1).getHeight()][j]));
                         // Case 2.2: i is not the leftmost child, hence take previous line.
-                        } else if (t1.get(t1.get(i - 1).getParent()).getFavChild() != i - 1) {
+                        } else if (t1List.get(t1List.get(i - 1).getParent()).getFavChild() != i - 1) {
                             // Fill next line.
                             editDistanceMatrix[parentI][0] = editDistanceMatrix0[parentI][0] + delT1Subtree[i];
-                            // If the current node j in tree t2 is (the root node or) the first child start from empty column (0).
+                            // If the current node j in tree t2List is (the root node or) the first child start from empty column (0).
                             editDistanceMatrix[parentI][j] = Math.min(
-                                    editDistanceMatrix[parentI][t2.get(j - 1).getLeftSibling() + 1] + insT2Subtree[j],
+                                    editDistanceMatrix[parentI][t2List.get(j - 1).getLeftSibling() + 1] + insT2Subtree[j],
                                     Math.min(editDistanceMatrix0[parentI][j] + delT1Subtree[i],
-                                            editDistanceMatrix0[parentI][t2.get(j - 1).getLeftSibling() + 1] + treeDistanceMatrix[t1.get(i - 1).getHeight()][j]));
+                                            editDistanceMatrix0[parentI][t2List.get(j - 1).getLeftSibling() + 1] + treeDistanceMatrix[t1List.get(i - 1).getHeight()][j]));
                         }
                     }
                 }
             }
             // Case 3: t[i] is the left sibling of the favorable child.
             if (i != sizeT1) {
-                if (t1.get(t1.get(i - 1).getParent()).getFavChildLeftSibling() == i - 1) {
-                    favChildPostorderID = t1.get(t1.get(i - 1).getParent()).getFavChild() + 1;
+                if (t1List.get(t1List.get(i - 1).getParent()).getFavChildLeftSibling() == i - 1) {
+                    favChildPostorderID = t1List.get(t1List.get(i - 1).getParent()).getFavChild() + 1;
 
                     for (int p = 0; p <= sizeT2; p++) {
                         editDistanceMatrix0[parentI][p] = Double.POSITIVE_INFINITY;
@@ -365,9 +368,9 @@ public class JOFilterEvaluator implements IScalarEvaluator {
                     nodeJThresholdRangeEnd = Math.min(favChildPostorderID + (int) threshold, sizeT2); // TODO: double to int cast is not so cool
                     for (int j = nodeJThresholdRangeStart; j <= nodeJThresholdRangeEnd; ++j) {
                         editDistanceMatrix0[parentI][j] = Math.min(
-                                editDistanceMatrix0[parentI][t2.get(j - 1).getLeftSibling() + 1] + insT2Subtree[j],
+                                editDistanceMatrix0[parentI][t2List.get(j - 1).getLeftSibling() + 1] + insT2Subtree[j],
                                 Math.min(editDistanceMatrix[parentI][j] + delT1Subtree[favChildPostorderID],
-                                        editDistanceMatrix[parentI][t2.get(j - 1).getLeftSibling() + 1] + favorableChildTreeDistanceMatrix[parentI][j]));
+                                        editDistanceMatrix[parentI][t2List.get(j - 1).getLeftSibling() + 1] + favorableChildTreeDistanceMatrix[parentI][j]));
                     }
                 } else {
                     // TODO: remove commented loop
@@ -379,8 +382,8 @@ public class JOFilterEvaluator implements IScalarEvaluator {
                 // Reset data structures to infinity.
                 for (int p = 0; p <= sizeT2; p++) {
                     editDistanceMatrix[parentI][p] = Double.POSITIVE_INFINITY;
-                    treeDistanceMatrix[t1.get(i - 1).getHeight()][p] = Double.POSITIVE_INFINITY;
-                    forestDistanceMatrix[t1.get(i - 1).getHeight()][p] = Double.POSITIVE_INFINITY;
+                    treeDistanceMatrix[t1List.get(i - 1).getHeight()][p] = Double.POSITIVE_INFINITY;
+                    forestDistanceMatrix[t1List.get(i - 1).getHeight()][p] = Double.POSITIVE_INFINITY;
                 }
             }
         }
@@ -388,7 +391,7 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         return treeDistanceMatrix[heightT1][sizeT2];
     }
 
-    private boolean joFilter(List<JOFilterNode> t1, List<JOFilterNode> t2, double threshold) {
+    private boolean joFilter(JOFilterTree t1, JOFilterTree t2, double threshold) {
         return joFilterCalculation(t1, t2, threshold) <= threshold;
     }
 
