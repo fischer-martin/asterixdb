@@ -21,7 +21,7 @@ package org.apache.asterix.runtime.evaluators.functions.records;
 import it.unimi.dsi.fastutil.ints.IntIntMutablePair;
 import it.unimi.dsi.fastutil.ints.IntIntPair;
 import org.apache.asterix.builders.ArrayListFactory;
-import org.apache.asterix.dataflow.data.nontagged.serde.*;
+import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMutableDouble;
 import org.apache.asterix.om.exceptions.ExceptionUtil;
@@ -59,23 +59,8 @@ public class JOFilterEvaluator implements IScalarEvaluator {
     protected final IEvaluatorContext context;
     protected final SourceLocation sourceLoc;
     protected final AMutableDouble aDouble = new AMutableDouble(-1.0);
-    @SuppressWarnings("rawtypes")
-    protected ISerializerDeserializer int8Serde =
-            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT8);
-    @SuppressWarnings("rawtypes")
-    protected ISerializerDeserializer int16Serde =
-            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT16);
-    @SuppressWarnings("rawtypes")
-    protected ISerializerDeserializer int32Serde =
-            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT32);
-    @SuppressWarnings("rawtypes")
-    protected ISerializerDeserializer int64Serde =
-            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT64);
-    @SuppressWarnings("rawtypes")
-    protected ISerializerDeserializer floatSerde =
-            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AFLOAT);
-    @SuppressWarnings("rawtypes")
-    protected ISerializerDeserializer doubleSerde =
+    @SuppressWarnings("unchecked")
+    protected final ISerializerDeserializer<AMutableDouble> doubleSerde =
             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ADOUBLE);
 
     private final IVisitablePointable pointableLeft;
