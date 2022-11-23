@@ -68,13 +68,17 @@ public class JOFilterDescriptor extends AbstractScalarFunctionDynamicDescriptor 
 
             @Override
             public IScalarEvaluator createScalarEvaluator(IEvaluatorContext ctx) throws HyracksDataException {
-                return new JOFilterEvaluator(args, ctx, sourceLoc, type1, type2, type3);
+                return new JOFilterEvaluator(args, ctx, sourceLoc, type1, type2);
             }
         };
     }
 
     @Override
     public FunctionIdentifier getIdentifier() {
+        return getIdentifierStatic();
+    }
+
+    public static FunctionIdentifier getIdentifierStatic() {
         return BuiltinFunctions.JOFILTER;
     }
 
