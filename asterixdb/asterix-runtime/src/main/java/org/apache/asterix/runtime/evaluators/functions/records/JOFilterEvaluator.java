@@ -117,7 +117,7 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         thirdStringEval.evaluate(tuple, thresholdPointable);
         byte[] data = thresholdPointable.getByteArray();
         int offset = thresholdPointable.getStartOffset();
-        double threshold = ADoubleSerializerDeserializer.getDouble(data, offset + 1);
+        double threshold = ADoubleSerializerDeserializer.getDouble(data, offset + 1); // TODO we cant just deserialize like this or else the threshold has to be provided in SQL++ as double("...")
 
         // TODO: maybe I need to do some type checking stuff like it is done in e.g. AbstractUnaryNumericFunctionEval
         // atm we ignore the IAType type3 that we get in the constructor
@@ -261,7 +261,6 @@ public class JOFilterEvaluator implements IScalarEvaluator {
             // (since they are indexed by the postorder ID).
             //i = t1List.postl_to_favorder_[x-1] + 1;
             i = t1.favChildOrderToPostorder(x - 1) + 1;
-            parentI = t1List.get(t1List.get(i - 1).getParent()).getHeight();
 
             // Iterate for all j in the threshold range of i.
             nodeJThresholdRangeStart = Math.max(i - (int) threshold, 1); // TODO: double to int cast is not so cool
@@ -316,6 +315,7 @@ public class JOFilterEvaluator implements IScalarEvaluator {
 
                 // Do not compute for the parent of the root node in T1.
                 if (i != sizeT1) {
+                    parentI = t1List.get(t1List.get(i - 1).getParent()).getHeight();
                     // Case 1: i is favorable child of parent.
                     if (t1List.get(t1List.get(i - 1).getParent()).getFavChild() == i - 1) {
                         // Store distances for favorable child used to fill the edit distance matrix later on.
@@ -356,6 +356,7 @@ public class JOFilterEvaluator implements IScalarEvaluator {
             }
             // Case 3: t[i] is the left sibling of the favorable child.
             if (i != sizeT1) {
+                parentI = t1List.get(t1List.get(i - 1).getParent()).getHeight();
                 if (t1List.get(t1List.get(i - 1).getParent()).getFavChildLeftSibling() == i - 1) {
                     favChildPostorderID = t1List.get(t1List.get(i - 1).getParent()).getFavChild() + 1;
 
