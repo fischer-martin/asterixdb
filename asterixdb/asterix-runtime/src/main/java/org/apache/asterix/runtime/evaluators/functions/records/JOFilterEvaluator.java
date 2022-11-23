@@ -21,9 +21,10 @@ package org.apache.asterix.runtime.evaluators.functions.records;
 import it.unimi.dsi.fastutil.ints.IntIntMutablePair;
 import it.unimi.dsi.fastutil.ints.IntIntPair;
 import org.apache.asterix.builders.ArrayListFactory;
-import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.*;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMutableDouble;
+import org.apache.asterix.om.exceptions.ExceptionUtil;
 import org.apache.asterix.om.pointables.PointableAllocator;
 import org.apache.asterix.om.pointables.base.IVisitablePointable;
 import org.apache.asterix.om.types.ATypeTag;
@@ -32,6 +33,7 @@ import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.om.util.container.IObjectPool;
 import org.apache.asterix.om.util.container.ListObjectPool;
 import org.apache.asterix.runtime.evaluators.common.*;
+import org.apache.asterix.runtime.evaluators.functions.PointableHelper;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
@@ -54,10 +56,26 @@ public class JOFilterEvaluator implements IScalarEvaluator {
     protected final IScalarEvaluator firstStringEval;
     protected final IScalarEvaluator secondStringEval;
     protected final IScalarEvaluator thirdStringEval;
+    protected final IEvaluatorContext context;
     protected final SourceLocation sourceLoc;
     protected final AMutableDouble aDouble = new AMutableDouble(-1.0);
-    @SuppressWarnings("unchecked")
-    protected final ISerializerDeserializer<AMutableDouble> doubleSerde =
+    @SuppressWarnings("rawtypes")
+    protected ISerializerDeserializer int8Serde =
+            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT8);
+    @SuppressWarnings("rawtypes")
+    protected ISerializerDeserializer int16Serde =
+            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT16);
+    @SuppressWarnings("rawtypes")
+    protected ISerializerDeserializer int32Serde =
+            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT32);
+    @SuppressWarnings("rawtypes")
+    protected ISerializerDeserializer int64Serde =
+            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT64);
+    @SuppressWarnings("rawtypes")
+    protected ISerializerDeserializer floatSerde =
+            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AFLOAT);
+    @SuppressWarnings("rawtypes")
+    protected ISerializerDeserializer doubleSerde =
             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ADOUBLE);
 
     private final IVisitablePointable pointableLeft;
@@ -96,7 +114,7 @@ public class JOFilterEvaluator implements IScalarEvaluator {
     private double[][] favorableChildTreeDistanceMatrix;
 
     public JOFilterEvaluator(IScalarEvaluatorFactory[] args, IEvaluatorContext context, SourceLocation sourceLoc,
-            IAType type1, IAType type2, IAType type3) throws HyracksDataException {
+            IAType type1, IAType type2) throws HyracksDataException {
         PointableAllocator allocator = new PointableAllocator();
         firstStringEval = args[0].createScalarEvaluator(context);
         secondStringEval = args[1].createScalarEvaluator(context);
@@ -104,6 +122,7 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         pointableLeft = allocator.allocateFieldValue(type1);
         pointableRight = allocator.allocateFieldValue(type2);
         listAllocator = new ListObjectPool<>(new ArrayListFactory<JOFilterNode>());
+        this.context = context;
         this.sourceLoc = sourceLoc;
     }
 
@@ -115,12 +134,32 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         firstStringEval.evaluate(tuple, pointableLeft);
         secondStringEval.evaluate(tuple, pointableRight);
         thirdStringEval.evaluate(tuple, thresholdPointable);
+
+        if (PointableHelper.checkAndSetMissingOrNull(result, thresholdPointable)) {
+            return;
+        }
+
         byte[] data = thresholdPointable.getByteArray();
         int offset = thresholdPointable.getStartOffset();
-        double threshold = ADoubleSerializerDeserializer.getDouble(data, offset + 1); // TODO we cant just deserialize like this or else the threshold has to be provided in SQL++ as double("...")
-
-        // TODO: maybe I need to do some type checking stuff like it is done in e.g. AbstractUnaryNumericFunctionEval
-        // atm we ignore the IAType type3 that we get in the constructor
+        double threshold;
+        if (data[offset] == ATypeTag.SERIALIZED_INT8_TYPE_TAG) {
+            threshold = AInt8SerializerDeserializer.getByte(data, offset + 1);
+        } else if (data[offset] == ATypeTag.SERIALIZED_INT16_TYPE_TAG) {
+            threshold = AInt16SerializerDeserializer.getShort(data, offset + 1);
+        } else if (data[offset] == ATypeTag.SERIALIZED_INT32_TYPE_TAG) {
+            threshold = AInt32SerializerDeserializer.getInt(data, offset + 1);
+        } else if (data[offset] == ATypeTag.SERIALIZED_INT64_TYPE_TAG) {
+            threshold = AInt64SerializerDeserializer.getLong(data, offset + 1);
+        } else if (data[offset] == ATypeTag.SERIALIZED_FLOAT_TYPE_TAG) {
+            threshold = AFloatSerializerDeserializer.getFloat(data, offset + 1);
+        } else if (data[offset] == ATypeTag.SERIALIZED_DOUBLE_TYPE_TAG) {
+            threshold = ADoubleSerializerDeserializer.getDouble(data, offset + 1);
+        } else {
+            ExceptionUtil.warnTypeMismatch(context, sourceLoc, JOFilterDescriptor.getIdentifierStatic(), data[offset],
+                    2, ArgumentUtils.NUMERIC_TYPES);
+            PointableHelper.setNull(result);
+            return;
+        }
 
         // Convert the given data items into JSON trees.
         JOFilterTree postToNode1 = convertToJOFilterTree(pointableLeft);
