@@ -402,7 +402,7 @@ public class JOFilterEvaluator implements IScalarEvaluator {
 //                    for (int p = 0; p <= sizeT2; p++) {
 //                        editDistanceMatrix0[parentI][p] = editDistanceMatrix[parentI][p];
 //                    }
-                    System.arraycopy(editDistanceMatrix, 0, editDistanceMatrix0, 0, sizeT2 + 1);
+                    System.arraycopy(editDistanceMatrix[parentI], 0, editDistanceMatrix0[parentI], 0, sizeT2 + 1);
                 }
                 // Reset data structures to infinity.
                 for (int p = 0; p <= sizeT2; p++) {
