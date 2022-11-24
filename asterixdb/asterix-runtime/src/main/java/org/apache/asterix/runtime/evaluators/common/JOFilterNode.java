@@ -9,8 +9,6 @@ public class JOFilterNode extends Node {
     private int favChild;
     // postorder ID of favorable child's left sibling
     private int favChildLeftSibling;
-    // ID of this node in favorable child order
-    private int favChildOrderID; // TODO: I don't think we even need this (which is the reason why the visitor does not set it)
     // postorder ID of left sibling
     private int leftSibling = -1;
 
@@ -44,14 +42,6 @@ public class JOFilterNode extends Node {
 
     public void setFavChildLeftSibling(int favChildLeftSibling) {
         this.favChildLeftSibling = favChildLeftSibling;
-    }
-
-    public int getFavChildOrderID() {
-        return favChildOrderID;
-    }
-
-    public void setFavChildOrderID(int favChildOrderID) {
-        this.favChildOrderID = favChildOrderID;
     }
 
     public int getLeftSibling() {
