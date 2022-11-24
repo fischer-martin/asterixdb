@@ -170,7 +170,7 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         transArg.setRight(transCnt);
 
         // TODO: reuse JOFilterTree objects (especially the int[] in them) instead of allocating new ones in the tree transformator
-        return treeTransformator.toJOFilterTree(pointableLeft, transArg);
+        return treeTransformator.toJOFilterTree(pointable, transArg);
     }
 
     private void resizeDataStructures(int sizeT1, int heightT1, int sizeT2) {
