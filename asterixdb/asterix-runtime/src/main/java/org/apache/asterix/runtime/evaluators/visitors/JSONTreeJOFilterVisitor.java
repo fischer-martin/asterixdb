@@ -202,7 +202,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
 
         incrementPostorderIDInArg(arg.right);
         setSubtreeSizeInArg(arg.right, subtreeSize);
-        setSubtreeHeightInArg(arg.right, maxChildHeight + 1);
+        setSubtreeHeightInArg(arg.right, objectNode.getHeight());
 
         return null;
     }
