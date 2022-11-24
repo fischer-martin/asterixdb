@@ -159,7 +159,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
             keyNode.setSubtreeSize(getSubtreeSizeFromArg(arg.right));
             keyNode.addChild(getPostorderIDFromArg(arg.right) - 1); // A key always has exactly one child.
             keyNode.addSas(getSubtreeSizeFromArg(arg.right) - 1);
-            keyNode.setHeight(getSubtreeHeightFromArg(arg.right) + 1);
+            keyNode.setHeight(getSubtreeHeightFromArg(arg.right));
             keyNode.setFavChild(getPostorderIDFromArg(arg.right) - 1); // One child => child is fav child
             keyNode.setFavChildLeftSibling(-1); // One child => child has no left sibling
             keyNode.setLeftSibling(leftSibling);
@@ -176,7 +176,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
             objectNode.addChild(getPostorderIDFromArg(arg.right));
             objectNode.addSas(getSubtreeSizeFromArg(arg.right));
             subtreeSize += getSubtreeSizeFromArg(arg.right);
-            maxChildHeight = Math.max(maxChildHeight, getSubtreeHeightFromArg(arg.right) + 1);
+            maxChildHeight = Math.max(maxChildHeight, getSubtreeHeightFromArg(arg.right));
 
             // update leftSibling for next sibling
             leftSibling = getPostorderIDFromArg(arg.right);
