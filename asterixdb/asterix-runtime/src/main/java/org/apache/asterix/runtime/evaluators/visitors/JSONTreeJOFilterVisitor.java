@@ -80,21 +80,23 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
         for (int i = 0; i < pointable.getItems().size(); i++) {
             pointable.getItems().get(i).accept(this, arg);
             int currentChildPostorderedID = getPostorderIDFromArg(arg.right) - 1;
+            JOFilterNode currentChild = arg.left.get(currentChildPostorderedID);
 
             listNode.addChild(currentChildPostorderedID);
             listNode.addSas(getSubtreeSizeFromArg(arg.right));
-            listNode.setLeftSibling(leftSibling);
             subtreeSize += getSubtreeSizeFromArg(arg.right);
             maxChildHeight = Math.max(maxChildHeight, getSubtreeHeightFromArg(arg.right));
 
             // The favorable child is the child with the largest subtree.
-            if (favChild == -1 || arg.left.get(currentChildPostorderedID).getSubtreeSize() > arg.left.get(favChild).getSubtreeSize()) {
+            if (favChild == -1 || currentChild.getSubtreeSize() > arg.left.get(favChild).getSubtreeSize()) {
                 favChild = currentChildPostorderedID;
                 favChildLeftSibling = leftSibling;
             }
 
+            currentChild.setLeftSibling(leftSibling);
+
             // update leftSibling for next sibling
-            leftSibling = getPostorderIDFromArg(arg.right);
+            leftSibling = currentChildPostorderedID;
         }
 
         // Sort and sum up entries in the SAS array and set subtree size of the list node.
