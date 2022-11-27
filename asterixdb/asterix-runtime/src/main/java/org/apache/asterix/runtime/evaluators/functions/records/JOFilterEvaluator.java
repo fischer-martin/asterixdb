@@ -297,7 +297,7 @@ public class JOFilterEvaluator implements IScalarEvaluator {
                 if (t1List.get(i - 1).getChildren().size() != 0) {
                     // t1List[i] is not a leaf node. Therefore, read the previously computed value.
                     minForestDel = forestDeletionMatrix[t1List.get(i - 1).getHeight()][j - 1];
-                    minTreeDel = forestDeletionMatrix[t1List.get(i - 1).getHeight()][j - 1];
+                    minTreeDel = treeDeletionMatrix[t1List.get(i - 1).getHeight()][j - 1];
                 }
 
                 // Cost for insertion.
