@@ -147,11 +147,11 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         }
 
         // Convert the given data items into JSON trees.
-        JOFilterTree postToNode1 = convertToJOFilterTree(pointableLeft);
-        JOFilterTree postToNode2 = convertToJOFilterTree(pointableRight);
+        JOFilterTree joFilterTree1 = convertToJOFilterTree(pointableLeft);
+        JOFilterTree joFilterTree2 = convertToJOFilterTree(pointableRight);
 
         // TODO: actually return joFilter instead of joFilterCalculation after I did some correctness tests
-        writeResult(joFilterCalculation(postToNode1, postToNode2, threshold));
+        writeResult(joFilterCalculation(joFilterTree1, joFilterTree2, threshold));
         result.set(resultStorage);
     }
 
