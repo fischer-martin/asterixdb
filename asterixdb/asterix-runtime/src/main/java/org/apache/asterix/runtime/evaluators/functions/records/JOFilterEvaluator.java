@@ -304,7 +304,7 @@ public class JOFilterEvaluator implements IScalarEvaluator {
                 minForestIns = Double.POSITIVE_INFINITY;
                 minTreeIns = Double.POSITIVE_INFINITY;
                 for (int t = 0; t < t2List.get(j - 1).getChildren().size(); ++t) {
-                    if (Math.abs(i - (t2List.get(j - 1).getChildren().getInt(t) + 1))> threshold) {
+                    if (Math.abs(i - (t2List.get(j - 1).getChildren().getInt(t) + 1)) > threshold) {
                         continue;
                     }
                     minForestIns = Math.min(minForestIns,
