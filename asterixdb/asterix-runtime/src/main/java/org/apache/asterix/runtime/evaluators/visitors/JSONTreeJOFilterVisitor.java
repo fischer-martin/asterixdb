@@ -77,6 +77,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
 
         int subtreeSize = 1;
         // Recursively visit all list children (elements).
+        // TODO: visit children of multiset in lexicographical order
         for (int i = 0; i < pointable.getItems().size(); i++) {
             pointable.getItems().get(i).accept(this, arg);
             int currentChildPostorderedID = getPostorderIDFromArg(arg.right) - 1;
@@ -140,6 +141,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
 
         int subtreeSize = 1;
         // Recursively visit all object children (key-value pairs).
+        // TODO: visit children (keys) of object in lexicographical order
         for (int i = 0; i < pointable.getFieldValues().size(); i++) {
             pointable.getFieldValues().get(i).accept(this, arg);
 
