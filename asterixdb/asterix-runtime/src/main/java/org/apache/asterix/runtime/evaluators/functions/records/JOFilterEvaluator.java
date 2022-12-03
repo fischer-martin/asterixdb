@@ -232,6 +232,7 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         for (int j = 1; j <= sizeT2; ++j) {
             insF2Subtree[j] = 0;
             for (int k = 1; k <= t2.get(j - 1).getChildren().size(); ++k) {
+                insF2Subtree[j] += insT2Subtree[t2.get(j - 1).getChildren().getInt(k - 1) + 1];
                 // TODO: aren't eInit and insT2Subtree uninitialized at this point?
                 if (k == 1) {
                     // TODO: could be moved out of the inner loop if it is placed in an
