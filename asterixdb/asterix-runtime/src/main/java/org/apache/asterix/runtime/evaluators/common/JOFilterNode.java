@@ -12,6 +12,15 @@ public class JOFilterNode extends Node {
     // postorder ID of left sibling
     private int leftSibling = -1;
 
+    @Override
+    public void reset() {
+        super.reset();
+
+        // For the root node, our visitor does not set these values.
+        parent = -1;
+        leftSibling = -1;
+    }
+
     public int getHeight() {
         return height;
     }
