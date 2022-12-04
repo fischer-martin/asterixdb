@@ -18,6 +18,7 @@
  */
 package org.apache.asterix.runtime.evaluators.visitors;
 
+import org.apache.asterix.builders.ArrayListFactory;
 import org.apache.asterix.om.pointables.AFlatValuePointable;
 import org.apache.asterix.om.pointables.AListVisitablePointable;
 import org.apache.asterix.om.pointables.ARecordVisitablePointable;
@@ -31,6 +32,8 @@ import org.apache.asterix.runtime.evaluators.common.JOFilterNodeFactory;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -43,15 +46,19 @@ import java.util.List;
 
 public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void, MutablePair<List<JOFilterNode>, int[]>> {
     private final IObjectPool<JOFilterNode, ATypeTag> nodeAllocator;
+    private final IObjectPool<List<IVisitablePointable>, ATypeTag> listAllocator;
+    private final OrderedJsonTreeIVisitablePointableComparator comparator = new OrderedJsonTreeIVisitablePointableComparator();
 
     public JSONTreeJOFilterVisitor() {
-        // Use ListObjectPool to reuse in-memory buffers instead of allocating new memory for each JOFilterNode.
+        // Use ListObjectPool to reuse in-memory buffers instead of allocating new memory for each JOFilterNode/List.
         nodeAllocator = new ListObjectPool<>(new JOFilterNodeFactory());
+        listAllocator = new ListObjectPool<>(new ArrayListFactory());
     }
 
     public void reset() {
         // Free in-memory buffers for reuse.
         nodeAllocator.reset();
+        listAllocator.reset();
     }
 
     /**
@@ -64,6 +71,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
         int favChild = -1;
         int leftSibling = -1;
         int maxChildHeight = -1;
+        List<IVisitablePointable> orderedChildren;
 
         // Create a new list node (array or multiset).
         JOFilterNode listNode = nodeAllocator.allocate(null);
@@ -71,15 +79,19 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
         listNode.setLabel(pointable);
         if (pointable.ordered()) {
             listNode.setType(4);
+            orderedChildren = pointable.getItems();
         } else {
             listNode.setType(5);
+            orderedChildren = listAllocator.allocate(null);
+            orderedChildren.clear();
+            orderedChildren.addAll(pointable.getItems());
+            orderedChildren.sort(comparator);
         }
 
         int subtreeSize = 1;
         // Recursively visit all list children (elements).
-        // TODO: visit children of multiset in lexicographical order
-        for (int i = 0; i < pointable.getItems().size(); i++) {
-            pointable.getItems().get(i).accept(this, arg);
+        for (int i = 0; i < orderedChildren.size(); i++) {
+            orderedChildren.get(i).accept(this, arg);
             int currentChildPostorderedID = getPostorderIDFromArg(arg.right) - 1;
             JOFilterNode currentChild = arg.left.get(currentChildPostorderedID);
 
@@ -98,6 +110,10 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
 
             // update leftSibling for next sibling
             leftSibling = currentChildPostorderedID;
+        }
+
+        if (!pointable.ordered()) {
+            listAllocator.free(orderedChildren);
         }
 
         // Sort and sum up entries in the SAS array and set subtree size of the list node.
@@ -133,6 +149,11 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
         int favChild = -1;
         int maxChildHeight = -1;
 
+        List<IVisitablePointable> orderedChildren = listAllocator.allocate(null);
+        orderedChildren.clear();
+        orderedChildren.addAll(pointable.getFieldNames());
+        orderedChildren.sort(comparator);
+
         // Create a new object node.
         JOFilterNode objectNode = nodeAllocator.allocate(null);
         objectNode.reset();
@@ -141,9 +162,24 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
 
         int subtreeSize = 1;
         // Recursively visit all object children (key-value pairs).
-        // TODO: visit children (keys) of object in lexicographical order
-        for (int i = 0; i < pointable.getFieldValues().size(); i++) {
-            pointable.getFieldValues().get(i).accept(this, arg);
+        for (int i = 0, valueIndex = -1; i < orderedChildren.size(); ++i) {
+            // Since we reordered the keys, we need to find the index of the corresponding value.
+            // We could save ourselves from these O(n^2) shenanigans if instead of using a List<IVisitablePointable> for
+            // orderedChildren we used a List<MutablePair<IVisitablePointable, IVisitablePointable>> instead where the
+            // left value would store the key and the right value would store the value and an additional Comparator
+            // would wrap our existing OrderedJsonTreeIVisitablePointableComparator such that it compares based on the
+            // keys only.
+            // We don't do this since it would probably only really pay off for really large object instances and not
+            // the ones that one would normally encounter in the real world.
+            // TODO: Verify this if you want to perform micro optimizations.
+            for (int k = 0; k < pointable.getFieldNames().size(); ++k) {
+                if (orderedChildren.get(i) == pointable.getFieldNames().get(k)) {
+                    valueIndex = k;
+                    break;
+                }
+            }
+
+            pointable.getFieldValues().get(valueIndex).accept(this, arg);
 
             JOFilterNode keyNodeChild = arg.left.get(getPostorderIDFromArg(arg.right) - 1);
             // key node only has one child => this child does not have a left sibling
@@ -155,7 +191,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
             incrementSubtreeHeightInArg(arg.right); // Increment height for key.
 
             // Building a key node.
-            IVisitablePointable key = pointable.getFieldNames().get(i);
+            IVisitablePointable key = orderedChildren.get(i);
             JOFilterNode keyNode = nodeAllocator.allocate(null);
             keyNode.reset();
             keyNode.setLabel(key);
@@ -188,6 +224,8 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
             // Raise postorder id after processing a key.
             incrementPostorderIDInArg(arg.right);
         }
+
+        listAllocator.free(orderedChildren);
 
         // Sort and sum up entries in the SAS array and set subtree size of the list node.
         objectNode.sortAggregateSas();
@@ -237,6 +275,56 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
         incrementPostorderIDInArg(arg.right);
 
         return null;
+    }
+
+    /**
+     * Note: this comparator imposes orderings that are inconsistent with equals.
+     */
+    private class OrderedJsonTreeIVisitablePointableComparator implements Comparator<IVisitablePointable> {
+
+        private static final int MULTISET = 4;
+        private static final int ARRAY = 3;
+        private static final int OBJECT = 2;
+        private static final int KEY_OR_LITERAL = 1;
+
+        /**
+         * Implies an order where multiset > array > object > key/literal. The keys/literals are subordered through a
+         * lexicographic order that first compares the type and then the data itself.
+         *
+         * @param o1 first argument for comparison
+         * @param o2 second argument for comparison
+         * @return A negative integer, zero, or a positive integer if o1 is less than, equal to, or greater than o2.
+         */
+        @Override
+        public int compare(IVisitablePointable o1, IVisitablePointable o2) {
+            final int o1Type = determineType(o1);
+            final int o2Type = determineType(o2);
+
+            if (o1Type == KEY_OR_LITERAL && o2Type == KEY_OR_LITERAL) {
+                AFlatValuePointable first = (AFlatValuePointable) o1;
+                AFlatValuePointable second = (AFlatValuePointable) o2;
+
+                return Arrays.compare(first.getByteArray(), first.getStartOffset(), first.getStartOffset() + first.getLength(),
+                        second.getByteArray(), second.getStartOffset(), second.getStartOffset() + second.getLength());
+            } else {
+                return o1Type - o2Type;
+            }
+        }
+
+        private int determineType(IVisitablePointable p) {
+            if (p instanceof AListVisitablePointable) {
+                if (((AListVisitablePointable) p).ordered()) {
+                    return ARRAY;
+                } else {
+                    return MULTISET;
+                }
+            } else if (p instanceof ARecordVisitablePointable) {
+                return OBJECT;
+            } else {
+                return KEY_OR_LITERAL;
+            }
+        }
+
     }
 
     private int getPostorderIDFromArg(int[] arg) {
