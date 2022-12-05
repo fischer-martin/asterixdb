@@ -21,17 +21,17 @@ package org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics;
 import java.util.ArrayList;
 import java.util.Comparator;
 
-import org.apache.asterix.runtime.operators.joins.flexible.utils.Bucket;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
 
 public class SmallFirst extends AbstractHeuristic {
 
-    public SmallFirst(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd,
-                    RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, boolean checkForRoleReversal, boolean continueToCheckBuckets)
-            throws HyracksDataException {
-        super(memoryForJoin, frameSize, buildFileSize, probeFileSize, buildRd, probeRd, buildKeys, probeKeys, checkForRoleReversal, continueToCheckBuckets);
+    public SmallFirst(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize,
+            RecordDescriptor buildRd, RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys,
+            boolean checkForRoleReversal, boolean continueToCheckBuckets) throws HyracksDataException {
+        super(memoryForJoin, frameSize, buildFileSize, probeFileSize, buildRd, probeRd, buildKeys, probeKeys,
+                checkForRoleReversal, continueToCheckBuckets);
 
     }
 

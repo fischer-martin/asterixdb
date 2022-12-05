@@ -30,8 +30,8 @@ public class SerializableBucketIdList extends SimpleSerializableBucketIdList {
     protected int wastedIntSpaceCount = 0;
     protected ISimpleFrameBufferManager bufferManager;
 
-    public SerializableBucketIdList(final IHyracksFrameMgrContext ctx,
-            ISimpleFrameBufferManager bufferManager) throws HyracksDataException {
+    public SerializableBucketIdList(final IHyracksFrameMgrContext ctx, ISimpleFrameBufferManager bufferManager)
+            throws HyracksDataException {
         super(ctx, false);
         this.bufferManager = bufferManager;
         ByteBuffer newFrame = getFrame(frameSize);

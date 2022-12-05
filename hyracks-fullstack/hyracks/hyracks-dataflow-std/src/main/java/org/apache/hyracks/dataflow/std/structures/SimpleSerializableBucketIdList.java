@@ -51,8 +51,7 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
 
     protected int frameEntryCapacity;
 
-    public SimpleSerializableBucketIdList(final IHyracksFrameMgrContext ctx, boolean req)
-            throws HyracksDataException {
+    public SimpleSerializableBucketIdList(final IHyracksFrameMgrContext ctx, boolean req) throws HyracksDataException {
         this.ctx = ctx;
         frameSize = ctx.getInitialFrameSize();
         this.frameEntryCapacity = frameSize / (INT_SIZE * 5);
@@ -123,7 +122,7 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
             IntSerDeBuffer frame = contents.get(contentFrameIndex);
 
             while (offsetInContentFrame < this.frameCapacity) {
-                int currFrameIdx = -(frame.getInt(offsetInContentFrame+1) + 1);
+                int currFrameIdx = -(frame.getInt(offsetInContentFrame + 1) + 1);
                 if (currFrameIdx > frameIndex && currFrameIdx < tempFrameIdx) {
                     tempFrameIdx = currFrameIdx;
                 }
@@ -132,7 +131,7 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
             contentFrameIndex++;
         }
 
-        return tempFrameIdx != Integer.MAX_VALUE?tempFrameIdx:currentLargestFrameNumber+1;
+        return tempFrameIdx != Integer.MAX_VALUE ? tempFrameIdx : currentLargestFrameNumber + 1;
     }
 
     public TuplePointer getNextBuildTPFromMemory(int index) {
@@ -147,15 +146,15 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
             IntSerDeBuffer frame = contents.get(contentFrameIndex);
 
             while (offsetInContentFrame < this.frameCapacity) {
-                int currFrameIdx = frame.getInt(offsetInContentFrame+1);
+                int currFrameIdx = frame.getInt(offsetInContentFrame + 1);
                 if (currFrameIdx >= 0) {
-                    return new TuplePointer(currFrameIdx, frame.getInt(offsetInContentFrame+2));
+                    return new TuplePointer(currFrameIdx, frame.getInt(offsetInContentFrame + 2));
                 }
                 offsetInContentFrame += 5;
             }
             contentFrameIndex++;
         }
-        return new TuplePointer(currentLargestFrameNumber+1, 0);
+        return new TuplePointer(-1, -1);
     }
 
     public TuplePointer getProbeTuplePointer(int bucketId) {
@@ -319,8 +318,8 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
 
             while (offsetInContentFrame + 5 < this.frameCapacity) {
                 int bucketId = frame.getInt(offsetInContentFrame);
-                int offset = frame.getInt(offsetInContentFrame+2);
-                if(bucketId != -1 && offset != -1)
+                int offset = frame.getInt(offsetInContentFrame + 2);
+                if (bucketId != -1 && offset != -1)
                     numberOfBuckets++;
                 offsetInContentFrame += 5;
             }
@@ -338,8 +337,8 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
 
             while (offsetInContentFrame + 5 < this.frameCapacity) {
                 int bucketId = frame.getInt(offsetInContentFrame);
-                int offset = frame.getInt(offsetInContentFrame+4);
-                if(bucketId != -1 && offset != -1)
+                int offset = frame.getInt(offsetInContentFrame + 4);
+                if (bucketId != -1 && offset != -1)
                     numberOfBuckets++;
                 offsetInContentFrame += 5;
             }

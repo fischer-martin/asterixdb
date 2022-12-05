@@ -153,7 +153,6 @@ public class FlexibleJoinPOperator extends AbstractJoinPOperator {
                 //orderColumns1.add(new OrderColumn(keysLeftBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));
                 localProperties1.add(new LocalOrderProperty(orderColumns1));
 
-
                 List<OrderColumn> orderColumns2 = new ArrayList<OrderColumn>();
                 orderColumns2.add(new OrderColumn(keysRightBranch.get(0), OrderOperator.IOrder.OrderKind.ASC));
                 //orderColumns2.add(new OrderColumn(keysRightBranch.get(1), OrderOperator.IOrder.OrderKind.ASC));

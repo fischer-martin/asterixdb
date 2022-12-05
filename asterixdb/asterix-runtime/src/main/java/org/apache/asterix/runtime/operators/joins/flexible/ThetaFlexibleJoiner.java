@@ -72,7 +72,8 @@ public class ThetaFlexibleJoiner {
 
     private ISimpleFrameBufferManager bufferManagerForHashTable;
     private BucketBufferManager bufferManager;
-    private ITuplePointerAccessor memoryAccessor;
+    //private ITuplePointerAccessor memoryAccessor;
+    private FrameTupleAccessor memoryAccessor;
 
     private final FrameTupleAccessor accessorBuild;
     private final FrameTupleAccessor accessorProbe;
@@ -155,7 +156,8 @@ public class ThetaFlexibleJoiner {
         table = new SerializableBucketIdList(ctx, bufferManagerForHashTable);
 
         this.bufferManager = new BucketBufferManager(framePool, buildRd);
-        this.memoryAccessor = bufferManager.createTuplePointerAccessor();
+        //this.memoryAccessor = bufferManager.createTuplePointerAccessor();
+        this.memoryAccessor = new FrameTupleAccessor(buildRd);
 
         this.memoryOpen = true;
         this.spilled = false;
@@ -340,7 +342,7 @@ public class ThetaFlexibleJoiner {
             //int probeBucketId = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
             //if (probeBucketId != currentBucketId) {
             //    bucketCheck = 0;
-                //currentBucketId = probeBucketId;
+            //currentBucketId = probeBucketId;
             //}
             boolean writtenToDisk = false;
             //For each bucket from bucket table
@@ -371,73 +373,76 @@ public class ThetaFlexibleJoiner {
 
                     //bucketCheck = bucketCheck | (1 << bucketIndex);
                     //If the building bucket is in memory we join the records
-                   if (bucketInfo[1] > -1) {
-//                        int tupleStart = bucketInfo[2];
-//                        int frameCounter = bucketInfo[1];
-//                        boolean firstFrame = true;
-//                        TuplePointer nextBucket = table.getNextBuildTPFromMemory(bucketIndex);
-//                        while (frameCounter <= nextBucket.getFrameIndex()) {
-//                            bufferManager.getFrame(frameCounter, tempInfo);
-//                            memoryAccessor.reset(tempInfo.getBuffer());
-//                            int tupleCounter = firstFrame ? tupleStart : 0;
-//                            int tupleStop = (frameCounter == nextBucket.getFrameIndex())?nextBucket.getTupleIndex():memoryAccessor.getTupleCount();
-//                            while(tupleCounter < tupleStop) {
-//                                addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
-//                                tupleCounter++;
-//                            }
-//                            firstFrame = false;
-//                            frameCounter++;
-//                        }
-////                        boolean firstFrame = true;
-////                        int tIndex = bucketInfo[2];
-////                        int frameCounter = bucketInfo[1];
-////
-////                        TuplePointer nextBucket = table.getNextBuildTPFromMemory(bucketIndex);
-////                        while (frameCounter <= nextBucket.getFrameIndex()) {
-////                            bufferManager.getFrame(frameCounter, tempInfo);
-////                            memoryAccessor.reset(tempInfo.getBuffer());
-////                            int tupleCounter = firstFrame ? tIndex : 0;
-////                            int tupleStop = frameCounter == nextBucket.getFrameIndex()?nextBucket.getTupleIndex():memoryAccessor.getTupleCount();
-////                            if (firstFrame) {
-////                                firstFrame = false;
-////                            }
-////                            while (tupleCounter < tupleStop) {
-////                                addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
-////                                tupleCounter++;
-////
-////                            }
-////                            frameCounter++;
-////                        }
-
+                    if (bucketInfo[1] > -1) {
                         int tupleStart = bucketInfo[2];
                         int frameCounter = bucketInfo[1];
+                        boolean firstFrame = true;
                         TuplePointer nextBucket = table.getNextBuildTPFromMemory(bucketIndex);
-                        //memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                        boolean finished = false;
-                        boolean first = true;
-
-
-                        while (frameCounter < bufferManager.getNumberOfFrames()) {
-                            int tupleCounter = first ? tupleStart : 0;
-                            memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                            int tupleStop = (frameCounter == nextBucket.getFrameIndex())?nextBucket.getTupleIndex():memoryAccessor.getTupleCount();
-                            first = false;
-                            while (tupleCounter < memoryAccessor.getTupleCount()) {
-
-                                memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                                int bucketReadFromMem =
-                                        FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
-                                if (bucketReadFromMem != bucketInfo[0]) {
-                                    finished = true;
-                                    break;
-                                }
+                        if(nextBucket.getFrameIndex() == -1) {
+                            nextBucket.reset(bufferManager.getNumberOfFrames()-1, -1);
+                        }
+                        while (frameCounter <= nextBucket.getFrameIndex()) {
+                            bufferManager.getFrame(frameCounter, tempInfo);
+                            memoryAccessor.reset(tempInfo.getBuffer());
+                            int tupleCounter = firstFrame ? tupleStart : 0;
+                            int tupleStop = (frameCounter == nextBucket.getFrameIndex() && nextBucket.getTupleIndex() != -1)?nextBucket.getTupleIndex():memoryAccessor.getTupleCount();
+                            while(tupleCounter < tupleStop) {
                                 addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
                                 tupleCounter++;
-
                             }
-                            if(finished) break;
+                            firstFrame = false;
                             frameCounter++;
                         }
+                        ////                        boolean firstFrame = true;
+                        ////                        int tIndex = bucketInfo[2];
+                        ////                        int frameCounter = bucketInfo[1];
+                        ////
+                        ////                        TuplePointer nextBucket = table.getNextBuildTPFromMemory(bucketIndex);
+                        ////                        while (frameCounter <= nextBucket.getFrameIndex()) {
+                        ////                            bufferManager.getFrame(frameCounter, tempInfo);
+                        ////                            memoryAccessor.reset(tempInfo.getBuffer());
+                        ////                            int tupleCounter = firstFrame ? tIndex : 0;
+                        ////                            int tupleStop = frameCounter == nextBucket.getFrameIndex()?nextBucket.getTupleIndex():memoryAccessor.getTupleCount();
+                        ////                            if (firstFrame) {
+                        ////                                firstFrame = false;
+                        ////                            }
+                        ////                            while (tupleCounter < tupleStop) {
+                        ////                                addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
+                        ////                                tupleCounter++;
+                        ////
+                        ////                            }
+                        ////                            frameCounter++;
+                        ////                        }
+
+//                        int tupleStart = bucketInfo[2];
+//                        int frameCounter = bucketInfo[1];
+//                        TuplePointer nextBucket = table.getNextBuildTPFromMemory(bucketIndex);
+//                        //memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
+//                        boolean finished = false;
+//                        boolean first = true;
+//
+//                        while (frameCounter < bufferManager.getNumberOfFrames()) {
+//                            int tupleCounter = first ? tupleStart : 0;
+//                            memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
+//
+//                            first = false;
+//                            while (tupleCounter < memoryAccessor.getTupleCount()) {
+//
+//                                memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
+//                                int bucketReadFromMem =
+//                                        FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
+//                                if (bucketReadFromMem != bucketInfo[0]) {
+//                                    finished = true;
+//                                    break;
+//                                }
+//                                addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
+//                                tupleCounter++;
+//
+//                            }
+//                            if (finished)
+//                                break;
+//                            frameCounter++;
+//                        }
                     } else if (!writtenToDisk) {
                         int probeBucketId = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
                         TuplePointer tuplePointerTester = table.getProbeTuplePointer(probeBucketId);

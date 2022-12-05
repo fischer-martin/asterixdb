@@ -19,7 +19,6 @@
 package org.apache.asterix.runtime.operators.joins.flexible;
 
 import java.nio.ByteBuffer;
-import java.util.LinkedHashMap;
 
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
@@ -41,7 +40,6 @@ import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.ITuplePointerAccessor;
 import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
-
 
 public class InMemoryThetaFlexibleJoiner {
 
@@ -74,9 +72,9 @@ public class InMemoryThetaFlexibleJoiner {
     private int[] probeKeys;
 
     private boolean reversed;
-//        private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
-//            private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
-//            private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
+    //        private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
+    //            private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
+    //            private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
 
     public InMemoryThetaFlexibleJoiner(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd,
             RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, int nBuckets, boolean reversed)
@@ -150,12 +148,12 @@ public class InMemoryThetaFlexibleJoiner {
     }
 
     public void initProbe(ITuplePairComparator comparator) {
-//                        StringBuilder a = new StringBuilder();
-//                        a.append("Bucket Counter From Build Side\n");
-//                        for(Integer bucketId: bucketMap.keySet()) {
-//                            a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
-//                        }
-//                        System.out.println(a);
+        //                        StringBuilder a = new StringBuilder();
+        //                        a.append("Bucket Counter From Build Side\n");
+        //                        for(Integer bucketId: bucketMap.keySet()) {
+        //                            a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
+        //                        }
+        //                        System.out.println(a);
         this.tpComparator = comparator;
     }
 
@@ -221,17 +219,15 @@ public class InMemoryThetaFlexibleJoiner {
                 break;
         }
 
-
-
     }
 
     public void completeProbe(IFrameWriter writer) throws HyracksDataException {
-//                        StringBuilder a = new StringBuilder();
-//                        a.append("Bucket Counter From Probe Side\n");
-//                        for(Integer bucketId: bucketMatchCount.keySet()) {
-//                            a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
-//                        }
-//                        System.out.println(a);
+        //                        StringBuilder a = new StringBuilder();
+        //                        a.append("Bucket Counter From Probe Side\n");
+        //                        for(Integer bucketId: bucketMatchCount.keySet()) {
+        //                            a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
+        //                        }
+        //                        System.out.println(a);
 
         resultAppender.write(writer, true);
     }

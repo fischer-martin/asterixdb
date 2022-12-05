@@ -18,6 +18,8 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible;
 
+import java.nio.ByteBuffer;
+
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsSideTuple;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
@@ -44,8 +46,6 @@ import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.ITuplePointerAccessor;
 import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
-
-import java.nio.ByteBuffer;
 
 public class ThetaFlexibleJoinerOneRun {
 
@@ -112,8 +112,8 @@ public class ThetaFlexibleJoinerOneRun {
     private int[] probeKeys;
 
     public ThetaFlexibleJoinerOneRun(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd,
-                                     RecordDescriptor probeRd, String probeRelName, String buildRelName, int[] buildKeys, int[] probeKeys,
-                                     IPredicateEvaluator predEval) throws HyracksDataException {
+            RecordDescriptor probeRd, String probeRelName, String buildRelName, int[] buildKeys, int[] probeKeys,
+            IPredicateEvaluator predEval) throws HyracksDataException {
 
         // Memory (probe buffer)
         if (memorySize < 5) {
@@ -365,7 +365,7 @@ public class ThetaFlexibleJoinerOneRun {
                 dumpTupleAccessorForBucket1.reset(buff);
                 iFrameTupleAccessor = dumpTupleAccessorForBucket1;
                 //}
-                int bucki = FlexibleJoinsUtil.getBucketId(accessorProbe, i , probeKeys[0]);
+                int bucki = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
                 //If buckets are matching
                 if (this.tpComparator.compare(iFrameTupleAccessor, 0, accessorProbe, i) < 1) {
 
@@ -407,7 +407,8 @@ public class ThetaFlexibleJoinerOneRun {
                         while (currentFrame < endFrame) {
                             if (!runFileStreamForBuild.loadNextBuffer(frameTupleCursor))
                                 break;
-                            for(int tupleIdx = 0; tupleIdx < frameTupleCursor.getAccessor().getTupleCount(); tupleIdx++) {
+                            for (int tupleIdx = 0; tupleIdx < frameTupleCursor.getAccessor()
+                                    .getTupleCount(); tupleIdx++) {
                                 addToResult(frameTupleCursor.getAccessor(), tupleIdx, accessorProbe, i, writer);
                             }
                             currentFrame++;

@@ -367,7 +367,9 @@ public class ApplyFlexibleJoinUtils {
         //        keysLeftBranch, keysRightBranch, ));
 
         if (flexibleJoinAnn != null && !flexibleJoinAnn.getHeuristic().equals("nlj")) {
-            setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context, flexibleJoinAnn.getHeuristic(), eqMatch? AbstractJoinPOperator.JoinPartitioningType.PAIRWISE: AbstractJoinPOperator.JoinPartitioningType.BROADCAST);
+            setFlexibleJoinOp(matchJoinOp, keysLeftBranch, keysRightBranch, context, flexibleJoinAnn.getHeuristic(),
+                    eqMatch ? AbstractJoinPOperator.JoinPartitioningType.PAIRWISE
+                            : AbstractJoinPOperator.JoinPartitioningType.BROADCAST);
         }
 
         matchJoinOp.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
@@ -709,12 +711,11 @@ public class ApplyFlexibleJoinUtils {
     }
 
     private static void setFlexibleJoinOp(AbstractBinaryJoinOperator op, List<LogicalVariable> keysLeftBranch,
-                                          List<LogicalVariable> keysRightBranch, IOptimizationContext context, String heuristic, AbstractJoinPOperator.JoinPartitioningType partitioningType)
-            throws AlgebricksException {
-        op.setPhysicalOperator(
-                new FlexibleJoinPOperator(op.getJoinKind(), partitioningType,
-                        keysLeftBranch, keysRightBranch, context.getPhysicalOptimizationConfig().getMaxFramesForJoin(),
-                        context.getPhysicalOptimizationConfig().getFudgeFactor(), heuristic));
+            List<LogicalVariable> keysRightBranch, IOptimizationContext context, String heuristic,
+            AbstractJoinPOperator.JoinPartitioningType partitioningType) throws AlgebricksException {
+        op.setPhysicalOperator(new FlexibleJoinPOperator(op.getJoinKind(), partitioningType, keysLeftBranch,
+                keysRightBranch, context.getPhysicalOptimizationConfig().getMaxFramesForJoin(),
+                context.getPhysicalOptimizationConfig().getFudgeFactor(), heuristic));
         op.recomputeSchema();
         context.computeAndSetTypeEnvironmentForOperator(op);
     }
