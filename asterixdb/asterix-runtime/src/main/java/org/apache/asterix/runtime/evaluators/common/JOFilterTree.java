@@ -21,6 +21,10 @@ public class JOFilterTree {
         arrIndex.setValue(0);
     }
 
+    /**
+     * This method MUST be called if changes have been made to the underlying List<JOFilterNode> and if the favorable
+     * child order is required.
+     */
     public void determineFavorableChildOrder() {
         if (favChildOrderToPostorder == null || postorderedTree.size() > favChildOrderToPostorder.length) {
             favChildOrderToPostorder = new int[postorderedTree.size()];
