@@ -20,7 +20,7 @@ package org.apache.asterix.runtime.evaluators.functions.records;
 
 import org.apache.asterix.dataflow.data.nontagged.serde.*;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
-import org.apache.asterix.om.base.AMutableDouble;
+import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.exceptions.ExceptionUtil;
 import org.apache.asterix.om.pointables.PointableAllocator;
 import org.apache.asterix.om.pointables.base.IVisitablePointable;
@@ -53,10 +53,9 @@ public class JOFilterEvaluator implements IScalarEvaluator {
     protected final IScalarEvaluator thirdStringEval;
     protected final IEvaluatorContext context;
     protected final SourceLocation sourceLoc;
-    protected final AMutableDouble aDouble = new AMutableDouble(-1.0);
     @SuppressWarnings("unchecked")
-    protected final ISerializerDeserializer<AMutableDouble> doubleSerde =
-            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ADOUBLE);
+    protected final ISerializerDeserializer<ABoolean> booleanSerde =
+            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ABOOLEAN);
 
     private final IVisitablePointable pointableLeft;
     private final IVisitablePointable pointableRight;
@@ -150,13 +149,12 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         convertToJOFilterTree(pointableRight, t2);
 
         // TODO: actually return joFilter instead of joFilterCalculation after I did some correctness tests
-        writeResult(joFilterCalculation(t1, t2, threshold));
+        writeResult(joFilter(t1, t2, threshold));
         result.set(resultStorage);
     }
 
-    protected void writeResult(double distance) throws HyracksDataException {
-        aDouble.setValue(distance);
-        doubleSerde.serialize(aDouble, out);
+    protected void writeResult(boolean withinThreshold) throws HyracksDataException {
+        booleanSerde.serialize(ABoolean.valueOf(withinThreshold), out);
     }
 
     private JOFilterTree convertToJOFilterTree(IVisitablePointable pointable, JOFilterTree tree)

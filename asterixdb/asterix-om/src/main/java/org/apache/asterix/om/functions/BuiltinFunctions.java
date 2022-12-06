@@ -2282,8 +2282,7 @@ public class BuiltinFunctions {
         addFunction(JEDI, ADoubleTypeComputer.INSTANCE, true);
         addFunction(SIZE_DIFFERENCE, ADoubleTypeComputer.INSTANCE, true);
         addFunction(INTERSECTION_LOWER_BOUND, ADoubleTypeComputer.INSTANCE, true);
-        // TODO: the JOFilter is actually a ABooleanTypeComputer.INSTANCE but we will first test everything properly
-        addFunction(JOFILTER, ADoubleTypeComputer.INSTANCE, true);
+        addFunction(JOFILTER, ABooleanTypeComputer.INSTANCE, true);
 
         // Full-text function
         addFunction(FULLTEXT_CONTAINS, FullTextContainsResultTypeComputer.INSTANCE, true);
