@@ -201,7 +201,6 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         int sizeT2 = t2.size();
 
         // Fill the matrices with infinity.
-        // TODO: could be parallelized (https://stackoverflow.com/a/54448037)
         for (int i = 0; i < heightT1 + 1; ++i) {
             Arrays.fill(treeDistanceMatrix[i], 0, sizeT2 + 1, Double.POSITIVE_INFINITY);
             Arrays.fill(forestDistanceMatrix[i], 0, sizeT2 + 1, Double.POSITIVE_INFINITY);
@@ -218,7 +217,6 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         for (int i = 1; i <= sizeT1; ++i) {
             delF1Subtree[i] = 0;
             for (int k = 1; k <= t1.get(i - 1).getChildren().size(); ++k) {
-                // TODO: isn't delT1Subtree uninitialized at this point?
                 delF1Subtree[i] += delT1Subtree[t1.get(i - 1).getChildren().getInt(k - 1) + 1];
             }
             delT1Subtree[i] = delF1Subtree[i] + cm.del(t1.get(i - 1));
@@ -231,7 +229,6 @@ public class JOFilterEvaluator implements IScalarEvaluator {
             insF2Subtree[j] = 0;
             for (int k = 1; k <= t2.get(j - 1).getChildren().size(); ++k) {
                 insF2Subtree[j] += insT2Subtree[t2.get(j - 1).getChildren().getInt(k - 1) + 1];
-                // TODO: aren't eInit and insT2Subtree uninitialized at this point?
                 if (k == 1) {
                     // TODO: could be moved out of the inner loop if it is placed in an
                     // if (t2.get(j - 1).getChildren().size() >= 1) so that we don't have this case distinction in here
@@ -278,16 +275,11 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         int favChildPostorderID; // Holds the favorable child of the current node.
         for (int x = 1; x <= sizeT1; ++x) {
             // Get postorder number from favorable child order number.
-            // TODO: conflicting comments/naming; wait for answer from Thomas
-            // I think that the vector's name should actually be favorder_to_postl_ since we iterate over the nodes in
-            // favorder but we need the postorder ID in order to have the correct index i for all the other vectors
-            // (since they are indexed by the postorder ID).
-            //i = t1List.postl_to_favorder_[x-1] + 1;
             i = t1.favChildOrderToPostorder(x - 1) + 1;
 
             // Iterate for all j in the threshold range of i.
-            nodeJThresholdRangeStart = Math.max(i - (int) threshold, 1); // TODO: double to int cast is not so cool
-            nodeJThresholdRangeEnd = Math.min(i + (int) threshold, sizeT2); // TODO: double to int cast is not so cool
+            nodeJThresholdRangeStart = Math.max(i - (int) threshold, 1);
+            nodeJThresholdRangeEnd = Math.min(i + (int) threshold, sizeT2);
             for (int j = nodeJThresholdRangeStart; j <= nodeJThresholdRangeEnd; ++j) {
                 // Cost for deletion.
                 // Must be set to infinity, since we allow infinity costs for different node types.
@@ -388,8 +380,8 @@ public class JOFilterEvaluator implements IScalarEvaluator {
                     }
                     editDistanceMatrix0[parentI][0] = editDistanceMatrix[parentI][0] + delT1Subtree[favChildPostorderID];
 
-                    nodeJThresholdRangeStart = Math.max(favChildPostorderID - (int) threshold, 1); // TODO: double to int cast is not so cool
-                    nodeJThresholdRangeEnd = Math.min(favChildPostorderID + (int) threshold, sizeT2); // TODO: double to int cast is not so cool
+                    nodeJThresholdRangeStart = Math.max(favChildPostorderID - (int) threshold, 1);
+                    nodeJThresholdRangeEnd = Math.min(favChildPostorderID + (int) threshold, sizeT2);
                     for (int j = nodeJThresholdRangeStart; j <= nodeJThresholdRangeEnd; ++j) {
                         editDistanceMatrix0[parentI][j] = Math.min(
                                 editDistanceMatrix0[parentI][t2List.get(j - 1).getLeftSibling() + 1] + insT2Subtree[j],
@@ -397,10 +389,6 @@ public class JOFilterEvaluator implements IScalarEvaluator {
                                         editDistanceMatrix[parentI][t2List.get(j - 1).getLeftSibling() + 1] + favorableChildTreeDistanceMatrix[parentI][j]));
                     }
                 } else {
-                    // TODO: remove commented loop
-//                    for (int p = 0; p <= sizeT2; p++) {
-//                        editDistanceMatrix0[parentI][p] = editDistanceMatrix[parentI][p];
-//                    }
                     System.arraycopy(editDistanceMatrix[parentI], 0, editDistanceMatrix0[parentI], 0, sizeT2 + 1);
                 }
                 // Reset data structures to infinity.
