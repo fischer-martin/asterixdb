@@ -18,9 +18,6 @@
  */
 package org.apache.asterix.runtime.evaluators.functions.records;
 
-import it.unimi.dsi.fastutil.ints.IntIntMutablePair;
-import it.unimi.dsi.fastutil.ints.IntIntPair;
-import org.apache.asterix.builders.ArrayListFactory;
 import org.apache.asterix.dataflow.data.nontagged.serde.*;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMutableDouble;
@@ -30,8 +27,6 @@ import org.apache.asterix.om.pointables.base.IVisitablePointable;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.IAType;
-import org.apache.asterix.om.util.container.IObjectPool;
-import org.apache.asterix.om.util.container.ListObjectPool;
 import org.apache.asterix.runtime.evaluators.common.*;
 import org.apache.asterix.runtime.evaluators.functions.PointableHelper;
 import org.apache.commons.lang3.tuple.MutablePair;
@@ -66,10 +61,11 @@ public class JOFilterEvaluator implements IScalarEvaluator {
     private final IVisitablePointable pointableLeft;
     private final IVisitablePointable pointableRight;
     protected final IPointable thresholdPointable = new VoidPointable();
-    private final IObjectPool<List<JOFilterNode>, ATypeTag> listAllocator;
 
-    private MutablePair<List<JOFilterNode>, int[]> transArg = new MutablePair<>();
+    private MutablePair<JOFilterTree, int[]> transArg = new MutablePair<>();
     private int[] transCnt = new int[3];
+    private JOFilterTree t1 = new JOFilterTree();
+    private JOFilterTree t2 = new JOFilterTree();
     private final JSONTreeTransformator treeTransformator = new JSONTreeTransformator();
     private final JSONCostModel cm = new JSONCostModel(1, 1, 1); // Unit cost model (each operation has cost 1).
 
@@ -106,7 +102,6 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         thirdStringEval = args[2].createScalarEvaluator(context);
         pointableLeft = allocator.allocateFieldValue(type1);
         pointableRight = allocator.allocateFieldValue(type2);
-        listAllocator = new ListObjectPool<>(new ArrayListFactory<JOFilterNode>());
         this.context = context;
         this.sourceLoc = sourceLoc;
     }
@@ -115,7 +110,6 @@ public class JOFilterEvaluator implements IScalarEvaluator {
     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
         resultStorage.reset();
         treeTransformator.reset();
-        listAllocator.reset();
         firstStringEval.evaluate(tuple, pointableLeft);
         secondStringEval.evaluate(tuple, pointableRight);
         thirdStringEval.evaluate(tuple, thresholdPointable);
@@ -152,11 +146,11 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         }
 
         // Convert the given data items into JSON trees.
-        JOFilterTree joFilterTree1 = convertToJOFilterTree(pointableLeft);
-        JOFilterTree joFilterTree2 = convertToJOFilterTree(pointableRight);
+        convertToJOFilterTree(pointableLeft, t1);
+        convertToJOFilterTree(pointableRight, t2);
 
         // TODO: actually return joFilter instead of joFilterCalculation after I did some correctness tests
-        writeResult(joFilterCalculation(joFilterTree1, joFilterTree2, threshold));
+        writeResult(joFilterCalculation(t1, t2, threshold));
         result.set(resultStorage);
     }
 
@@ -165,16 +159,15 @@ public class JOFilterEvaluator implements IScalarEvaluator {
         doubleSerde.serialize(aDouble, out);
     }
 
-    private JOFilterTree convertToJOFilterTree(IVisitablePointable pointable) throws HyracksDataException {
-        List<JOFilterNode> postToNode = listAllocator.allocate(null);
-        postToNode.clear();
-        transArg.setLeft(postToNode);
+    private JOFilterTree convertToJOFilterTree(IVisitablePointable pointable, JOFilterTree tree)
+            throws HyracksDataException {
+        tree.reset();
+        transArg.setLeft(tree);
         transCnt[0] = 0;
         transCnt[1] = 0;
         transCnt[2] = 0;
         transArg.setRight(transCnt);
 
-        // TODO: reuse JOFilterTree objects (especially the int[] in them) instead of allocating new ones in the tree transformator
         return treeTransformator.toJOFilterTree(pointable, transArg);
     }
 

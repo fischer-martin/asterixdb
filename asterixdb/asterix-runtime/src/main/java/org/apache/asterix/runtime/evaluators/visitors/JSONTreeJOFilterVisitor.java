@@ -29,6 +29,7 @@ import org.apache.asterix.om.util.container.IObjectPool;
 import org.apache.asterix.om.util.container.ListObjectPool;
 import org.apache.asterix.runtime.evaluators.common.JOFilterNode;
 import org.apache.asterix.runtime.evaluators.common.JOFilterNodeFactory;
+import org.apache.asterix.runtime.evaluators.common.JOFilterTree;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
@@ -44,7 +45,7 @@ import java.util.List;
  *          pointable.accept(jTreeJOFilterVisitor, arg);
  */
 
-public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void, MutablePair<List<JOFilterNode>, int[]>> {
+public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void, MutablePair<JOFilterTree, int[]>> {
     private final IObjectPool<JOFilterNode, ATypeTag> nodeAllocator;
     private final IObjectPool<List<IVisitablePointable>, ATypeTag> listAllocator;
     private final OrderedJsonTreeIVisitablePointableComparator comparator = new OrderedJsonTreeIVisitablePointableComparator();
@@ -65,7 +66,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
      * @param arg left: tree that is currently being built; right: 0: next postorder ID, 1: subtree size, 2: subtree height
      */
     @Override
-    public Void visit(AListVisitablePointable pointable, MutablePair<List<JOFilterNode>, int[]> arg)
+    public Void visit(AListVisitablePointable pointable, MutablePair<JOFilterTree, int[]> arg)
             throws HyracksDataException {
         int favChildLeftSibling = -1;
         int favChild = -1;
@@ -93,7 +94,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
         for (int i = 0; i < orderedChildren.size(); i++) {
             orderedChildren.get(i).accept(this, arg);
             int currentChildPostorderedID = getPostorderIDFromArg(arg.right) - 1;
-            JOFilterNode currentChild = arg.left.get(currentChildPostorderedID);
+            JOFilterNode currentChild = arg.left.getPostorderedTree().get(currentChildPostorderedID);
 
             listNode.addChild(currentChildPostorderedID);
             listNode.addSas(getSubtreeSizeFromArg(arg.right));
@@ -101,7 +102,8 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
             maxChildHeight = Math.max(maxChildHeight, getSubtreeHeightFromArg(arg.right));
 
             // The favorable child is the child with the largest subtree.
-            if (favChild == -1 || currentChild.getSubtreeSize() > arg.left.get(favChild).getSubtreeSize()) {
+            if (favChild == -1 ||
+                    currentChild.getSubtreeSize() > arg.left.getPostorderedTree().get(favChild).getSubtreeSize()) {
                 favChild = currentChildPostorderedID;
                 favChildLeftSibling = leftSibling;
             }
@@ -124,11 +126,11 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
         listNode.setFavChildLeftSibling(favChildLeftSibling);
 
         // Add new list node and update the postorder id and subtree size.
-        arg.left.add(listNode);
+        arg.left.getPostorderedTree().add(listNode);
 
         // For every one of its child nodes, set the list node's postorder ID as the parent's postorder ID.
         for (int i = 0; i < listNode.getChildren().size(); ++i) {
-            arg.left.get(listNode.getChildren().getInt(i)).setParent(getPostorderIDFromArg(arg.right));
+            arg.left.getPostorderedTree().get(listNode.getChildren().getInt(i)).setParent(getPostorderIDFromArg(arg.right));
         }
 
         incrementPostorderIDInArg(arg.right);
@@ -142,7 +144,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
      * @param arg left: tree that is currently being built; right: 0: next postorder ID, 1: subtree size, 2: subtree height
      */
     @Override
-    public Void visit(ARecordVisitablePointable pointable, MutablePair<List<JOFilterNode>, int[]> arg)
+    public Void visit(ARecordVisitablePointable pointable, MutablePair<JOFilterTree, int[]> arg)
             throws HyracksDataException {
         int leftSibling = -1;
         int favChildLeftSibling = -1;
@@ -181,7 +183,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
 
             pointable.getFieldValues().get(valueIndex).accept(this, arg);
 
-            JOFilterNode keyNodeChild = arg.left.get(getPostorderIDFromArg(arg.right) - 1);
+            JOFilterNode keyNodeChild = arg.left.getPostorderedTree().get(getPostorderIDFromArg(arg.right) - 1);
             // key node only has one child => this child does not have a left sibling
             keyNodeChild.setLeftSibling(-1);
             // Set key node's postorder ID as the child's parent's postorder ID.
@@ -205,12 +207,13 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
             keyNode.setLeftSibling(leftSibling);
 
             // The favorable child is the child with the largest subtree.
-            if (favChild == -1 || keyNode.getSubtreeSize() > arg.left.get(favChild).getSubtreeSize()) {
+            if (favChild == -1 ||
+                    keyNode.getSubtreeSize() > arg.left.getPostorderedTree().get(favChild).getSubtreeSize()) {
                 favChild = getPostorderIDFromArg(arg.right);
                 favChildLeftSibling = leftSibling;
             }
 
-            arg.left.add(keyNode);
+            arg.left.getPostorderedTree().add(keyNode);
 
             // Add child to object node.
             objectNode.addChild(getPostorderIDFromArg(arg.right));
@@ -235,11 +238,11 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
         objectNode.setFavChildLeftSibling(favChildLeftSibling);
 
         // Add new list node and update the postorder id and subtree size.
-        arg.left.add(objectNode);
+        arg.left.getPostorderedTree().add(objectNode);
 
         // For every one of its key nodes, set the object node's postorder ID as the parent's postorder ID.
         for (int i = 0; i < objectNode.getChildren().size(); ++i) {
-            arg.left.get(objectNode.getChildren().getInt(i)).setParent(getPostorderIDFromArg(arg.right));
+            arg.left.getPostorderedTree().get(objectNode.getChildren().getInt(i)).setParent(getPostorderIDFromArg(arg.right));
         }
 
         incrementPostorderIDInArg(arg.right);
@@ -253,7 +256,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
      * @param arg left: tree that is currently being built; right: 0: next postorder ID, 1: subtree size, 2: subtree height
      */
     @Override
-    public Void visit(AFlatValuePointable pointable, MutablePair<List<JOFilterNode>, int[]> arg)
+    public Void visit(AFlatValuePointable pointable, MutablePair<JOFilterTree, int[]> arg)
             throws HyracksDataException {
         setSubtreeSizeInArg(arg.right, 1); // The subtree size of a literal node is always 1 (the node itself).
         setSubtreeHeightInArg(arg.right, 0); // The height of a (sub)tree with one node is always 0;
@@ -269,7 +272,7 @@ public class JSONTreeJOFilterVisitor implements IVisitablePointableVisitor<Void,
         literalNode.setFavChild(-1);
         literalNode.setFavChildLeftSibling(-1);
 
-        arg.left.add(literalNode);
+        arg.left.getPostorderedTree().add(literalNode);
 
         // Increase postorder id.
         incrementPostorderIDInArg(arg.right);

@@ -59,53 +59,14 @@ public class JSONTreeTransformator {
         return arg.getLeft();
     }
 
-    public JOFilterTree toJOFilterTree(IVisitablePointable pointable, MutablePair<List<JOFilterNode>, int[]> arg)
+    public JOFilterTree toJOFilterTree(IVisitablePointable pointable, MutablePair<JOFilterTree, int[]> arg)
             throws HyracksDataException {
         pointable.accept(jTreeJOFilterVisitor, arg);
 
-        return new JOFilterTree(arg.getLeft(), determineFavorableChildOrder(arg.getLeft()));
-    }
+        JOFilterTree tree = arg.getLeft();
+        tree.determineFavorableChildOrder();
 
-    private int[] determineFavorableChildOrder(List<JOFilterNode> postorderedTree) {
-        int[] postorderToFavChildOrder = new int[postorderedTree.size()];
-        int rootPostID = postorderedTree.size() - 1;
-        MutableInt arrIndex = new MutableInt(0);
-
-        recurseInFavorableChildOrder(postorderedTree, postorderToFavChildOrder, rootPostID, arrIndex);
-
-        return postorderToFavChildOrder;
-    }
-
-    private void recurseInFavorableChildOrder(List<JOFilterNode> postorderedTree, int[] postorderToFavChildOrder
-            , int subtreeRootPostID, MutableInt arrIndex) {
-        JOFilterNode subtreeRoot = postorderedTree.get(subtreeRootPostID);
-
-        if (subtreeRoot.getChildren().size() > 0) {
-            // Initialize chPostIDLargestSubtree because the compiler does
-            // not know that this will be read iff it has been initialized.
-            int chPostIDLargestSubtree = -1;
-            int chLargestSubtree = Integer.MIN_VALUE;
-            for (int i = 0; i < subtreeRoot.getChildren().size(); ++i) {
-                int currChildPostID = subtreeRoot.getChildren().getInt(i);
-                if (postorderedTree.get(currChildPostID).getSubtreeSize() > chLargestSubtree) {
-                    chPostIDLargestSubtree = currChildPostID;
-                    chLargestSubtree = postorderedTree.get(currChildPostID).getSubtreeSize();
-                }
-            }
-
-            recurseInFavorableChildOrder(postorderedTree, postorderToFavChildOrder, chPostIDLargestSubtree, arrIndex);
-
-            for (int i = 0; i < subtreeRoot.getChildren().size(); ++i) {
-                if (subtreeRoot.getChildren().getInt(i) == chPostIDLargestSubtree) {
-                    continue;
-                }
-                recurseInFavorableChildOrder(postorderedTree, postorderToFavChildOrder
-                        , subtreeRoot.getChildren().getInt(i), arrIndex);
-            }
-        }
-
-        postorderToFavChildOrder[arrIndex.intValue()] = subtreeRootPostID;
-        arrIndex.increment();
+        return tree;
     }
 
     public int calculateTreeSize(IVisitablePointable pointable, MutableInt nodeCounter) throws HyracksDataException {
