@@ -145,6 +145,11 @@ public class JOFilterEvaluator implements IScalarEvaluator {
             PointableHelper.setNull(result);
             return;
         }
+        if (threshold < 0) {
+            ExceptionUtil.warnNegativeValue(context, sourceLoc, JOFilterDescriptor.getIdentifierStatic(), 2, threshold);
+            PointableHelper.setNull(result);
+            return;
+        }
 
         // Convert the given data items into JSON trees.
         JOFilterTree joFilterTree1 = convertToJOFilterTree(pointableLeft);
