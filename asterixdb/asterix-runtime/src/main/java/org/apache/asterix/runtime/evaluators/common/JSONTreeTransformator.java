@@ -87,5 +87,6 @@ public class JSONTreeTransformator {
         // Free in-memory buffers for reuse.
         jTreeVisitor.reset();
         jIntersectionVisitor.reset();
+        jTreeJOFilterVisitor.reset();
     }
 }
