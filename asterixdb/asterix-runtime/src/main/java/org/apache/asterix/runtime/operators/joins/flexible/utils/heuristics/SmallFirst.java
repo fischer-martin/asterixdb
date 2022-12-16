@@ -47,4 +47,8 @@ public class SmallFirst extends AbstractHeuristic {
 
         bucketsFromR.sort(Comparator.comparingDouble(o -> o[1]));
     }
+
+    public String getHeuristicName() {
+        return "smallest-first" + (checkForRoleReversal ? "-r" : "") + (!continueToCheckBuckets ? "-s" : "");
+    }
 }

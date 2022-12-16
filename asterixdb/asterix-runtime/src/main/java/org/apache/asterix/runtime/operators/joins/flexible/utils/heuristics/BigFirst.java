@@ -47,4 +47,8 @@ public class BigFirst extends AbstractHeuristic {
 
         bucketsFromR.sort(Comparator.comparingDouble(o -> -o[1]));
     }
+
+    public String getHeuristicName() {
+        return "biggest-first" + (checkForRoleReversal ? "-r" : "") + (!continueToCheckBuckets ? "-s" : "");
+    }
 }

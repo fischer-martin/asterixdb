@@ -72,9 +72,10 @@ public abstract class AbstractHeuristic implements IHeuristicForThetaJoin {
     protected IFrameTupleAccessor iFrameTupleAccessorForTempBucketTupleR;
     protected IFrameTupleAccessor iFrameTupleAccessorForTempBucketTupleS;
 
-    double IOSeq = 5000;
-    double IORnd = 10000;
-    double IOSeek = 5000;
+
+    double IORnd = 275000;
+    double IOSeq = 60000;
+    double IOSeek = IORnd - IOSeq;
 
     boolean simCalled = false;
     ArrayList<ArrayList<Bucket>> buildingBucketSequenceAfterSim = new ArrayList<>();

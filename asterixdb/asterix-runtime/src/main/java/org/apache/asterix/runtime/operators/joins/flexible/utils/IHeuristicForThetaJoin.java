@@ -44,4 +44,6 @@ public interface IHeuristicForThetaJoin {
     String simulate(boolean printBuckets) throws HyracksDataException;
 
     double getTotalCost();
+
+    String getHeuristicName();
 }

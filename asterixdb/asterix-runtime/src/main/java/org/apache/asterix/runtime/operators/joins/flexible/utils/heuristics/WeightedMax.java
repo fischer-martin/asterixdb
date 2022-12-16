@@ -753,4 +753,8 @@ public class WeightedMax extends AbstractHeuristic {
         simCalled = true;
         return stringBuilder.toString();
     }
+
+    public String getHeuristicName() {
+        return "weighted-max" + (checkForRoleReversal ? "-r" : "") + (!continueToCheckBuckets ? "-s" : "");
+    }
 }

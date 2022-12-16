@@ -764,4 +764,8 @@ public class Weighted extends AbstractHeuristic {
         simCalled = true;
         return stringBuilder.toString();
     }
+
+    public String getHeuristicName() {
+        return "weighted" + (checkForRoleReversal ? "-r" : "") + (!continueToCheckBuckets ? "-s" : "");
+    }
 }

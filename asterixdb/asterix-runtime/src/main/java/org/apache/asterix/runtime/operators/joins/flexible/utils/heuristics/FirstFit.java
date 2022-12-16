@@ -45,4 +45,8 @@ public class FirstFit extends AbstractHeuristic {
         }
 
     }
+
+    public String getHeuristicName() {
+        return "first-fit" + (checkForRoleReversal ? "-r" : "") + (!continueToCheckBuckets ? "-s" : "");
+    }
 }
