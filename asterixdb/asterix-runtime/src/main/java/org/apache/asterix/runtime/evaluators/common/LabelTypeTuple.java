@@ -20,11 +20,12 @@ public class LabelTypeTuple {
 
         LabelTypeTuple that = (LabelTypeTuple) o;
 
+        // label can either be null or an instance of AFlatValuePointable which itself implements equals()
         return type == that.type && Objects.equals(label, that.label);
     }
 
     private int hashArraySlice(byte[] arr, int start, int end) {
-        int result = 0;
+        int result = 1;
 
         for (int i = start; i < end; ++i) {
             result = 31 * result + arr[i];
