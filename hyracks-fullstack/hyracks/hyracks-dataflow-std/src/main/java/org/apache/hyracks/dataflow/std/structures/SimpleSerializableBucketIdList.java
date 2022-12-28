@@ -51,8 +51,7 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
 
     protected int frameEntryCapacity;
 
-    public SimpleSerializableBucketIdList(int tableSize, final IHyracksFrameMgrContext ctx, boolean req)
-            throws HyracksDataException {
+    public SimpleSerializableBucketIdList(final IHyracksFrameMgrContext ctx, boolean req) throws HyracksDataException {
         this.ctx = ctx;
         frameSize = ctx.getInitialFrameSize();
         this.frameEntryCapacity = frameSize / (INT_SIZE * 5);
@@ -68,7 +67,6 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
             numberOfBucketsInEachFrame.add(0);
             currentOffsetInLastFrame = 0;
         }
-        this.tableSize = tableSize;
 
     }
 
@@ -114,6 +112,49 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
         }
 
         return null;
+    }
+
+    public int getNextBuildStartFrameIdxFromDisk(int frameIndex) {
+        int contentFrameIndex = 0;
+        int tempFrameIdx = Integer.MAX_VALUE;
+        while (contentFrameIndex <= currentLargestFrameNumber) {
+            int offsetInContentFrame = 0;
+            IntSerDeBuffer frame = contents.get(contentFrameIndex);
+
+            while (offsetInContentFrame < this.frameCapacity) {
+                int currFrameIdx = -(frame.getInt(offsetInContentFrame + 1) + 1);
+                if (currFrameIdx > frameIndex && currFrameIdx < tempFrameIdx) {
+                    tempFrameIdx = currFrameIdx;
+                }
+                offsetInContentFrame += 5;
+            }
+            contentFrameIndex++;
+        }
+
+        return tempFrameIdx != Integer.MAX_VALUE ? tempFrameIdx : currentLargestFrameNumber + 1;
+    }
+
+    public TuplePointer getNextBuildTPFromMemory(int index) {
+
+        int contentFrameIndex = index / this.frameEntryCapacity;
+        if (contentFrameIndex < 0 || contentFrameIndex > currentLargestFrameNumber)
+            return null;
+        int offsetInContentFrame = ((index % this.frameEntryCapacity) * 5) + 5;
+
+        while (contentFrameIndex <= currentLargestFrameNumber) {
+
+            IntSerDeBuffer frame = contents.get(contentFrameIndex);
+
+            while (offsetInContentFrame < this.frameCapacity) {
+                int currFrameIdx = frame.getInt(offsetInContentFrame + 1);
+                if (currFrameIdx >= 0) {
+                    return new TuplePointer(currFrameIdx, frame.getInt(offsetInContentFrame + 2));
+                }
+                offsetInContentFrame += 5;
+            }
+            contentFrameIndex++;
+        }
+        return new TuplePointer(-1, -1);
     }
 
     public TuplePointer getProbeTuplePointer(int bucketId) {
@@ -266,6 +307,44 @@ public class SimpleSerializableBucketIdList implements ISerializableBucketIdList
         }
         dS.append("\nNumber of Spilled Buckets + ").append(numberOfSpilled);
         System.out.println(dS);
+    }
+
+    public int getNumberOfBuildBuckets() {
+        int contentFrameIndex = 0;
+        int numberOfBuckets = 0;
+        while (contentFrameIndex <= currentLargestFrameNumber && bucketCount > 0) {
+            int offsetInContentFrame = 0;
+            IntSerDeBuffer frame = contents.get(contentFrameIndex);
+
+            while (offsetInContentFrame + 5 < this.frameCapacity) {
+                int bucketId = frame.getInt(offsetInContentFrame);
+                int offset = frame.getInt(offsetInContentFrame + 2);
+                if (bucketId != -1 && offset != -1)
+                    numberOfBuckets++;
+                offsetInContentFrame += 5;
+            }
+            contentFrameIndex++;
+        }
+        return numberOfBuckets;
+    }
+
+    public int getNumberOfProbeBuckets() {
+        int contentFrameIndex = 0;
+        int numberOfBuckets = 0;
+        while (contentFrameIndex <= currentLargestFrameNumber && bucketCount > 0) {
+            int offsetInContentFrame = 0;
+            IntSerDeBuffer frame = contents.get(contentFrameIndex);
+
+            while (offsetInContentFrame + 5 < this.frameCapacity) {
+                int bucketId = frame.getInt(offsetInContentFrame);
+                int offset = frame.getInt(offsetInContentFrame + 4);
+                if (bucketId != -1 && offset != -1)
+                    numberOfBuckets++;
+                offsetInContentFrame += 5;
+            }
+            contentFrameIndex++;
+        }
+        return numberOfBuckets;
     }
 
     public int lastBucket() {

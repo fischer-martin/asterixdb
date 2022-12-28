@@ -35,9 +35,7 @@ import org.apache.asterix.dataflow.data.nontagged.serde.AInt64SerializerDeserial
 import org.apache.asterix.dataflow.data.nontagged.serde.AInt8SerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.ARectangleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AStringSerializerDeserializer;
-import org.apache.asterix.dataflow.data.nontagged.serde.ARecordSerializerDeserializer;
 import org.apache.asterix.external.cartilage.base.types.Interval;
-import org.apache.asterix.external.cartilage.base.types.Rectangle;
 import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.base.ADate;
 import org.apache.asterix.om.base.ADateTime;
@@ -54,7 +52,6 @@ import org.apache.asterix.om.base.AInterval;
 import org.apache.asterix.om.base.ARectangle;
 import org.apache.asterix.om.base.AString;
 import org.apache.asterix.om.base.IAObject;
-import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
@@ -165,11 +162,11 @@ public class ParameterTypeResolver {
                     if (tag == ATypeTag.DATETIME.serialize()) {
                         //((Interval) returnObject).start = dataInputStream.readLong();
                         //((Interval) returnObject).end = dataInputStream.readLong();
-                        returnObject = new long[]{dataInputStream.readLong(), dataInputStream.readLong()};
+                        returnObject = new long[] { dataInputStream.readLong(), dataInputStream.readLong() };
                     } else {
                         //((Interval) returnObject).start = dataInputStream.readInt();
                         //((Interval) returnObject).end = dataInputStream.readInt();
-                        returnObject = new long[]{dataInputStream.readInt(), dataInputStream.readInt()};
+                        returnObject = new long[] { dataInputStream.readInt(), dataInputStream.readInt() };
                     }
                 } catch (Exception e) {
                     System.out.println(e.getMessage());
@@ -186,7 +183,7 @@ public class ParameterTypeResolver {
                 double minY1 = rectangle.getP1().getY();
                 double maxX1 = rectangle.getP2().getX();
                 double maxY1 = rectangle.getP2().getY();
-                returnObject = new double[]{minX1, maxX1, minY1, maxY1};
+                returnObject = new double[] { minX1, maxX1, minY1, maxY1 };
                 break;
             }
             case ANY:

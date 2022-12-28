@@ -21,7 +21,6 @@ package org.apache.asterix.runtime.operators.joins.flexible;
 import java.nio.ByteBuffer;
 
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
-import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
 import org.apache.hyracks.api.comm.IFrameWriter;
 import org.apache.hyracks.api.comm.VSizeFrame;
@@ -44,12 +43,7 @@ import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 
 public class InMemoryThetaFlexibleJoiner {
 
-    protected static final int JOIN_PARTITIONS = 2;
-    protected static final int BUILD_PARTITION = 0;
-    protected static final int PROBE_PARTITION = 1;
-
     protected final FrameTupleAppender resultAppender;
-    protected final FrameTupleCursor[] inputCursor;
 
     private final IHyracksTaskContext ctx;
 
@@ -76,12 +70,18 @@ public class InMemoryThetaFlexibleJoiner {
     protected long numRecordsFromBuild;
     private int[] buildKeys;
     private int[] probeKeys;
-    //    private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
-    //        private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
-    //        private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
+
+    private int numberOfMatchCalls = 0;
+    private int numberOfVerifyCalls = 0;
+
+    private boolean reversed;
+    //        private LinkedHashMap<Integer, Integer> bucketMap = new LinkedHashMap<>();
+    //            private LinkedHashMap<Integer, Integer> bucketMatchCount = new LinkedHashMap<>();
+    //            private LinkedHashMap<Integer, Long> spilledBucketMap = new LinkedHashMap<>();
 
     public InMemoryThetaFlexibleJoiner(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd,
-            RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, int nBuckets) throws HyracksDataException {
+            RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, int nBuckets, boolean reversed)
+            throws HyracksDataException {
 
         // Memory (probe buffer)
         if (memorySize < 5) {
@@ -91,8 +91,6 @@ public class InMemoryThetaFlexibleJoiner {
         this.ctx = ctx;
         this.nBuckets = nBuckets;
 
-        inputCursor = new FrameTupleCursor[JOIN_PARTITIONS];
-        inputCursor[BUILD_PARTITION] = new FrameTupleCursor(buildRd);
         // Result
         this.resultAppender = new FrameTupleAppender(new VSizeFrame(ctx));
 
@@ -104,7 +102,7 @@ public class InMemoryThetaFlexibleJoiner {
                 new DeallocatableFramePool(ctx, memSizeInFrames * ctx.getInitialFrameSize());
         bufferManagerForHashTable = new FramePoolBackedFrameBufferManager(framePool);
 
-        table = new SerializableBucketIdList(nBuckets, ctx, bufferManagerForHashTable);
+        table = new SerializableBucketIdList(ctx, bufferManagerForHashTable);
 
         this.bufferManager = new BucketBufferManager(framePool, buildRd);
         this.memoryAccessor = bufferManager.createTuplePointerAccessor();
@@ -114,6 +112,8 @@ public class InMemoryThetaFlexibleJoiner {
 
         this.buildKeys = buildKeys;
         this.probeKeys = probeKeys;
+
+        this.reversed = reversed;
 
     }
 
@@ -128,7 +128,7 @@ public class InMemoryThetaFlexibleJoiner {
             //                            if(accessorBuild.getTupleStartOffset(i) >= endOffset) break;
             //                        }
             // b = FlexibleJoinsUtil.getBucketId(accessorBuild,i,1);
-            //int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorBuild, i, 1);
+            //int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorBuild, i, buildKeys[0]);
             //bucketMap.merge(bucketIdT, 1, Integer::sum);
             //System.out.println("Start offset of "+ i +":"+accessorBuild.getTupleStartOffset(i));
             // If the memory does not accept the new record join should fail since buildOneBucket shall only be called for the buckets fit into memory
@@ -151,33 +151,31 @@ public class InMemoryThetaFlexibleJoiner {
     }
 
     public void initProbe(ITuplePairComparator comparator) {
-        //                StringBuilder a = new StringBuilder();
-        //                a.append("Bucket Counter From Build Side\n");
-        //                for(Integer bucketId: bucketMap.keySet()) {
-        //                    a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
-        //                }
-        //                System.out.println(a);
+        //                        StringBuilder a = new StringBuilder();
+        //                        a.append("Bucket Counter From Build Side\n");
+        //                        for(Integer bucketId: bucketMap.keySet()) {
+        //                            a.append(bucketId).append("\t").append(bucketMap.get(bucketId)).append("\n");
+        //                        }
+        //                        System.out.println(a);
         this.tpComparator = comparator;
     }
 
-    private byte[] intToByteArray(int value) {
-        return new byte[] { (byte) (value >>> 24), (byte) (value >>> 16), (byte) (value >>> 8), (byte) value };
-    }
-
-    public void probeOneBucket(ByteBuffer buffer, IFrameWriter writer, int startOffset, int endOffset)
-            throws HyracksDataException {
+    public void probeOneBucketOld(ByteBuffer buffer, IFrameWriter writer, int startOffset, int endOffset,
+            boolean writeToResult) throws HyracksDataException {
         accessorProbe.reset(buffer);
         int tupleCount = accessorProbe.getTupleCount();
         int numberOfBuckets = table.getNumEntries();
         int accessorIndex = 0;
         // for each record from S
+        //int bucketIdT = 0;
+        //int countAdded = 0;
         for (int i = 0; i < tupleCount; ++i) {
             boolean matched = false;
             //                        if(accessorProbe.getTupleStartOffset(i) < startOffset) continue;
             //                        if(endOffset != -1) {
             //                            if(accessorProbe.getTupleStartOffset(i) >= endOffset) break;
             //                        }
-            //            //int bucketIdT = FlexibleJoinsUtil.getBucketId(accessorProbe, i, 1);
+            //bucketIdT = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
             //bucketMatchCount.merge(bucketIdT, 1, Integer::sum);
 
             // Iterate over the buckets from bucket table
@@ -186,7 +184,7 @@ public class InMemoryThetaFlexibleJoiner {
                 memoryAccessor.reset(new TuplePointer(bucketInfo[1], bucketInfo[2]));
                 accessorIndex = bucketInfo[2];
                 // if buckets are matching
-                //TODO Here we are not able to reach the data from memory if the bucket is already spilled
+                numberOfMatchCalls++;
                 if (this.tpComparator.compare(memoryAccessor, accessorIndex, accessorProbe, i) < 1) {
                     matched = true;
                     // if the bucket is in memory join the records
@@ -202,20 +200,25 @@ public class InMemoryThetaFlexibleJoiner {
                         while (tupleCounter < memoryAccessor.getTupleCount()) {
                             first = false;
                             memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                            int bucketReadFromMem = FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
+                            int bucketReadFromMem =
+                                    FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
                             if (bucketReadFromMem != bucketInfo[0]) {
                                 finished = true;
                                 break;
                             }
-                            addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
+                            numberOfVerifyCalls++;
+                            if (writeToResult)
+                                addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
                             tupleCounter++;
+                            //countAdded++;
 
                         }
                         if (finished)
                             break;
                         frameCounter++;
                     }
-
+                    //System.out.println("Number of records added to result from bucket " + bucketInfo[0] + " x " + bucketIdT +  " : " + countAdded);
+                    //countAdded = 0;
                 }
             }
             if (!matched)
@@ -224,17 +227,86 @@ public class InMemoryThetaFlexibleJoiner {
 
     }
 
+    public void probeOneBucket(ByteBuffer buffer, IFrameWriter writer, int startOffset, int endOffset,
+                               boolean writeToResult) throws HyracksDataException {
+        accessorProbe.reset(buffer);
+        int tupleCount = accessorProbe.getTupleCount();
+        int numberOfBuckets = table.getNumEntries();
+        int accessorIndex = 0;
+        // for each record from S
+        //int bucketIdT = 0;
+        //int countAdded = 0;
+
+            //                        if(accessorProbe.getTupleStartOffset(i) < startOffset) continue;
+            //                        if(endOffset != -1) {
+            //                            if(accessorProbe.getTupleStartOffset(i) >= endOffset) break;
+            //                        }
+            //bucketIdT = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
+            //bucketMatchCount.merge(bucketIdT, 1, Integer::sum);
+
+            // Iterate over the buckets from bucket table
+            for (int bucketIndex = 0; bucketIndex < numberOfBuckets; bucketIndex++) {
+
+                int[] bucketInfo = table.getEntry(bucketIndex);
+                memoryAccessor.reset(new TuplePointer(bucketInfo[1], bucketInfo[2]));
+                accessorIndex = bucketInfo[2];
+
+                // if buckets are matching
+                numberOfMatchCalls++;
+                if (this.tpComparator.compare(memoryAccessor, accessorIndex, accessorProbe, 0) < 1) {
+                    for (int i = 0; i < tupleCount; ++i) {
+
+                    // if the bucket is in memory join the records
+                    int tupleCounter = bucketInfo[2];
+                    int frameCounter = bucketInfo[1];
+                    boolean finished = false;
+                    boolean first = true;
+
+                    while (frameCounter < bufferManager.getNumberOfFrames()) {
+                        if (!first) {
+                            tupleCounter = 0;
+                        }
+                        while (tupleCounter < memoryAccessor.getTupleCount()) {
+                            first = false;
+                            memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
+                            int bucketReadFromMem =
+                                    FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
+                            if (bucketReadFromMem != bucketInfo[0]) {
+                                finished = true;
+                                break;
+                            }
+                            numberOfVerifyCalls++;
+                            if (writeToResult)
+                                addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
+                            tupleCounter++;
+                            //countAdded++;
+
+                        }
+                        if (finished)
+                            break;
+                        frameCounter++;
+                    }
+                    //System.out.println("Number of records added to result from bucket " + bucketInfo[0] + " x " + bucketIdT +  " : " + countAdded);
+                    //countAdded = 0;
+                }
+            }
+        }
+
+    }
+
     public void completeProbe(IFrameWriter writer) throws HyracksDataException {
-        //                StringBuilder a = new StringBuilder();
-        //                a.append("Bucket Counter From Probe Side\n");
-        //                for(Integer bucketId: bucketMatchCount.keySet()) {
-        //                    a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
-        //                }
-        //                System.out.println(a);
+        //                        StringBuilder a = new StringBuilder();
+        //                        a.append("Bucket Counter From Probe Side\n");
+        //                        for(Integer bucketId: bucketMatchCount.keySet()) {
+        //                            a.append(bucketId).append("\t").append(bucketMatchCount.get(bucketId)).append("\n");
+        //                        }
+        //                        System.out.println(a);
+
         resultAppender.write(writer, true);
     }
 
     public void releaseResource() throws HyracksDataException {
+        bufferManager.reset();
         bufferManager.close();
         bufferManager = null;
 
@@ -244,9 +316,13 @@ public class InMemoryThetaFlexibleJoiner {
 
     private void addToResult(IFrameTupleAccessor buildAccessor, int buildTupleId, IFrameTupleAccessor probeAccessor,
             int probeTupleId, IFrameWriter writer) throws HyracksDataException {
-
-        FrameUtils.appendConcatToWriter(writer, resultAppender, buildAccessor, buildTupleId, probeAccessor,
-                probeTupleId);
+        if (reversed) {
+            FrameUtils.appendConcatToWriter(writer, resultAppender, probeAccessor, probeTupleId, buildAccessor,
+                    buildTupleId);
+        } else {
+            FrameUtils.appendConcatToWriter(writer, resultAppender, buildAccessor, buildTupleId, probeAccessor,
+                    probeTupleId);
+        }
 
     }
 
@@ -258,4 +334,11 @@ public class InMemoryThetaFlexibleJoiner {
         return table;
     }
 
+    public int getNumberOfMatchCalls() {
+        return numberOfMatchCalls;
+    }
+
+    public int getNumberOfVerifyCalls() {
+        return numberOfVerifyCalls;
+    }
 }

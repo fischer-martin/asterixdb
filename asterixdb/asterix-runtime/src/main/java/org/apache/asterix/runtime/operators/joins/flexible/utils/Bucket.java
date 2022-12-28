@@ -18,7 +18,7 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible.utils;
 
-public class Bucket implements IBucket {
+public class Bucket {
     final int bucketId;
     int startOffset;
     int endOffset;
@@ -35,12 +35,10 @@ public class Bucket implements IBucket {
         this.endFrame = endFrame;
     }
 
-    @Override
     public int getBucketId() {
         return bucketId;
     }
 
-    @Override
     public int getSide() {
         return side;
     }
