@@ -26,13 +26,13 @@ import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
 
-public class Weighted extends AbstractHeuristic {
+public class WeightedMax extends AbstractHeuristic {
 
     ArrayList<int[]> probingBucketSequence;
 
-    public Weighted(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize, RecordDescriptor buildRd,
-            RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys, boolean checkForRoleReversal,
-            boolean continueToCheckBuckets) throws HyracksDataException {
+    public WeightedMax(int memoryForJoin, int frameSize, long buildFileSize, long probeFileSize,
+            RecordDescriptor buildRd, RecordDescriptor probeRd, int[] buildKeys, int[] probeKeys,
+            boolean checkForRoleReversal, boolean continueToCheckBuckets) throws HyracksDataException {
         super(memoryForJoin, frameSize, buildFileSize, probeFileSize, buildRd, probeRd, buildKeys, probeKeys,
                 checkForRoleReversal, continueToCheckBuckets);
     }
@@ -619,18 +619,15 @@ public class Weighted extends AbstractHeuristic {
         double costR = 0;
         double costS = 0;
 
-        int theRestR = buildSizeInFrames - memoryForJoinInFrames;
-        int theRestS = probeSizeInFrames - memoryForJoinInFrames;
-
         ArrayList<ArrayList<ArrayList<int[]>>> K_S = new ArrayList<>();
         ArrayList<ArrayList<ArrayList<int[]>>> K_R = new ArrayList<>();
 
-        double[][] K_R_Values = new double[bucketsFromR.size() + 1][theRestR + 1];
-        double[][] K_S_Values = new double[bucketsFromS.size() + 1][theRestS + 1];
+        double[][] K_R_Values = new double[bucketsFromR.size() + 1][memoryForJoinInFrames + 1];
+        double[][] K_S_Values = new double[bucketsFromS.size() + 1][memoryForJoinInFrames + 1];
 
         for (int i = 0; i <= bucketsFromR.size(); i++) {
             K_R.add(new ArrayList<>());
-            for (int m = 0; m <= theRestR; m++) {
+            for (int m = 0; m <= memoryForJoinInFrames; m++) {
                 K_R.get(i).add(new ArrayList<>());
             }
         }
@@ -639,7 +636,7 @@ public class Weighted extends AbstractHeuristic {
             int sizeInFrames = 0;
             if (i > 0)
                 sizeInFrames = bucketsFromR.get(i - 1)[4] - bucketsFromR.get(i - 1)[2];
-            for (int m = 0; m <= theRestR; m++) {
+            for (int m = 0; m <= memoryForJoinInFrames; m++) {
                 if (i == 0 || m == 0) {
                     K_R_Values[i][m] = 0;
                 } else if (sizeInFrames <= m) {
@@ -657,19 +654,17 @@ public class Weighted extends AbstractHeuristic {
                     }
                 } else {
                     K_R_Values[i][m] = K_R_Values[i - 1][m];
-                    K_R.get(i).get(m).clear();
-                    K_R.get(i).get(m).addAll(K_R.get(i - 1).get(m));
                 }
             }
         }
 
-        costR = K_R_Values[bucketsFromR.size()][theRestR];
+        costR = K_R_Values[bucketsFromR.size()][memoryForJoinInFrames];
 
         if (checkForRoleReversal) {
 
             for (int i = 0; i <= bucketsFromS.size(); i++) {
                 K_S.add(new ArrayList<>());
-                for (int m = 0; m <= theRestS; m++) {
+                for (int m = 0; m <= memoryForJoinInFrames; m++) {
                     K_S.get(i).add(new ArrayList<>());
                 }
             }
@@ -678,7 +673,7 @@ public class Weighted extends AbstractHeuristic {
                 int sizeInFrames = 0;
                 if (i > 0)
                     sizeInFrames = bucketsFromS.get(i - 1)[4] - bucketsFromS.get(i - 1)[2];
-                for (int m = 0; m <= theRestS; m++) {
+                for (int m = 0; m <= memoryForJoinInFrames; m++) {
                     if (i == 0 || m == 0) {
                         K_S_Values[i][m] = 0;
                     } else if (sizeInFrames <= m) {
@@ -697,34 +692,28 @@ public class Weighted extends AbstractHeuristic {
                         }
                     } else {
                         K_S_Values[i][m] = K_S_Values[i - 1][m];
-                        K_S.get(i).get(m).clear();
-                        K_S.get(i).get(m).addAll(K_S.get(i - 1).get(m));
                     }
                 }
             }
-            costS = K_S_Values[bucketsFromS.size()][theRestS];
+            costS = K_S_Values[bucketsFromS.size()][memoryForJoinInFrames];
         }
 
         ArrayList<Bucket> returnBuckets = new ArrayList<>();
         ArrayList<int[]> removeList = new ArrayList<>();
 
         if (costR > costS) {
-            for (int[] b : bucketsFromR) {
-                if (!K_R.get(bucketsFromR.size()).get(theRestR).contains(b)) {
-                    removeList.add(b);
-                    returnBuckets.add(arrayToBucket(b, 0));
-                }
+            for (int[] b : K_R.get(bucketsFromR.size()).get(memoryForJoinInFrames)) {
+                removeList.add(b);
+                returnBuckets.add(arrayToBucket(b, 0));
             }
             bucketsFromR.removeAll(removeList);
             probingBucketSequence = bucketsFromS;
             roleReversal = false;
             totalCost += costR;
         } else {
-            for (int[] b : bucketsFromS) {
-                if (!K_S.get(bucketsFromS.size()).get(theRestS).contains(b)) {
-                    removeList.add(b);
-                    returnBuckets.add(arrayToBucket(b, 1));
-                }
+            for (int[] b : K_S.get(bucketsFromS.size()).get(memoryForJoinInFrames)) {
+                removeList.add(b);
+                returnBuckets.add(arrayToBucket(b, 1));
             }
             bucketsFromS.removeAll(removeList);
             probingBucketSequence = bucketsFromR;
@@ -766,6 +755,6 @@ public class Weighted extends AbstractHeuristic {
     }
 
     public String getHeuristicName() {
-        return "weighted" + (checkForRoleReversal ? "-r" : "") + (!continueToCheckBuckets ? "-s" : "");
+        return "weighted-max" + (checkForRoleReversal ? "-r" : "") + (!continueToCheckBuckets ? "-s" : "");
     }
 }

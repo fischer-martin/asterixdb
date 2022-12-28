@@ -57,7 +57,7 @@ public class GlobalSummaryOneAggregateDescriptor extends AbstractSummaryOneAggre
 
     @Override
     public IExternalFunctionInfo getFunctionInfo() {
-        return null;
+        return finfo;
     }
 
     @Override

@@ -145,7 +145,7 @@ public class FlexibleJoiner {
 
     public void processBuildClose() throws HyracksDataException {
 
-        table = new SerializableBucketIdList(buildTupleCounter, ctx, bufferManagerForHashTable);
+        table = new SerializableBucketIdList(ctx, bufferManagerForHashTable);
 
         runFileStream.flushRunFile();
         runFileStream.startReadingRunFile(inputCursor[BUILD_PARTITION]);

@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsSideTuple;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.memory.FlexibleJoinsUtil;
+import org.apache.asterix.runtime.operators.joins.interval.utils.memory.FrameTupleCursor;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFilePointer;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
 import org.apache.hyracks.api.comm.IFrameTupleAccessor;
@@ -42,10 +43,11 @@ import org.apache.hyracks.dataflow.std.buffermanager.DeallocatableFramePool;
 import org.apache.hyracks.dataflow.std.buffermanager.FramePoolBackedFrameBufferManager;
 import org.apache.hyracks.dataflow.std.buffermanager.IDeallocatableFramePool;
 import org.apache.hyracks.dataflow.std.buffermanager.ISimpleFrameBufferManager;
+import org.apache.hyracks.dataflow.std.buffermanager.ITuplePointerAccessor;
 import org.apache.hyracks.dataflow.std.structures.SerializableBucketIdList;
 import org.apache.hyracks.dataflow.std.structures.TuplePointer;
 
-public class ThetaFlexibleJoiner {
+public class ThetaFlexibleJoinerOneRun {
 
     private final RunFileStream runFileStreamForBuild;
     private final RunFilePointer runFilePointerForBuild;
@@ -71,11 +73,11 @@ public class ThetaFlexibleJoiner {
 
     private ISimpleFrameBufferManager bufferManagerForHashTable;
     private BucketBufferManager bufferManager;
-    //private ITuplePointerAccessor memoryAccessor;
-    private FrameTupleAccessor memoryAccessor;
+    private ITuplePointerAccessor memoryAccessor;
 
     private final FrameTupleAccessor accessorBuild;
     private final FrameTupleAccessor accessorProbe;
+    private final FrameTupleCursor frameTupleCursor;
     private final TuplePointer tempPtr = new TuplePointer();
 
     private ITuplePairComparator tpComparator;
@@ -108,9 +110,8 @@ public class ThetaFlexibleJoiner {
 
     private int[] buildKeys;
     private int[] probeKeys;
-    private int numberOfMatchCalls = 0;
 
-    public ThetaFlexibleJoiner(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd,
+    public ThetaFlexibleJoinerOneRun(IHyracksTaskContext ctx, int memorySize, RecordDescriptor buildRd,
             RecordDescriptor probeRd, String probeRelName, String buildRelName, int[] buildKeys, int[] probeKeys,
             IPredicateEvaluator predEval) throws HyracksDataException {
 
@@ -142,6 +143,7 @@ public class ThetaFlexibleJoiner {
         this.memSizeInFrames = memorySize;
         this.accessorBuild = new FrameTupleAccessor(buildRd);
         this.accessorProbe = new FrameTupleAccessor(probeRd);
+        this.frameTupleCursor = new FrameTupleCursor(buildRd);
 
         this.buildRelName = buildRelName;
         this.probeRelName = probeRelName;
@@ -155,8 +157,7 @@ public class ThetaFlexibleJoiner {
         table = new SerializableBucketIdList(ctx, bufferManagerForHashTable);
 
         this.bufferManager = new BucketBufferManager(framePool, buildRd);
-        //this.memoryAccessor = bufferManager.createTuplePointerAccessor();
-        this.memoryAccessor = new FrameTupleAccessor(buildRd);
+        this.memoryAccessor = bufferManager.createTuplePointerAccessor();
 
         this.memoryOpen = true;
         this.spilled = false;
@@ -258,8 +259,9 @@ public class ThetaFlexibleJoiner {
             b.append(bucketId).append("\t").append(spilledBucketMap.get(bucketId)).append("\n");
         }
         System.out.println(b);*/
-        //table.printInfo();
+        table.printInfo();
         runFileStreamForBuild.flushRunFile();
+        runFileStreamForBuild.startReadingRunFile(frameTupleCursor);
     }
 
     private TuplePointer spillStartingFrom(TuplePointer tuplePointer) throws HyracksDataException {
@@ -315,9 +317,8 @@ public class ThetaFlexibleJoiner {
     }
 
     public void initProbe(ITuplePairComparator comparator) {
-
+        //table.printInfo();
         this.tpComparator = comparator;
-        this.numberOfMatchCalls = 0;
     }
 
     private byte[] intToByteArray(int value) {
@@ -331,18 +332,17 @@ public class ThetaFlexibleJoiner {
 
         IFrameTupleAccessor iFrameTupleAccessor = null;
         IFrameTupleAccessor dumpTupleAccessorForBucket1 = new FrameTupleAccessor(buildRd);
-        //int accessorIndex = 0;
-        //int bucketCheck = 0;
-        //currentBucketId = -1;
+        int accessorIndex = 0;
+        int bucketCheck = 0;
+        currentBucketId = -1;
         //For each s from S
-        //table.printInfo();
         for (int i = 0; i < tupleCount; ++i) {
 
-            //int probeBucketId = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
-            //if (probeBucketId != currentBucketId) {
-            //    bucketCheck = 0;
-            //currentBucketId = probeBucketId;
-            //}
+            int probeBucketId = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
+            if (probeBucketId != currentBucketId) {
+                bucketCheck = 0;
+                currentBucketId = probeBucketId;
+            }
             boolean writtenToDisk = false;
             //For each bucket from bucket table
             for (int bucketIndex = 0; bucketIndex < numberOfBuckets; bucketIndex++) {
@@ -365,103 +365,54 @@ public class ThetaFlexibleJoiner {
                 dumpTupleAccessorForBucket1.reset(buff);
                 iFrameTupleAccessor = dumpTupleAccessorForBucket1;
                 //}
-                //int bucki = FlexibleJoinsUtil.getBucketId(iFrameTupleAccessor, 0, 1);
+                int bucki = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
                 //If buckets are matching
-                numberOfMatchCalls++;
                 if (this.tpComparator.compare(iFrameTupleAccessor, 0, accessorProbe, i) < 1) {
 
                     //bucketCheck = bucketCheck | (1 << bucketIndex);
                     //If the building bucket is in memory we join the records
                     if (bucketInfo[1] > -1) {
-                        int tupleStart = bucketInfo[2];
+                        int tupleCounter = bucketInfo[2];
                         int frameCounter = bucketInfo[1];
-                        boolean firstFrame = true;
-                        TuplePointer nextBucket = table.getNextBuildTPFromMemory(bucketIndex);
-                        if (nextBucket.getFrameIndex() == -1) {
-                            nextBucket.reset(bufferManager.getNumberOfFrames() - 1, -1);
-                        }
-                        while (frameCounter <= nextBucket.getFrameIndex()) {
-                            bufferManager.getFrame(frameCounter, tempInfo);
-                            memoryAccessor.reset(tempInfo.getBuffer());
-                            int tupleCounter = firstFrame ? tupleStart : 0;
-                            int tupleStop =
-                                    (frameCounter == nextBucket.getFrameIndex() && nextBucket.getTupleIndex() != -1)
-                                            ? nextBucket.getTupleIndex() : memoryAccessor.getTupleCount();
-                            while (tupleCounter < tupleStop) {
+                        memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
+                        boolean finished = false;
+                        boolean first = true;
+                        while (frameCounter < bufferManager.getNumberOfFrames()) {
+                            if (!first) {
+                                tupleCounter = 0;
+                            }
+                            while (tupleCounter < memoryAccessor.getTupleCount()) {
+                                first = false;
+                                memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
+                                int bucketReadFromMem =
+                                        FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
+                                if (bucketReadFromMem != bucketInfo[0]) {
+                                    finished = true;
+                                    break;
+                                }
                                 addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
                                 tupleCounter++;
+
                             }
-                            firstFrame = false;
+                            if (finished)
+                                break;
                             frameCounter++;
                         }
-                        ////                        boolean firstFrame = true;
-                        ////                        int tIndex = bucketInfo[2];
-                        ////                        int frameCounter = bucketInfo[1];
-                        ////
-                        ////                        TuplePointer nextBucket = table.getNextBuildTPFromMemory(bucketIndex);
-                        ////                        while (frameCounter <= nextBucket.getFrameIndex()) {
-                        ////                            bufferManager.getFrame(frameCounter, tempInfo);
-                        ////                            memoryAccessor.reset(tempInfo.getBuffer());
-                        ////                            int tupleCounter = firstFrame ? tIndex : 0;
-                        ////                            int tupleStop = frameCounter == nextBucket.getFrameIndex()?nextBucket.getTupleIndex():memoryAccessor.getTupleCount();
-                        ////                            if (firstFrame) {
-                        ////                                firstFrame = false;
-                        ////                            }
-                        ////                            while (tupleCounter < tupleStop) {
-                        ////                                addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
-                        ////                                tupleCounter++;
-                        ////
-                        ////                            }
-                        ////                            frameCounter++;
-                        ////                        }
+                    } else {
+                        int startFrame = -(bucketInfo[1] + 1);
+                        long endFrame = table.getNextBuildStartFrameIdxFromDisk(startFrame);
 
-                        //                        int tupleStart = bucketInfo[2];
-                        //                        int frameCounter = bucketInfo[1];
-                        //                        TuplePointer nextBucket = table.getNextBuildTPFromMemory(bucketIndex);
-                        //                        //memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                        //                        boolean finished = false;
-                        //                        boolean first = true;
-                        //
-                        //                        while (frameCounter < bufferManager.getNumberOfFrames()) {
-                        //                            int tupleCounter = first ? tupleStart : 0;
-                        //                            memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                        //
-                        //                            first = false;
-                        //                            while (tupleCounter < memoryAccessor.getTupleCount()) {
-                        //
-                        //                                memoryAccessor.reset(new TuplePointer(frameCounter, tupleCounter));
-                        //                                int bucketReadFromMem =
-                        //                                        FlexibleJoinsUtil.getBucketId(memoryAccessor, tupleCounter, buildKeys[0]);
-                        //                                if (bucketReadFromMem != bucketInfo[0]) {
-                        //                                    finished = true;
-                        //                                    break;
-                        //                                }
-                        //                                addToResult(memoryAccessor, tupleCounter, accessorProbe, i, writer);
-                        //                                tupleCounter++;
-                        //
-                        //                            }
-                        //                            if (finished)
-                        //                                break;
-                        //                            frameCounter++;
-                        //                        }
-                    } else if (!writtenToDisk) {
-                        int probeBucketId = FlexibleJoinsUtil.getBucketId(accessorProbe, i, probeKeys[0]);
-                        TuplePointer tuplePointerTester = table.getProbeTuplePointer(probeBucketId);
-                        boolean isBucketNew = (tuplePointerTester == null) || (tuplePointerTester.getFrameIndex() == -1
-                                && tuplePointerTester.getTupleIndex() == -1);
-                        //If the building bucket is on disk, we need to write s to disk but only once
-                        TuplePointer tuplePointerForProbeDiskFile = new TuplePointer();
-                        runFileStreamForProbe.addToRunFile(accessorProbe, i, tuplePointerForProbeDiskFile, isBucketNew);
-
-                        if (tuplePointerTester == null) {
-                            // set the tuple pointer for probe side as it locates it on disk
-                            table.insert(probeBucketId, new TuplePointer(), tuplePointerForProbeDiskFile);
-                        } else if (tuplePointerTester.getFrameIndex() == -1
-                                && tuplePointerTester.getTupleIndex() == -1) {
-                            table.updateProbeBucket(probeBucketId, tuplePointerForProbeDiskFile);
+                        runFileStreamForBuild.seekToAPosition((long) startFrame * ctx.getInitialFrameSize());
+                        int currentFrame = startFrame;
+                        while (currentFrame < endFrame) {
+                            if (!runFileStreamForBuild.loadNextBuffer(frameTupleCursor))
+                                break;
+                            for (int tupleIdx = 0; tupleIdx < frameTupleCursor.getAccessor()
+                                    .getTupleCount(); tupleIdx++) {
+                                addToResult(frameTupleCursor.getAccessor(), tupleIdx, accessorProbe, i, writer);
+                            }
+                            currentFrame++;
                         }
-                        writtenToDisk = true;
-                        this.spilled = true;
                     }
                 }
 
@@ -528,7 +479,4 @@ public class ThetaFlexibleJoiner {
         return table;
     }
 
-    public int getNumberOfMatchCalls() {
-        return numberOfMatchCalls;
-    }
 }

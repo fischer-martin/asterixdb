@@ -80,9 +80,8 @@ public abstract class AbstractSummaryOneAggregateFunction extends AbstractAggreg
         super(sourceLoc);
         this.eval = args[0].createScalarEvaluator(context);
         this.context = context;
-        this.aggFieldType = aggFieldType;
         this.finfo = finfo;
-        this. aggFieldType = aggFieldType;
+        this.aggFieldType = aggFieldType;
         classLoader = getFlexibleJoinClassLoader((ExternalFJFunctionInfo) finfo, context);
         try {
             FlexibleJoin<?, ?> flexibleJoin = getFlexibleJoin((ExternalFJFunctionInfo) finfo, classLoader);

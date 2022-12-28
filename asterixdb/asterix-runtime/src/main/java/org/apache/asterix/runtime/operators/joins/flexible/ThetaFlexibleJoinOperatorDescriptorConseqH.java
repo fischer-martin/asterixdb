@@ -18,20 +18,11 @@
  */
 package org.apache.asterix.runtime.operators.joins.flexible;
 
-import java.io.File; // Import the File class
-import java.io.FileNotFoundException; // Import this class to handle errors
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Scanner; // Import the Scanner class to read text files
-
 import org.apache.asterix.runtime.operators.joins.flexible.utils.Bucket;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.IHeuristicForThetaJoin;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.BigFirst;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.FirstFit;
 import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.SmallFirst;
-import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.Degree;
-import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.Weighted;
-import org.apache.asterix.runtime.operators.joins.flexible.utils.heuristics.WeightedMax;
 import org.apache.asterix.runtime.operators.joins.interval.utils.memory.RunFileStream;
 import org.apache.hyracks.api.comm.IFrame;
 import org.apache.hyracks.api.comm.VSizeFrame;
@@ -58,7 +49,13 @@ import org.apache.hyracks.dataflow.std.base.AbstractUnaryInputUnaryOutputOperato
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescriptor {
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Scanner;
+
+public class ThetaFlexibleJoinOperatorDescriptorConseqH extends AbstractOperatorDescriptor {
 
     private static final long serialVersionUID = 1L;
 
@@ -81,10 +78,10 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
     private final double fudgeFactor;
     private final String heuristic;
 
-    public ThetaFlexibleJoinOperatorDescriptor(IOperatorDescriptorRegistry spec, int memoryForJoin, int[] buildKeys,
-            int[] probeKeys, RecordDescriptor recordDescriptor, ITuplePairComparatorFactory tupPaircomparatorFactory01,
-            ITuplePairComparatorFactory tupPaircomparatorFactory10, IPredicateEvaluatorFactory predEvaluatorFactory,
-            double fudgeFactor, String heuristic) {
+    public ThetaFlexibleJoinOperatorDescriptorConseqH(IOperatorDescriptorRegistry spec, int memoryForJoin, int[] buildKeys,
+                                                      int[] probeKeys, RecordDescriptor recordDescriptor, ITuplePairComparatorFactory tupPaircomparatorFactory01,
+                                                      ITuplePairComparatorFactory tupPaircomparatorFactory10, IPredicateEvaluatorFactory predEvaluatorFactory,
+                                                      double fudgeFactor, String heuristic) {
         super(spec, 2, 1);
 
         this.predEvaluatorFactory = predEvaluatorFactory;
@@ -391,182 +388,222 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                         //System.out.println("IORand:" + IORand);
                         //Create an instance of a heuristic with table and two file streams*/
 
-                        //for (int stepForMemoryIncrease = 0; stepForMemoryIncrease < 20; stepForMemoryIncrease++) {
+                        //IHeuristicForThetaJoin heuristicForThetaJoin;
 
-                        //    int memoryForJoinToPassHeuristics = (int) (memoryForJoin + (stepForMemoryIncrease * (runFileStreams[0].getWriteCount() / 20)));
-                            IHeuristicForThetaJoin heuristicForThetaJoin;
-                            //int memoryForJoinToPassHeuristics = (int) runFileStreams[0].getWriteCount() + 2;
-                            int memoryForJoinToPassHeuristics = memoryForJoin - 1;
+                        /*switch (heuristic) {
+                            case "biggest-first":
+                                heuristicForThetaJoin = new BigFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, true);
+                                break;
+                            case "biggest-first-r":
+                                heuristicForThetaJoin = new BigFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, true);
+                                break;
+                            case "biggest-first-s":
+                                heuristicForThetaJoin = new BigFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, false);
+                                break;
+                            case "biggest-first-r-s":
+                                heuristicForThetaJoin = new BigFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, false);
+                                break;
+                            case "smallest-first":
+                                heuristicForThetaJoin = new SmallFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, true);
+                                break;
+                            case "smallest-first-r":
+                                heuristicForThetaJoin = new SmallFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, true);
+                                break;
+                            case "smallest-first-s":
+                                heuristicForThetaJoin = new SmallFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, false);
+                                break;
+                            case "smallest-first-r-s":
+                                heuristicForThetaJoin = new SmallFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, false);
+                                break;
+                            case "first-fit":
+                                heuristicForThetaJoin = new FirstFit(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, true);
+                                break;
+                            case "first-fit-r":
+                                heuristicForThetaJoin = new FirstFit(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, true);
+                                break;
+                            case "first-fit-s":
+                                heuristicForThetaJoin = new FirstFit(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, false);
+                                break;
+                            case "first-fit-r-s":
+                                heuristicForThetaJoin = new FirstFit(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, false);
+                                break;
+                            case "weighted":
+                                heuristicForThetaJoin = new Weighted(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, true);
+                                break;
+                            case "weighted-r":
+                                heuristicForThetaJoin = new Weighted(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, true);
+                                break;
+                            case "weighted-max":
+                                heuristicForThetaJoin = new WeightedMax(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, true);
+                                break;
+                            case "weighted-max-r":
+                                heuristicForThetaJoin = new WeightedMax(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, true);
+                                break;
+                            case "degree":
+                                heuristicForThetaJoin = new Degree(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, false);
+                                break;
+                            case "degree-r":
+                                heuristicForThetaJoin = new Degree(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, false);
+                                break;
+                            case "degree-s":
+                                heuristicForThetaJoin = new Degree(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, false, true);
+                                break;
+                            case "degree-r-s":
+                                heuristicForThetaJoin = new Degree(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, true);
+                                break;
+                            default:
+                                heuristicForThetaJoin = new BigFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                        runFileStreams[0].getRunFileReaderSize(),
+                                        runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                        probeKeys, true, true);
+                                break;
+                        }*/
 
+                        IHeuristicForThetaJoin[] heuristics = new IHeuristicForThetaJoin[6];
 
-                            switch (heuristic) {
-                                case "biggest-first":
-                                    heuristicForThetaJoin = new BigFirst(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, false, true);
-                                    break;
-                                case "biggest-first-r":
-                                    heuristicForThetaJoin = new BigFirst(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, true, true);
-                                    break;
-                                case "biggest-first-s":
-                                    heuristicForThetaJoin = new BigFirst(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, false, false);
-                                    break;
-                                case "biggest-first-r-s":
-                                    heuristicForThetaJoin = new BigFirst(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, true, false);
-                                    break;
-                                case "smallest-first":
-                                    heuristicForThetaJoin = new SmallFirst(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, false, true);
-                                    break;
-                                case "smallest-first-r":
-                                    heuristicForThetaJoin = new SmallFirst(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, true, true);
-                                    break;
-                                case "smallest-first-s":
-                                    heuristicForThetaJoin = new SmallFirst(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, false, false);
-                                    break;
-                                case "smallest-first-r-s":
-                                    heuristicForThetaJoin = new SmallFirst(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, true, false);
-                                    break;
-                                case "first-fit":
-                                    heuristicForThetaJoin = new FirstFit(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, false, true);
-                                    break;
-                                case "first-fit-r":
-                                    heuristicForThetaJoin = new FirstFit(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, true, true);
-                                    break;
-                                case "first-fit-s":
-                                    heuristicForThetaJoin = new FirstFit(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, false, false);
-                                    break;
-                                case "first-fit-r-s":
-                                    heuristicForThetaJoin = new FirstFit(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, true, false);
-                                    break;
-                                case "weighted":
-                                    heuristicForThetaJoin = new Weighted(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, false, true);
-                                    break;
-                                case "weighted-r":
-                                    heuristicForThetaJoin = new Weighted(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, true, true);
-                                    break;
-                                case "weighted-max":
-                                    heuristicForThetaJoin = new WeightedMax(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, false, true);
-                                    break;
-                                case "weighted-max-r":
-                                    heuristicForThetaJoin = new WeightedMax(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, true, true);
-                                    break;
-                                case "degree":
-                                    heuristicForThetaJoin = new Degree(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, false, true);
-                                    break;
-                                case "degree-r":
-                                    heuristicForThetaJoin = new Degree(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, true, true);
-                                    break;
-                                case "degree-s":
-                                    heuristicForThetaJoin = new Degree(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, false, false);
-                                    break;
-                                case "degree-r-s":
-                                    heuristicForThetaJoin = new Degree(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, true, false);
-                                    break;
-                                default:
-                                    heuristicForThetaJoin = new BigFirst(memoryForJoinToPassHeuristics, ctx.getInitialFrameSize(),
-                                            runFileStreams[0].getRunFileReaderSize(),
-                                            runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
-                                            probeKeys, true, true);
-                                    break;
-                            }
+                        heuristics[5] = new BigFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                runFileStreams[0].getRunFileReaderSize(), runFileStreams[1].getRunFileReaderSize(),
+                                buildRd, probeRd, buildKeys, probeKeys, true, false);
 
-                        /*StringBuilder[] fileContents = new StringBuilder[20];
-                        for(int fcIdx = 0; fcIdx < fileContents.length; fcIdx++) {
-                            fileContents[fcIdx] = new StringBuilder();
-                        }
+                        heuristics[4] = new BigFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                runFileStreams[0].getRunFileReaderSize(), runFileStreams[1].getRunFileReaderSize(),
+                                buildRd, probeRd, buildKeys, probeKeys, true, true);
 
-                        //StringBuilder fileContent6 = new StringBuilder();
-                        //StringBuilder fileContent7 = new StringBuilder();
-                        //StringBuilder fileContent8 = new StringBuilder();
-                        try {
-                            File myObj = new File("/Users/akilsevim/PycharmProjects/ScatterPloter/x.csv");
-                            Scanner myReader = new Scanner(myObj);
-                            while (myReader.hasNextLine()) {
-                                String line = myReader.nextLine();
-                                for(int fcIdx = 0; fcIdx < fileContents.length; fcIdx++) {
-                                    fileContents[fcIdx].append(line);
+                        heuristics[3] = new SmallFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                runFileStreams[0].getRunFileReaderSize(), runFileStreams[1].getRunFileReaderSize(),
+                                buildRd, probeRd, buildKeys, probeKeys, true, false);
+
+                        heuristics[2] = new SmallFirst(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                runFileStreams[0].getRunFileReaderSize(), runFileStreams[1].getRunFileReaderSize(),
+                                buildRd, probeRd, buildKeys, probeKeys, true, true);
+
+                        heuristics[1] = new FirstFit(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                runFileStreams[0].getRunFileReaderSize(), runFileStreams[1].getRunFileReaderSize(),
+                                buildRd, probeRd, buildKeys, probeKeys, true, false);
+
+                        heuristics[0] = new FirstFit(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                runFileStreams[0].getRunFileReaderSize(), runFileStreams[1].getRunFileReaderSize(),
+                                buildRd, probeRd, buildKeys, probeKeys, true, true);
+
+                        /*heuristics[3] = new Degree(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                runFileStreams[0].getRunFileReaderSize(),
+                                runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                probeKeys, true, true);
+                        
+                        heuristics[4] = new WeightedMax(memoryForJoin - 1, ctx.getInitialFrameSize(),
+                                runFileStreams[0].getRunFileReaderSize(),
+                                runFileStreams[1].getRunFileReaderSize(), buildRd, probeRd, buildKeys,
+                                probeKeys, true, true);*/
+
+                        StringBuilder sb = new StringBuilder();
+
+                        sb.append(
+                                "\nHeuristic\tJoining Time(ms)\tIO Cost\tMatch Calls\tVerify Calls\tPartition\tH. Time");
+
+                        for (IHeuristicForThetaJoin heuristicForThetaJoin : heuristics) {
+                            StringBuilder fileContent = new StringBuilder();
+                            StringBuilder fileContent1 = new StringBuilder();
+                            StringBuilder fileContent2 = new StringBuilder();
+                            StringBuilder fileContent3 = new StringBuilder();
+                            StringBuilder fileContent4 = new StringBuilder();
+                            StringBuilder fileContent5 = new StringBuilder();
+                            //StringBuilder fileContent6 = new StringBuilder();
+                            //StringBuilder fileContent7 = new StringBuilder();
+                            //StringBuilder fileContent8 = new StringBuilder();
+                            try {
+                                File myObj = new File("/Volumes/Samsung_T5/user_dedup_1M.json");
+                                Scanner myReader = new Scanner(myObj);
+                                while (myReader.hasNextLine()) {
+                                    String line = myReader.nextLine();
+                                    fileContent.append(line);
+                                    fileContent1.append(line);
+                                    fileContent2.append(line);
+                                    fileContent3.append(line);
+                                    fileContent4.append(line);
+                                    fileContent5.append(line);
                                     //fileContent6.append(line);
                                     //fileContent7.append(line);
                                     //fileContent8.append(line);
                                 }
+                                //                                File myObj2 = new File("tfj-build.waf");
+                                //                                Scanner myReader2 = new Scanner(myObj2);
+                                //                                while (myReader2.hasNextLine()) {
+                                //                                    fileContent.append(myReader2.nextLine());
+                                //                                }
+                                myReader.close();
+                                LOGGER.info("Loaded File Size: " + (long)(fileContent.length()+
+                                        fileContent1.length()+
+                                        fileContent2.length()+
+                                        fileContent3.length()+
+                                        fileContent4.length()+
+                                        fileContent5.length()));
+                                        //fileContent6.length()+
+                                        //fileContent7.length()+
+                                        //fileContent8.length()));
+                            } catch (FileNotFoundException e) {
+                                System.out.println("An error occurred.");
+                                e.printStackTrace();
                             }
-                            //                                File myObj2 = new File("tfj-build.waf");
-                            //                                Scanner myReader2 = new Scanner(myObj2);
-                            //                                while (myReader2.hasNextLine()) {
-                            //                                    fileContent.append(myReader2.nextLine());
-                            //                                }
-                            myReader.close();
-                            LOGGER.info("Loaded File Size: " + ((long)fileContents[0].length() * (long)fileContents.length));
-                            //fileContent6.length()+
-                            //fileContent7.length()+
-                            //fileContent8.length()));
-                        } catch (FileNotFoundException e) {
-                            System.out.println("An error occurred.");
-                            e.printStackTrace();
-                        }*/
-
-                            StringBuilder sb = new StringBuilder();
-
-                            sb.append(
-                                    "\nHeuristic\tJoining Time(ms)\tIO Cost\tMatch Calls\tVerify Calls\tPartition\tH. Time\tMemory in Frames\tBuilding Buckets\tProbing Buckets");
 
                             long heuristicStarts = System.nanoTime();
                             heuristicForThetaJoin.setComparator(probComp);
@@ -583,22 +620,17 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                             int iteration = 1;
                             int numberOfMatchCalls = 0;
                             int numberOfVerifyCalls = 0;
-
-                            int numberOfBucketsFromBuild = 0;
-                            int numberOfBucketsFromProbe = 0;
-
                             while (heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
                                 //state.joiner.getBucketTable().printInfo();
                                 //get the building sequence buildSeq
                                 ArrayList<Bucket> buildingBuckets = heuristicForThetaJoin.nextBuildingBucketSequence();
-                                numberOfBucketsFromBuild += buildingBuckets.size();
                                 //LOGGER.info("Iteration " + iteration + ": Number of buckets " + buildingBuckets.size()
                                 //+ " from side " + buildingBuckets.get(0).getSide());
 
                                 //for each bucket from this sequence
                                 InMemoryThetaFlexibleJoiner inMemoryThetaFlexibleJoiner = null;
                                 for (int i = 0, buildingBucketsSize =
-                                     buildingBuckets.size(); i < buildingBucketsSize; i++) {
+                                        buildingBuckets.size(); i < buildingBucketsSize; i++) {
                                     Bucket buildingBucket = buildingBuckets.get(i);
                                     int frameSize = ctx.getInitialFrameSize();
                                     IFrame frame = new VSizeFrame(ctx, frameSize);
@@ -626,11 +658,11 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                         if (inMemoryThetaFlexibleJoiner == null) {
                                             if (buildingBucket.getSide() == 0) {
                                                 inMemoryThetaFlexibleJoiner = new InMemoryThetaFlexibleJoiner(ctx,
-                                                        memoryForJoinToPassHeuristics + 1, buildRd, probeRd, buildKeys, probeKeys,
+                                                        memoryForJoin, buildRd, probeRd, buildKeys, probeKeys,
                                                         buildingBuckets.size(), false);
                                             } else {
                                                 inMemoryThetaFlexibleJoiner = new InMemoryThetaFlexibleJoiner(ctx,
-                                                        memoryForJoinToPassHeuristics + 1, probeRd, buildRd, probeKeys, buildKeys,
+                                                        memoryForJoin, probeRd, buildRd, probeKeys, buildKeys,
                                                         buildingBuckets.size(), true);
                                             }
                                         }
@@ -663,8 +695,6 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
 
                                 //get the probing sequence
                                 ArrayList<Bucket> probingBuckets = heuristicForThetaJoin.nextProbingBucketSequence();
-
-                                numberOfBucketsFromProbe += probingBuckets.size();
 
                                 int probingSide = 1 - buildingBuckets.get(0).getSide();
                                 if (probingSide == 1)
@@ -708,16 +738,20 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                                 numberOfMatchCalls += inMemoryThetaFlexibleJoiner.getNumberOfMatchCalls();
                                 numberOfVerifyCalls += inMemoryThetaFlexibleJoiner.getNumberOfVerifyCalls();
 
-                                inMemoryThetaFlexibleJoiner.completeProbe(writer);
+                                //inMemoryThetaFlexibleJoiner.completeProbe(writer);
 
                                 inMemoryThetaFlexibleJoiner.releaseResource();
 
                                 //state.joiner.getBucketTable().printInfo();
                                 iteration++;
+                            }
 
-
-                                //System.out.println("Total calculated cost:" + ((Weighted) heuristicForThetaJoin).getTotalCost());
-                                //}
+                            sb.append("\n" + heuristicForThetaJoin.getHeuristicName() + "\t"
+                                    + (System.nanoTime() - startJoining) / 1000000 + "\t"
+                                    + heuristicForThetaJoin.getTotalCost() + "\t" + numberOfMatchCalls + "\t"
+                                    + numberOfVerifyCalls + "\t" + partition + "\t" + hFinished);
+                            //System.out.println("Total calculated cost:" + ((Weighted) heuristicForThetaJoin).getTotalCost());
+                            //}
                             /*while (heuristicForThetaJoin.hasNextBuildingBucketSequence()) {
                             //state.joiner.getBucketTable().printInfo();
                             //get the building sequence buildSeq
@@ -859,17 +893,9 @@ public class ThetaFlexibleJoinOperatorDescriptor extends AbstractOperatorDescrip
                             }
                             
                             //System.out.println("Total calculated cost:" + ((Weighted) heuristicForThetaJoin).getTotalCost());*/
-                                //LOGGER.info(inMemoryThetaFlexibleJoiner.getNumberOfMatchCalls() + "\t" + inMemoryThetaFlexibleJoiner.getNumberOfVerifyCalls() + "\t" + buildingBuckets.size() + "\t" + probingBuckets.size());
-                            }
-                            sb.append("\n" + heuristicForThetaJoin.getHeuristicName() + "\t"
-                                    + (System.nanoTime() - startJoining) / 1000000 + "\t"
-                                    + heuristicForThetaJoin.getTotalCost() + "\t" + numberOfMatchCalls + "\t"
-                                    + numberOfVerifyCalls + "\t" + partition + "\t" + hFinished + "\t"
-                                    + memoryForJoinToPassHeuristics + "\t"
-                                    + numberOfBucketsFromBuild + "\t"
-                                    + numberOfBucketsFromProbe);
-                            LOGGER.info(sb);
-                        //}
+                        }
+
+                        LOGGER.info(sb);
                     }
 
                     writer.close();
