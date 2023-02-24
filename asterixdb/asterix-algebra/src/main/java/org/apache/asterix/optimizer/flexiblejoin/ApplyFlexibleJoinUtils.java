@@ -524,7 +524,7 @@ public class ApplyFlexibleJoinUtils {
         ReplicateOperator replicateOperator = createReplicateOperator(inputOp, context, sourceLocation, 2);
 
         // Create one to one exchange operators for the replicator of the input branch
-        ExchangeOperator exchToForward = createOneToOneExchangeOp(replicateOperator, context, sourceLocation);
+        ExchangeOperator exchToForward = createRandomPartitionExchangeOp(replicateOperator, context, sourceLocation);
         MutableObject<ILogicalOperator> exchToForwardRef = new MutableObject<>(exchToForward);
 
         ExchangeOperator exchToLocalAgg = createOneToOneExchangeOp(replicateOperator, context, op.getSourceLocation());
