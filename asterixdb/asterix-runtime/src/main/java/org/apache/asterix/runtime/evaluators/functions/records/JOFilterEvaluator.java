@@ -1,20 +1,24 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * The MIT License (MIT)
+ * Copyright (c) 2021 Thomas Huetter.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 package org.apache.asterix.runtime.evaluators.functions.records;
 
@@ -44,6 +48,19 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
+
+/*
+ * This class is based on the JOFilter's reference implementation as presented in the 'tree-similarity' repository
+ * (https://github.com/DatabaseGroup/tree-similarity) maintained by the Database Research Group at the University of
+ * Salzburg. The original implementation can be found at
+ * https://github.com/DatabaseGroup/tree-similarity/blob/19bab382d968464ff53bd63f8e12e83d941c9430/src/json/jofilter_index_impl.h.
+ *
+ * Significant changes are:
+ * - a port of the implementation from C++ to Java and
+ * - changes necessary to make the implementation work/fit better into the AsterixDB ecosystem. These include (but are not limited to):
+ *      - Building (and organizing) trees in a fashion similiar to the already existing mechanism for building JSON trees and
+ *      - reusing data structures whenever possible.
+ */
 
 public class JOFilterEvaluator implements IScalarEvaluator {
     protected final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
